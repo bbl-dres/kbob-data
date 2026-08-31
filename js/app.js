@@ -1,8 +1,12 @@
 /* Navigation, Filter und Start.
 
-   Der Pfad Quelle → Objekttyp → Attribut steuert, was gezeigt wird. Jede Stufe
-   laesst sich als Liste, Galerie oder Grafik ansehen. Attribute werden erst
-   geholt, wenn ein Objekttyp geoeffnet wird. */
+   Zwei Ebenen statt drei: eine flache, facettierte Liste aller Objekttypen —
+   und darunter die Merkmale eines Objekttyps. Der Katalog ist eine Facette,
+   keine Navigationsstufe: 666 der 719 Objekttypen stammen aus einer einzigen
+   Quelle, eine Gliederung danach wäre eine Hürde statt einer Hilfe.
+
+   Der Zustand steht in der URL, damit Ansichten teilbar bleiben und der
+   Zurück-Knopf tut, was er soll. */
 
 var KBOB = window.KBOB || (window.KBOB = {});
 
@@ -10,36 +14,43 @@ var KBOB = window.KBOB || (window.KBOB = {});
   'use strict';
 
   K.state = {
-    elemente: [],       // L1: Objekttypen mit Kennzahlen
-    quellen: [],        // aus den Objekttypen abgeleitet
-    werte: {},          // Wertelisten, einmalig nachgeladen
+    elemente: [],
+    kataloge: [],
+    werte: {},
     werteGeladen: false,
-    detail: {},         // Objekttyp-URI -> Attribute
+    detail: {},
     rohUebersicht: null,
-    pfad: { quelle: null, objekttyp: null, attribut: null },
+    objekttyp: null,     // offener Objekttyp (URI)
+    merkmal: null,       // offenes Merkmal (URI)
     ansicht: 'liste',
     hervor: null,
-    laedt: 0
+    laedt: 0,
+    stumm: false,        // true, während die URL gelesen wird
+    facetten: { katalog: [], status: [], phase: [] },
+    seite: 1,
+    proSeite: 100
   };
 
+  K.SEITENGROESSEN = [100, 200, 500];
+
   var el = K.el = {};
-  ['endpoint', 'graph', 'status', 'spinner', 'krumen', 'toolbar', 'empty',
-   'view-liste', 'view-galerie', 'view-grafik', 'view-attribut', 'galerie',
-   'count', 'filter', 'csv', 'netz', 'legende', 'tip', 'graph-hinweis',
-   'neuladen', 'f-phase', 'f-typ', 'attribut-detail'].forEach(function (id) {
+  ['endpoint', 'graph', 'status', 'spinner', 'krumen', 'toolbar', 'platzhalter',
+   'titelblock', 'titel', 'kennzahlen', 'titel-text', 'hinweis',
+   'view-liste', 'view-galerie', 'view-graph', 'view-merkmal', 'galerie',
+   'treffer', 'filter', 'csv', 'netz', 'legende', 'tip', 'graph-hinweis',
+   'graph-text', 'neuladen', 'version', 'verbindung', 'barrierefreiheit',
+   'graph-meldung', 'graph-wrap', 'graph-steuerung', 'aktive-filter',
+   'merkmal-detail', 'zoom-plus', 'zoom-minus', 'zoom-reset',
+   'facetten', 'blaettern'].forEach(function (id) {
     el[id] = document.getElementById(id);
   });
 
-  function setStatus(text, isError, mode) {
+  var dlgVerbindung = document.getElementById('dlg-verbindung');
+  var dlgA11y = document.getElementById('dlg-a11y');
+
+  function setStatus(text, isError) {
     el.status.className = 'status' + (isError ? ' error' : '');
-    el.status.textContent = '';
-    if (mode) {
-      var tag = document.createElement('span');
-      tag.className = 'mode';
-      tag.textContent = mode;
-      el.status.appendChild(tag);
-    }
-    el.status.appendChild(document.createTextNode(text));
+    el.status.textContent = text;
   }
   K.setStatus = setStatus;
 
@@ -50,16 +61,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (K.state.laedt < 0) K.state.laedt = 0;
     var laeuft = K.state.laedt > 0;
     el.spinner.hidden = !laeuft;
-    el.spinner.textContent = '';
-    if (laeuft) {
+    if (laeuft && text) {
+      el.spinner.textContent = '';
       var ring = document.createElement('span');
       ring.className = 'ring';
       el.spinner.appendChild(ring);
-      el.spinner.appendChild(document.createTextNode(text || 'Wird geladen …'));
+      el.spinner.appendChild(document.createTextNode(text));
     }
-    document.body.classList.toggle('laedt', laeuft);
   }
-  K.busy = busy;
 
   /* ---------- Laden ---------- */
 
@@ -68,6 +77,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   function laden() {
     if (!endpunkt() || !graphUri()) { setStatus('Endpunkt und Graph ausfüllen.', true); return; }
+    if (dlgVerbindung.open) dlgVerbindung.close();
 
     el.neuladen.disabled = true;
     busy(true, 'Katalog wird geladen …');
@@ -79,458 +89,710 @@ var KBOB = window.KBOB || (window.KBOB = {});
       el.neuladen.disabled = false;
 
       if (!rows.length) {
-        setStatus('Der Graph ' + graphUri() + ' liefert keine Datentemplates. ' +
-                  'Möglicherweise ist er noch nicht befüllt.', true);
+        zeigeFehler('Der Graph ' + graphUri() + ' liefert keine Datentemplates. ' +
+                    'Möglicherweise ist er noch nicht befüllt.');
         return;
       }
       K.uebernehmeUebersicht(rows);
-      baueQuellen();
-      baueFilter();
-      zeigeKatalog();
+      baueKataloge();
+      baueFacetten();
+
+      el.platzhalter.hidden = true;
+      el.toolbar.hidden = false;
+      el.titelblock.hidden = false;
+      el.csv.disabled = false;
+
+      ausUrl();
+      zeichne();
+      setStatus('');
     }).catch(function (err) {
       busy(false);
       el.neuladen.disabled = false;
       var msg = String(err && err.message || err);
-      if (/Failed to fetch|NetworkError|CORS/i.test(msg)) {
-        setStatus('Der Browser kommt nicht an den Endpunkt — vermutlich CORS. ' +
-                  'Starte lindas-proxy.py und rufe http://localhost:8765 auf.', true);
-      } else {
-        setStatus('Laden fehlgeschlagen: ' + msg, true);
-      }
+      zeigeFehler(/Failed to fetch|NetworkError|CORS/i.test(msg)
+        ? 'Der Browser kommt nicht an den Endpunkt. Meist liegt das an CORS — etwa ' +
+          'wenn die Datei direkt per file:// geöffnet wurde. Starte lindas-proxy.py ' +
+          'und rufe http://localhost:8765 auf.'
+        : 'Die Abfrage ist fehlgeschlagen: ' + msg);
     });
   }
 
-  /* Quellen aus den Objekttypen ableiten */
-  function baueQuellen() {
+  /* Der Ladehinweis darf nicht stehen bleiben, wenn das Laden scheitert —
+     sonst widerspricht die Seite sich selbst. */
+  function zeigeFehler(text) {
+    setStatus('Laden fehlgeschlagen.', true);
+    el.titelblock.hidden = true;
+    el.toolbar.hidden = true;
+    ['view-liste', 'view-galerie', 'view-graph', 'view-merkmal'].forEach(function (v) {
+      el[v].hidden = true;
+    });
+
+    el.platzhalter.hidden = false;
+    el.platzhalter.className = 'meldung';
+    el.platzhalter.innerHTML = '';
+
+    var h = document.createElement('h2');
+    h.textContent = 'Der Katalog konnte nicht geladen werden';
+    el.platzhalter.appendChild(h);
+
+    var p = document.createElement('p');
+    p.textContent = text;
+    el.platzhalter.appendChild(p);
+
+    var b = document.createElement('button');
+    b.textContent = 'Erneut versuchen';
+    b.addEventListener('click', laden);
+    el.platzhalter.appendChild(b);
+    b.focus();
+  }
+
+  function baueKataloge() {
     var map = {};
     K.state.elemente.forEach(function (e) {
       var q = map[e.quelle];
-      if (!q) {
-        q = map[e.quelle] = {
-          name: e.quelle, objekttypen: 0, attribute: 0,
-          psets: {}, typen: [], istDokument: e.istDokument
-        };
-      }
+      if (!q) q = map[e.quelle] = { name: e.quelle, objekttypen: 0, merkmale: 0, dok: false };
       q.objekttypen++;
-      q.attribute += e.anzahl;
-      e.psets.forEach(function (p) { q.psets[p.name] = (q.psets[p.name] || 0) + p.n; });
-      e.typen.forEach(function (t) { if (q.typen.indexOf(t) === -1) q.typen.push(t); });
+      q.merkmale += e.anzahl;
+      if (e.istDokument) q.dok = true;
     });
-
-    K.state.quellen = Object.keys(map).map(function (n) {
-      var q = map[n];
-      q.typen.sort();
-      q.psetListe = Object.keys(q.psets).sort(function (a, b) { return a.localeCompare(b, 'de'); })
-        .map(function (p) { return { name: p, n: q.psets[p] }; });
-      return q;
-    }).sort(function (a, b) { return b.objekttypen - a.objekttypen; });
+    K.state.kataloge = Object.keys(map).map(function (n) { return map[n]; })
+      .sort(function (a, b) { return b.objekttypen - a.objekttypen; });
   }
 
-  function zeigeKatalog() {
-    el.empty.hidden = true;
-    el.toolbar.hidden = false;
-    el.csv.disabled = false;
+  /* ---------- Facetten ---------- */
 
+  /* Facetten aus den Daten. Mehrfachauswahl innerhalb einer Gruppe (ODER),
+     zwischen den Gruppen wird geschnitten (UND). Nichts angekreuzt heisst
+     «alle» — ausser bei der Art, die einen sinnvollen Standard braucht. */
+  function baueFacetten() {
     var st = K.state;
-    var objekttypen = st.elemente.length;
-    var attribute = st.elemente.reduce(function (s, e) { return s + e.anzahl; }, 0);
-    var mitPhase = st.elemente.filter(function (e) { return e.phasen.length; }).length;
+    var phasen = {}, status = {};
 
-    var text = K.zahl(st.quellen.length) + ' Quellen, ' + K.zahl(objekttypen) + ' Objekttypen, ' +
-               K.zahl(attribute) + ' Attribute. Die Attribute eines Objekttyps werden ' +
-               'erst beim Öffnen geladen.';
-    if (mitPhase) {
-      text += ' Eine Phase (LZP) deklarieren nur ' + K.zahl(mitPhase) + ' Objekttypen.';
-    }
-    setStatus(text, false, 'Katalog');
-
-    zeichne();
-  }
-
-  /* ---------- Filter ---------- */
-
-  function option(sel, wert, text) {
-    var o = document.createElement('option');
-    o.value = wert;
-    o.textContent = text;
-    sel.appendChild(o);
-  }
-
-  function baueFilter() {
-    var phasen = {}, typen = {};
-    var vorher = { phase: el['f-phase'].value, typ: el['f-typ'].value };
-
-    K.state.elemente.forEach(function (e) {
-      e.typen.forEach(function (t) { typen[t] = true; });
+    st.elemente.forEach(function (e) {
       e.phasen.forEach(function (p) { phasen[p] = true; });
+      if (e.status) status[e.status] = (status[e.status] || 0) + 1;
     });
 
-    el['f-phase'].innerHTML = '';
-    option(el['f-phase'], '', 'Alle Phasen');
-    Object.keys(phasen).sort().forEach(function (p) { option(el['f-phase'], p, p); });
+    el.facetten.innerHTML = '';
 
-    el['f-typ'].innerHTML = '';
-    option(el['f-typ'], '', 'Alle Typen');
-    Object.keys(typen).sort(function (a, b) { return a.localeCompare(b, 'de'); })
-      .forEach(function (t) { option(el['f-typ'], t, t); });
+    gruppe('Katalog', 'katalog', st.kataloge.map(function (q) {
+      return { wert: q.name, text: q.name, n: q.objekttypen };
+    }));
 
-    wiederherstellen(el['f-phase'], vorher.phase);
-    wiederherstellen(el['f-typ'], vorher.typ);
+    st.allePhasen = Object.keys(phasen).sort();
+
+    var statusListe = Object.keys(status).sort();
+    if (statusListe.length > 1) {
+      gruppe('Reifegrad', 'status', statusListe.map(function (w) {
+        return { wert: w, text: w, n: status[w] };
+      }));
+    }
+
+    /* Nur ein Bruchteil der Merkmale deklariert eine Phase. Die Gruppe
+       erscheint darum nur, wenn es überhaupt etwas auszuwählen gibt. */
+    var phasenListe = Object.keys(phasen).sort();
+    if (phasenListe.length) {
+      gruppe('Projektphase', 'phase', phasenListe.map(function (p) {
+        return { wert: p, text: p };
+      }));
+    }
   }
 
-  function wiederherstellen(sel, wert) {
-    if (!wert) return;
-    for (var i = 0; i < sel.options.length; i++) {
-      if (sel.options[i].value === wert) { sel.value = wert; return; }
+  /* Auswahlfeld mit Mehrfachauswahl. Kein natives <select multiple> — das ist
+     mit der Maus kaum bedienbar und zeigt den Zustand nicht an. */
+  function gruppe(titel, schluessel, eintraege) {
+    var id = 'fac-' + schluessel;
+
+    var box = document.createElement('div');
+    box.className = 'dropdown';
+
+    var lab = document.createElement('span');
+    lab.className = 'label';
+    lab.id = id;
+    lab.textContent = titel;
+    box.appendChild(lab);
+
+    var knopf = document.createElement('button');
+    knopf.type = 'button';
+    knopf.className = 'dd-knopf';
+    knopf.setAttribute('aria-expanded', 'false');
+    knopf.setAttribute('aria-labelledby', id + ' ' + id + '-wert');
+
+    var wert = document.createElement('span');
+    wert.className = 'dd-wert';
+    wert.id = id + '-wert';
+    knopf.appendChild(wert);
+
+    var pfeil = document.createElement('span');
+    pfeil.className = 'pfeil';
+    pfeil.setAttribute('aria-hidden', 'true');
+    pfeil.textContent = '▾';
+    knopf.appendChild(pfeil);
+    box.appendChild(knopf);
+
+    var menu = document.createElement('div');
+    menu.className = 'dd-menu';
+    menu.hidden = true;
+    menu.setAttribute('role', 'group');
+    menu.setAttribute('aria-labelledby', id);
+
+    function beschrifte() {
+      var n = K.state.facetten[schluessel].length;
+      wert.textContent = n ? n + ' von ' + eintraege.length + ' gewählt' : 'Alle';
+      wert.className = 'dd-wert' + (n ? ' aktiv' : '');
     }
+
+    eintraege.forEach(function (e) {
+      var l = document.createElement('label');
+      l.className = 'opt';
+
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = e.wert;
+      cb.checked = K.state.facetten[schluessel].indexOf(e.wert) !== -1;
+      cb.addEventListener('change', function () {
+        var auswahl = K.state.facetten[schluessel];
+        var i = auswahl.indexOf(e.wert);
+        if (cb.checked && i === -1) auswahl.push(e.wert);
+        if (!cb.checked && i !== -1) auswahl.splice(i, 1);
+        beschrifte();
+        neuAuswerten();
+      });
+
+      l.appendChild(cb);
+      l.appendChild(document.createTextNode(e.text));
+      if (e.n !== undefined) {
+        var n = document.createElement('span');
+        n.className = 'opt-n';
+        n.textContent = e.n;
+        l.appendChild(n);
+      }
+      menu.appendChild(l);
+    });
+
+    var fuss = document.createElement('div');
+    fuss.className = 'dd-fuss';
+    var reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'link';
+    reset.textContent = 'Auswahl aufheben';
+    reset.addEventListener('click', function () {
+      K.state.facetten[schluessel] = [];
+      Array.prototype.forEach.call(menu.querySelectorAll('input'), function (cb) {
+        cb.checked = false;
+      });
+      beschrifte();
+      neuAuswerten();
+    });
+    fuss.appendChild(reset);
+    menu.appendChild(fuss);
+
+    box.appendChild(menu);
+    beschrifte();
+
+    function auf(zustand) {
+      menu.hidden = !zustand;
+      knopf.setAttribute('aria-expanded', String(zustand));
+    }
+    knopf.addEventListener('click', function () { auf(menu.hidden); });
+    box.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && !menu.hidden) { auf(false); knopf.focus(); }
+    });
+    box.addEventListener('focusout', function (ev) {
+      if (!box.contains(ev.relatedTarget)) auf(false);
+    });
+
+    el.facetten.appendChild(box);
+  }
+
+  /* Was gerade eingrenzt, gehört sichtbar über die Liste — sonst sucht man
+     den Grund für eine kurze Trefferliste in den zugeklappten Auswahlfeldern. */
+  var FACETTEN_TITEL = { katalog: 'Katalog', status: 'Reifegrad', phase: 'Projektphase' };
+
+  function zeichneAktiveFilter() {
+    var st = K.state;
+    var box = el['aktive-filter'];
+    box.innerHTML = '';
+
+    var pillen = [];
+    Object.keys(FACETTEN_TITEL).forEach(function (schluessel) {
+      (st.facetten[schluessel] || []).forEach(function (wert) {
+        pillen.push({ art: FACETTEN_TITEL[schluessel], wert: wert, schluessel: schluessel });
+      });
+    });
+    if (el.filter.value.trim()) {
+      pillen.push({ art: 'Suche', wert: el.filter.value.trim(), schluessel: 'suche' });
+    }
+
+    box.hidden = !pillen.length;
+    if (!pillen.length) return;
+
+    pillen.forEach(function (p) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pille';
+      b.setAttribute('aria-label', 'Filter entfernen: ' + p.art + ' ' + p.wert);
+
+      var art = document.createElement('span');
+      art.className = 'art';
+      art.textContent = p.art + ':';
+      b.appendChild(art);
+      b.appendChild(document.createTextNode(p.wert));
+
+      var x = document.createElement('span');
+      x.className = 'x';
+      x.setAttribute('aria-hidden', 'true');
+      x.textContent = '×';
+      b.appendChild(x);
+
+      b.addEventListener('click', function () {
+        if (p.schluessel === 'suche') {
+          el.filter.value = '';
+        } else {
+          var liste = st.facetten[p.schluessel];
+          var i = liste.indexOf(p.wert);
+          if (i !== -1) liste.splice(i, 1);
+        }
+        baueFacetten();
+        neuAuswerten();
+      });
+
+      box.appendChild(b);
+    });
+
+    var reset = document.createElement('button');
+    reset.type = 'button';
+    reset.className = 'link filter-reset';
+    reset.textContent = 'Alle Filter zurücksetzen';
+    reset.addEventListener('click', function () {
+      Object.keys(FACETTEN_TITEL).forEach(function (k) { st.facetten[k] = []; });
+      el.filter.value = '';
+      baueFacetten();
+      neuAuswerten();
+    });
+    box.appendChild(reset);
+  }
+
+  function neuAuswerten() {
+    K.state.hervor = null;
+    K.state.seite = 1;
+    K.state.objekttyp = null;
+    K.state.merkmal = null;
+    inUrl();
+    zeichne();
   }
 
   function suchbegriff() { return el.filter.value.trim().toLowerCase(); }
 
-  /* ---------- Navigation ---------- */
-
-  K.geheZuKatalog = function () {
-    K.state.pfad = { quelle: null, objekttyp: null, attribut: null };
-    K.state.hervor = null;
-    zeichne();
-  };
-
-  K.geheZuQuelle = function (name) {
-    K.state.pfad = { quelle: name, objekttyp: null, attribut: null };
-    K.state.hervor = null;
-    zeichne();
-  };
-
-  K.geheZuObjekttyp = function (uri) {
-    var e = objekttypVon(uri);
-    if (!e) return;
-    K.state.pfad = { quelle: e.quelle, objekttyp: uri, attribut: null };
-    K.state.hervor = null;
-
-    if (K.state.detail[uri]) { zeichne(); return; }
-
-    busy(true, 'Attribute von ' + e.name + ' werden geladen …');
-    zeichne();                       // Krumen und Kopf sofort zeigen
-    K.holeDetail(endpunkt(), graphUri(), uri).then(function () {
-      busy(false);
-      zeichne();
-    }).catch(function (err) {
-      busy(false);
-      setStatus('Attribute konnten nicht geladen werden: ' +
-                String(err && err.message || err), true);
-    });
-  };
-
-  K.geheZuAttribut = function (attrUri) {
-    K.state.pfad.attribut = attrUri;
-    zeichne();
-  };
+  /* ---------- Auswahl ---------- */
 
   function objekttypVon(uri) {
     var t = K.state.elemente.filter(function (e) { return e.uri === uri; });
     return t.length ? t[0] : null;
   }
 
-  /* ---------- Auswahl je Stufe ---------- */
-
-  function sichtbareQuellen() {
+  function sichtbareObjekttypen() {
     var s = suchbegriff();
-    var typ = el['f-typ'].value;
-    return K.state.quellen.filter(function (q) {
-      if (typ && q.typen.indexOf(typ) === -1) return false;
-      if (!s) return true;
-      return q.name.toLowerCase().indexOf(s) !== -1;
-    });
-  }
+    var f = K.state.facetten;
 
-  function sichtbareObjekttypen(quelle) {
-    var s = suchbegriff();
-    var phase = el['f-phase'].value;
-    var typ = el['f-typ'].value;
     return K.state.elemente.filter(function (e) {
-      if (quelle && e.quelle !== quelle) return false;
-      if (phase && e.phasen.indexOf(phase) === -1) return false;
-      if (typ && e.typen.indexOf(typ) === -1) return false;
+      if (f.katalog.length && f.katalog.indexOf(e.quelle) === -1) return false;
+      if (f.status.length && f.status.indexOf(e.status) === -1) return false;
+      if (f.phase.length && !e.phasen.some(function (p) { return f.phase.indexOf(p) !== -1; })) {
+        return false;
+      }
       if (!s) return true;
       if (e.name.toLowerCase().indexOf(s) !== -1) return true;
+      if (e.beschreibung && e.beschreibung.toLowerCase().indexOf(s) !== -1) return true;
       return e.psets.some(function (p) { return p.name.toLowerCase().indexOf(s) !== -1; });
     });
   }
 
-  function sichtbareAttribute(uri) {
-    var attrs = K.state.detail[uri];
-    if (!attrs) return null;                 // noch nicht geladen
+  function sichtbareMerkmale(uri) {
+    var merkmale = K.state.detail[uri];
+    if (!merkmale) return null;
     var s = suchbegriff();
-    var phase = el['f-phase'].value;
-    var typ = el['f-typ'].value;
-    return attrs.filter(function (a) {
-      if (phase && a.phasen.indexOf(phase) === -1) return false;
-      if (typ && a.typ !== typ) return false;
+    var f = K.state.facetten;
+    return merkmale.filter(function (m) {
+      if (f.phase.length && !m.phasen.some(function (p) { return f.phase.indexOf(p) !== -1; })) {
+        return false;
+      }
       if (!s) return true;
-      var heu = (a.name + ' ' + a.pset + ' ' + a.beschreibung + ' ' + a.ifcTyp).toLowerCase();
+      var heu = (m.name + ' ' + m.pset + ' ' + m.beschreibung + ' ' + m.ifcTyp).toLowerCase();
       return heu.indexOf(s) !== -1;
+    });
+  }
+
+  function merkmalVon() {
+    var st = K.state;
+    var liste = st.objekttyp ? st.detail[st.objekttyp] : null;
+    if (!liste) return null;
+    var t = liste.filter(function (m) { return m.uri === st.merkmal; });
+    return t.length ? t[0] : null;
+  }
+
+  /* ---------- Zustand in der URL ---------- */
+
+  function inUrl() {
+    if (K.state.stumm) return;
+    var st = K.state, p = [];
+
+    if (st.objekttyp) p.push('o=' + encodeURIComponent(st.objekttyp));
+    if (st.merkmal)   p.push('m=' + encodeURIComponent(st.merkmal));
+    if (st.ansicht !== 'liste') p.push('v=' + st.ansicht);
+    if (st.facetten.katalog.length) {
+      p.push('k=' + st.facetten.katalog.map(encodeURIComponent).join(','));
+    }
+    if (st.facetten.status.length) p.push('r=' + st.facetten.status.join(','));
+    if (st.facetten.phase.length) p.push('p=' + st.facetten.phase.join(','));
+    if (el.filter.value.trim()) p.push('q=' + encodeURIComponent(el.filter.value.trim()));
+    if (st.seite > 1) p.push('s=' + st.seite);
+    if (st.proSeite !== 100) p.push('n=' + st.proSeite);
+
+    var neu = p.length ? '#' + p.join('&') : '#';
+    if (neu !== location.hash) history.pushState(null, '', neu);
+  }
+
+  function ausUrl() {
+    var st = K.state, p = {};
+    location.hash.replace(/^#/, '').split('&').forEach(function (teil) {
+      var i = teil.indexOf('=');
+      if (i > 0) p[teil.slice(0, i)] = teil.slice(i + 1);
+    });
+
+    function liste(wert) {
+      return wert ? wert.split(',').map(decodeURIComponent).filter(Boolean) : [];
+    }
+
+    st.stumm = true;
+    st.facetten.katalog = liste(p.k);
+    st.facetten.status  = liste(p.r);
+    st.facetten.phase   = liste(p.p);
+    el.filter.value = p.q ? decodeURIComponent(p.q) : '';
+    st.ansicht = (p.v === 'galerie' || p.v === 'graph') ? p.v : 'liste';
+    ['liste', 'galerie', 'graph'].forEach(function (v) {
+      document.getElementById('v-' + v).setAttribute('aria-pressed', String(v === st.ansicht));
+    });
+    st.objekttyp = p.o ? decodeURIComponent(p.o) : null;
+    st.merkmal   = p.m ? decodeURIComponent(p.m) : null;
+    st.seite     = Math.max(1, parseInt(p.s, 10) || 1);
+    st.proSeite  = K.SEITENGROESSEN.indexOf(parseInt(p.n, 10)) !== -1
+                     ? parseInt(p.n, 10) : 100;
+    st.stumm = false;
+
+    baueFacetten();
+    if (st.objekttyp && !st.detail[st.objekttyp]) ladeDetail(st.objekttyp);
+  }
+
+  /* ---------- Navigation ---------- */
+
+  K.geheZuUebersicht = function () {
+    K.state.objekttyp = null;
+    K.state.merkmal = null;
+    K.state.hervor = null;
+    inUrl();
+    zeichne(true);
+  };
+
+  K.geheZuObjekttyp = function (uri) {
+    if (!objekttypVon(uri)) return;
+    K.state.objekttyp = uri;
+    K.state.merkmal = null;
+    K.state.hervor = null;
+    inUrl();
+    zeichne(true);
+    if (!K.state.detail[uri]) ladeDetail(uri);
+  };
+
+  K.geheZuMerkmal = function (uri) {
+    K.state.merkmal = uri;
+    inUrl();
+    zeichne(true);
+  };
+
+  function ladeDetail(uri) {
+    var e = objekttypVon(uri);
+    busy(true, 'Merkmale von ' + (e ? e.name : '…') + ' werden geladen …');
+    K.holeDetail(endpunkt(), graphUri(), uri).then(function () {
+      busy(false);
+      if (K.state.objekttyp === uri) zeichne();
+    }).catch(function (err) {
+      busy(false);
+      setStatus('Merkmale konnten nicht geladen werden: ' +
+                String(err && err.message || err), true);
     });
   }
 
   /* ---------- Brotkrumen ---------- */
 
-  function krume(text, onClick, aktiv) {
-    if (aktiv || !onClick) {
-      var s = document.createElement('span');
-      s.className = 'krume aktiv';
-      s.textContent = text;
-      return s;
+  function krume(text, onClick, aktuell) {
+    var li = document.createElement('li');
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'krume';
+    b.textContent = text;
+    if (aktuell) {
+      b.setAttribute('aria-current', 'page');
+      b.disabled = true;
+    } else if (onClick) {
+      b.addEventListener('click', onClick);
     }
-    var a = document.createElement('button');
-    a.className = 'krume';
-    a.type = 'button';
-    a.textContent = text;
-    a.addEventListener('click', onClick);
-    return a;
+    li.appendChild(b);
+    return li;
   }
 
   function trenner() {
+    var li = document.createElement('li');
     var s = document.createElement('span');
     s.className = 'krume-trenner';
+    s.setAttribute('aria-hidden', 'true');
     s.textContent = '›';
-    return s;
+    li.appendChild(s);
+    return li;
   }
 
   function zeichneKrumen() {
-    var p = K.state.pfad;
-    var box = el.krumen;
-    box.innerHTML = '';
+    var st = K.state;
+    el.krumen.innerHTML = '';
+    el.krumen.appendChild(krume('Übersicht', K.geheZuUebersicht, !st.objekttyp));
 
-    box.appendChild(krume('Katalog', K.geheZuKatalog, !p.quelle));
-
-    if (p.quelle) {
-      box.appendChild(trenner());
-      box.appendChild(krume(p.quelle, function () { K.geheZuQuelle(p.quelle); }, !p.objekttyp));
+    if (st.objekttyp) {
+      var e = objekttypVon(st.objekttyp);
+      el.krumen.appendChild(trenner());
+      el.krumen.appendChild(krume(e ? e.name : '…',
+        function () { K.geheZuObjekttyp(st.objekttyp); }, !st.merkmal));
     }
-    if (p.objekttyp) {
-      var e = objekttypVon(p.objekttyp);
-      box.appendChild(trenner());
-      box.appendChild(krume(e ? e.name : '…', function () { K.geheZuObjekttyp(p.objekttyp); }, !p.attribut));
-    }
-    if (p.attribut) {
-      var a = attributVon();
-      box.appendChild(trenner());
-      box.appendChild(krume(a ? a.name : '…', null, true));
+    if (st.merkmal) {
+      var m = merkmalVon();
+      el.krumen.appendChild(trenner());
+      el.krumen.appendChild(krume(m ? m.name : '…', null, true));
     }
   }
 
-  function attributVon() {
-    var p = K.state.pfad;
-    var attrs = p.objekttyp ? K.state.detail[p.objekttyp] : null;
-    if (!attrs) return null;
-    var t = attrs.filter(function (a) { return a.uri === p.attribut; });
-    return t.length ? t[0] : null;
+  /* ---------- Titelblock ---------- */
+
+  function titel(text, kennzahlen, beschreibung, hinweis) {
+    el.titel.textContent = text;
+    el.kennzahlen.textContent = kennzahlen || '';
+    el['titel-text'].hidden = !beschreibung;
+    el['titel-text'].textContent = beschreibung || '';
+    el.hinweis.hidden = !hinweis;
+    if (hinweis) el.hinweis.textContent = hinweis;
+    document.title = text + ', KBOB Data Dictionary';
   }
 
   /* ---------- Zeichnen ---------- */
 
-  function zeichne() {
+  function zeichne(fokussieren) {
     if (!K.state.elemente.length) return;
-    var p = K.state.pfad;
+    var st = K.state;
 
     zeichneKrumen();
-    el['view-attribut'].hidden = true;
+    zeichneAktiveFilter();
+    el['view-merkmal'].hidden = true;
 
-    if (p.attribut)      zeigeAttribut();
-    else if (p.objekttyp)  zeigeObjekttyp();
-    else if (p.quelle)   zeigeObjekttypen(p.quelle);
-    else                 zeigeQuellen();
+    if (st.merkmal && merkmalVon()) zeigeMerkmal();
+    else if (st.objekttyp)          zeigeObjekttyp();
+    else                            zeigeUebersicht();
+
+    /* Nach einem Ebenenwechsel steht der Fokus auf der neuen Überschrift —
+       sonst landet er beim Neuaufbau still auf <body>. */
+    if (fokussieren) el.titel.focus();
   }
   K.zeichne = zeichne;
 
+  /* Schneidet die Liste auf die aktuelle Seite zu und zeichnet die Bedienung.
+     Der Graph blättert nicht — er zeigt immer die ganze Auswahl. */
+  function blaettere(gesamt) {
+    var st = K.state;
+    var seiten = Math.max(1, Math.ceil(gesamt / st.proSeite));
+    if (st.seite > seiten) st.seite = seiten;
+
+    var von = (st.seite - 1) * st.proSeite;
+    var bis = Math.min(von + st.proSeite, gesamt);
+
+    el.blaettern.hidden = (st.ansicht === 'graph') || gesamt === 0;
+    if (el.blaettern.hidden) return { von: von, bis: bis };
+
+    el.blaettern.innerHTML = '';
+
+    var bereich = document.createElement('span');
+    bereich.className = 'bereich';
+    bereich.textContent = gesamt <= st.proSeite
+      ? K.zahl(gesamt) + (gesamt === 1 ? ' Eintrag' : ' Einträge')
+      : K.zahl(von + 1) + '–' + K.zahl(bis) + ' von ' + K.zahl(gesamt);
+    el.blaettern.appendChild(bereich);
+
+    var feld = document.createElement('div');
+    feld.className = 'feld';
+    var lab = document.createElement('label');
+    lab.className = 'label';
+    lab.setAttribute('for', 'pro-seite');
+    lab.textContent = 'Pro Seite';
+    var sel = document.createElement('select');
+    sel.id = 'pro-seite';
+    K.SEITENGROESSEN.forEach(function (n) {
+      var o = document.createElement('option');
+      o.value = n; o.textContent = n;
+      if (n === st.proSeite) o.selected = true;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', function () {
+      st.proSeite = parseInt(sel.value, 10);
+      st.seite = 1;
+      inUrl();
+      zeichne();
+    });
+    feld.appendChild(lab);
+    feld.appendChild(sel);
+
+    var nav = document.createElement('span');
+    nav.className = 'seiten';
+
+    function knopf(text, ziel, aus) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'ghost';
+      b.textContent = text;
+      b.disabled = aus;
+      b.addEventListener('click', function () {
+        st.seite = ziel;
+        inUrl();
+        zeichne();
+        el.titel.focus();
+      });
+      return b;
+    }
+
+    nav.appendChild(knopf('Zurück', st.seite - 1, st.seite <= 1));
+    var stand = document.createElement('span');
+    stand.textContent = 'Seite ' + st.seite + ' von ' + seiten;
+    nav.appendChild(stand);
+    nav.appendChild(knopf('Weiter', st.seite + 1, st.seite >= seiten));
+    el.blaettern.appendChild(nav);
+    el.blaettern.appendChild(feld);
+
+    return { von: von, bis: bis };
+  }
+
   function sichtbareAnsicht(name) {
-    ['liste', 'galerie', 'grafik'].forEach(function (v) {
+    ['liste', 'galerie', 'graph'].forEach(function (v) {
       el['view-' + v].hidden = (v !== name);
     });
   }
 
-  /* --- Stufe Quellen --- */
+  /* --- Übersicht: alle Objekttypen, flach und facettiert --- */
 
-  function zeigeQuellen() {
-    var quellen = sichtbareQuellen();
-    var attribute = quellen.reduce(function (s, q) { return s + q.attribute; }, 0);
-    el.count.textContent = K.zahl(quellen.length) + ' Quellen, ' +
-      K.zahl(quellen.reduce(function (s, q) { return s + q.objekttypen; }, 0)) + ' Objekttypen, ' +
-      K.zahl(attribute) + ' Attribute';
+  function zeigeUebersicht() {
+    var st = K.state;
+    var liste = sichtbareObjekttypen();
+    var merkmale = liste.reduce(function (s, e) { return s + e.anzahl; }, 0);
+    titel('Objekttypen',
+      K.zahl(liste.length) + ' Objekttypen · ' + K.zahl(merkmale) + ' Merkmale · ' +
+      K.zahl(st.kataloge.length) + ' Kataloge',
+      'Jeder Objekttyp führt die Merkmale, die der Katalog für ihn vorsieht — mit ' +
+      'Datentyp, Einheit beziehungsweise zulässigen Werten und Property Set. Alle ' +
+      'Merkmale sind gleichrangig; eine Pflicht-/Kann-Unterscheidung kennt der ' +
+      'Katalog nicht.',
+      null);
 
-    if (K.state.ansicht === 'liste') {
+    el.treffer.textContent = K.zahl(liste.length) + ' Treffer';
+
+    var aus = blaettere(liste.length);
+    var seite = liste.slice(aus.von, aus.bis);
+    var mitPhase = liste.some(function (e) { return e.phasen.length; });
+
+    if (st.ansicht === 'liste') {
       sichtbareAnsicht('liste');
+      var spalten = [
+        { titel: 'Objekttyp', breite: '22%' },
+        { titel: 'Beschreibung' },
+        { titel: 'Merkmale', breite: '90px', rechts: true },
+        { titel: 'Reifegrad', breite: '100px' }
+      ];
+      if (mitPhase) spalten.push({ titel: 'Projektphase', breite: '130px' });
+      spalten.push({ titel: 'Katalog', breite: '18%' });
+
       K.zeichneListe({
-        spalten: [
-          { titel: 'Quelle', breite: '34%' },
-          { titel: 'Objekttypen', breite: '10%', rechts: true },
-          { titel: 'Attribute', breite: '10%', rechts: true },
-          { titel: 'Property Sets' }
-        ],
-        zeilen: quellen.map(function (q) {
-          return {
-            titel: 'Objekttypen von ' + q.name + ' anzeigen',
-            onClick: function () { K.geheZuQuelle(q.name); },
-            zellen: [
-              function () {
-                var s = document.createElement('span');
-                s.className = 'element-name';
-                s.textContent = q.name;
-                return s;
-              },
-              function () { return String(q.objekttypen); },
-              function () { return String(q.attribute); },
-              function () {
-                return K.chips(q.psetListe.slice(0, 6).map(function (p) {
-                  return { name: p.name, n: p.n };
-                }).concat(q.psetListe.length > 6
-                  ? [{ name: '+ ' + (q.psetListe.length - 6) + ' weitere' }] : []));
-              }
-            ]
-          };
-        })
-      });
-    } else if (K.state.ansicht === 'galerie') {
-      sichtbareAnsicht('galerie');
-      K.zeichneGalerie(quellen.map(function (q) {
-        return {
-          name: q.name, zahl: q.objekttypen, zahlTitel: q.objekttypen + ' Objekttypen',
-          sub: K.zahl(q.attribute) + ' Attribute · ' + q.psetListe.length + ' Property Sets',
-          chips: q.psetListe.slice(0, 5).map(function (p) {
-            return { name: p.name, n: p.n };
-          }),
-          fuss: q.typen.join(' · '),
-          onClick: function () { K.geheZuQuelle(q.name); }
-        };
-      }));
-    } else {
-      sichtbareAnsicht('grafik');
-      quellenNetz(quellen);
-    }
-  }
-
-  /* Ganzer Katalog: Quellen und ihre Objekttypen */
-  function quellenNetz(quellen) {
-    var knoten = [], kanten = [], nachQuelle = {};
-    var namen = {};
-    quellen.forEach(function (q) { namen[q.name] = true; });
-
-    quellen.forEach(function (q) {
-      var k = {
-        id: 'q:' + q.name, name: q.name, farbe: '#B4471F', form: 'quadrat',
-        r: 7 + Math.sqrt(q.objekttypen) * 1.7, immerBeschriften: true,
-        titelZeilen: [q.objekttypen + ' Objekttypen, ' + q.attribute + ' Attribute',
-                      'klicken öffnet die Quelle'],
-        onClick: function () { K.geheZuQuelle(q.name); }
-      };
-      nachQuelle[q.name] = k;
-      knoten.push(k);
-    });
-
-    sichtbareObjekttypen(null).forEach(function (e) {
-      if (!namen[e.quelle]) return;
-      var k = {
-        id: 'e:' + e.uri, name: e.name, farbe: '#0F5C4E', form: 'kreis',
-        r: 3.5 + Math.sqrt(e.anzahl) * 1.1,
-        titelZeilen: [e.quelle, e.anzahl + ' Attribute — klicken öffnet den Objekttyp'],
-        onClick: function () { K.geheZuObjekttyp(e.uri); }
-      };
-      knoten.push(k);
-      kanten.push({ a: nachQuelle[e.quelle], b: k });
-    });
-
-    K.zeichneNetz(knoten, kanten, [
-      { name: 'Quelle', n: quellen.length, farbe: '#B4471F', form: 'quadrat' },
-      { name: 'Objekttyp', n: knoten.length - quellen.length, farbe: '#0F5C4E' },
-      { hinweis: 'Punktgrösse = Anzahl Attribute' }
-    ], 'Der ganze Katalog: Quellen und ihre Objekttypen. Auf einen Objekttyp klicken ' +
-       'öffnet seine Attribute. Mausrad zoomt, Ziehen verschiebt.');
-  }
-
-  /* --- Stufe Objekttypen einer Quelle --- */
-
-  function zeigeObjekttypen(quelle) {
-    var objekttypen = sichtbareObjekttypen(quelle);
-    el.count.textContent = K.zahl(objekttypen.length) + ' Objekttypen, ' +
-      K.zahl(objekttypen.reduce(function (s, e) { return s + e.anzahl; }, 0)) + ' Attribute';
-
-    if (K.state.ansicht === 'liste') {
-      sichtbareAnsicht('liste');
-      K.zeichneListe({
-        spalten: [
-          { titel: 'Objekttyp', breite: '26%' },
-          { titel: 'Attribute', breite: '10%', rechts: true },
-          { titel: 'Property Sets', breite: '40%' },
-          { titel: 'Typen' }
-        ],
-        zeilen: objekttypen.map(function (e) {
+        titel: 'Objekttypen im Katalog',
+        spalten: spalten,
+        zeilen: seite.map(function (e) {
+          var zellen = [
+            function () {
+              return K.zeilenKnopf(e.name, e.sprache,
+                function () { K.geheZuObjekttyp(e.uri); });
+            },
+            function () {
+              if (!e.beschreibung) return K.leer('keine Beschreibung');
+              var s = document.createElement('span');
+              s.className = 'beschreibung';
+              s.textContent = e.beschreibung;
+              return s;
+            },
+            function () { return String(e.anzahl); },
+            function () { return statusMarke(e.status) || K.leer('ohne Reifegrad'); }
+          ];
+          if (mitPhase) zellen.push(function () { return K.phasen(e.phasen, st.allePhasen); });
+          zellen.push(function () {
+            var s = document.createElement('span');
+            s.className = 'zell-muted';
+            s.textContent = e.quelle;
+            return s;
+          });
           return {
             id: K.anker(e.uri),
-            titel: 'Attribute von ' + e.name + ' anzeigen',
             onClick: function () { K.geheZuObjekttyp(e.uri); },
-            zellen: [
-              function () {
-                var s = document.createElement('span');
-                s.className = 'element-name';
-                s.textContent = e.name;
-                return s;
-              },
-              function () { return String(e.anzahl); },
-              function () {
-                return K.chips(e.psets.map(function (p) {
-                  return { name: p.name, n: p.n };
-                }));
-              },
-              function () {
-                if (!e.typen.length) return K.leer();
-                var s = document.createElement('span');
-                s.className = 'zell-muted';
-                s.textContent = e.typen.join(' · ');
-                return s;
-              }
-            ]
+            zellen: zellen
           };
         })
       });
-    } else if (K.state.ansicht === 'galerie') {
+    } else if (st.ansicht === 'galerie') {
       sichtbareAnsicht('galerie');
-      K.zeichneGalerie(objekttypen.map(function (e) {
+      K.zeichneGalerie(seite.map(function (e) {
         return {
-          id: K.anker(e.uri),
-          name: e.name, zahl: e.anzahl, zahlTitel: e.anzahl + ' Attribute',
-          sub: e.quelle,
-          chips: e.psets.map(function (p) {
-            return { name: p.name, n: p.n };
-          }),
-          fuss: e.typen.length ? e.typen.join(' · ') : 'ohne Typangabe',
+          id: K.anker(e.uri), name: e.name, sprache: e.sprache,
+          zahl: e.anzahl, zahlText: 'Merkmale',
+          text: e.beschreibung,
+          marken: e.status ? [{ name: e.status, art: 'status' }] : [],
+          fuss: e.quelle,
           onClick: function () { K.geheZuObjekttyp(e.uri); }
         };
       }));
     } else {
-      sichtbareAnsicht('grafik');
-      objekttypNetz(objekttypen);
+      sichtbareAnsicht('graph');
+      uebersichtsGraph(liste);
     }
   }
 
-  /* Objekttypen einer Quelle und die Property Sets, die sie teilen */
-  function objekttypNetz(objekttypen) {
-    var knoten = [], kanten = [], nachPset = {};
+  /* Netz nur, solange es lesbar bleibt. Darüber hilft keine Ersatzgrafik —
+     die Auswahl muss enger werden, und das sagt die Meldung. */
+  function uebersichtsGraph(liste) {
+    if (liste.length > K.NETZ_MAX) {
+      graphMeldung('Zu viele Objekttypen für eine Netzdarstellung',
+        K.zahl(liste.length) + ' Objekttypen ergeben ein unlesbares Knäuel. ' +
+        'Grenze die Auswahl über Katalog, Reifegrad oder die Suche auf höchstens ' +
+        K.NETZ_MAX + ' Objekttypen ein — dann erscheint das Netz. Die Liste zeigt ' +
+        'die volle Auswahl.');
+      return;
+    }
+    graphMeldung(null);
 
-    objekttypen.forEach(function (e) {
+    var knoten = [], kanten = [], nachPset = {};
+    liste.forEach(function (e) {
       var k = {
-        id: 'e:' + e.uri, name: e.name, farbe: '#0F5C4E', form: 'kreis',
+        id: 'o:' + e.uri, name: e.name, farbe: '#0F5C4E', form: 'kreis',
         r: 4 + Math.sqrt(e.anzahl) * 1.5,
-        titelZeilen: [e.quelle, e.anzahl + ' Attribute — klicken öffnet den Objekttyp'],
+        vorlesen: e.name + ', ' + e.anzahl + ' Merkmale, ' + e.quelle,
+        zeilen: [e.quelle, e.anzahl + ' Merkmale — öffnen'],
         onClick: function () { K.geheZuObjekttyp(e.uri); }
       };
       knoten.push(k);
-
       e.psets.forEach(function (p) {
         var pk = nachPset[p.name];
         if (!pk) {
           pk = nachPset[p.name] = {
-            id: 'p:' + p.name, name: p.name, farbe: '#B4471F', form: 'quadrat',
-            r: 5, objekttypen: 0, attribute: 0, immerBeschriften: true,
+            id: 'p:' + p.name, name: p.name, farbe: '#6B5B4A', form: 'quadrat',
+            r: 5, stark: true, objekttypen: 0, merkmale: 0,
             onClick: (function (nm) {
               return function () {
                 K.state.hervor = (K.state.hervor === nm) ? null : nm;
@@ -541,7 +803,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
           knoten.push(pk);
         }
         pk.objekttypen++;
-        pk.attribute += p.n;
+        pk.merkmale += p.n;
         kanten.push({ a: k, b: pk });
       });
     });
@@ -549,267 +811,287 @@ var KBOB = window.KBOB || (window.KBOB = {});
     Object.keys(nachPset).forEach(function (n) {
       var pk = nachPset[n];
       pk.r = 5 + Math.sqrt(pk.objekttypen) * 2.2;
-      pk.titelZeilen = ['Property Set',
-                        'in ' + pk.objekttypen + ' Objekttypen, ' + pk.attribute + ' Attribute',
-                        'klicken hebt die Objekttypen hervor'];
+      pk.vorlesen = 'Property Set ' + pk.name + ', in ' + pk.objekttypen +
+                    ' Objekttypen, ' + pk.merkmale + ' Merkmale';
+      pk.zeilen = ['Property Set',
+                   'in ' + pk.objekttypen + ' Objekttypen, ' + pk.merkmale + ' Merkmale',
+                   'hervorheben'];
     });
 
     K.zeichneNetz(knoten, kanten, [
-      { name: 'Objekttyp', n: objekttypen.length, farbe: '#0F5C4E' },
-      { name: 'Property Set', n: Object.keys(nachPset).length, farbe: '#B4471F', form: 'quadrat' },
-      { hinweis: K.state.hervor
-          ? 'Hervorgehoben: ' + K.state.hervor + ' — nochmals klicken hebt auf'
-          : 'Punktgrösse = Anzahl Attribute bzw. Objekttypen' }
-    ], 'Objekttypen dieser Quelle und die Property Sets, die sie verbinden. ' +
-       'Auf einen Objekttyp klicken öffnet seine Attribute.');
+      { name: 'Objekttyp', n: liste.length, farbe: '#0F5C4E' },
+      { name: 'Property Set', n: Object.keys(nachPset).length, farbe: '#6B5B4A', form: 'quadrat' },
+      { hinweis: K.state.hervor ? 'Hervorgehoben: ' + K.state.hervor
+                                : 'Punktgrösse: Anzahl Merkmale' }
+    ], 'Objekttypen und die Property Sets, die sie teilen. Ein Objekttyp öffnet seine ' +
+       'Merkmale, ein Property Set hebt seine Objekttypen hervor. Mausrad oder +/− zoomt, ' +
+       'Pfeiltasten verschieben.', 'Objekttypen und Property Sets');
   }
 
-  /* --- Stufe Attribute eines Objekttyps --- */
+  /* --- Ein Objekttyp und seine Merkmale --- */
 
   function zeigeObjekttyp() {
-    var e = objekttypVon(K.state.pfad.objekttyp);
-    if (!e) { K.geheZuKatalog(); return; }
+    var st = K.state;
+    var e = objekttypVon(st.objekttyp);
+    if (!e) { K.geheZuUebersicht(); return; }
 
-    var attrs = sichtbareAttribute(e.uri);
+    var merkmale = sichtbareMerkmale(e.uri);
 
-    if (attrs === null) {                       // noch am Laden
-      el.count.textContent = 'Attribute werden geladen …';
-      sichtbareAnsicht(K.state.ansicht);
-      if (K.state.ansicht === 'liste') {
-        K.zeichneListe({ spalten: [{ titel: 'Attribut' }], zeilen: [],
-                         leerText: 'Attribute werden geladen …' });
-      } else if (K.state.ansicht === 'galerie') {
-        K.zeichneGalerie([], 'Attribute werden geladen …');
+    if (merkmale === null) {
+      titel(e.name, 'Merkmale werden geladen …', e.beschreibung, null);
+      el.treffer.textContent = '';
+      el.blaettern.hidden = true;
+      sichtbareAnsicht(st.ansicht);
+      if (st.ansicht === 'liste') {
+        K.zeichneListe({ titel: e.name, spalten: [{ titel: 'Merkmal' }], zeilen: [],
+                         leerText: 'Merkmale werden geladen …' });
+      } else if (st.ansicht === 'galerie') {
+        K.zeichneGalerie([], 'Merkmale werden geladen …');
       } else {
-        K.el['graph-hinweis'].textContent = 'Attribute werden geladen …';
-        K.el.netz.innerHTML = '';
-        K.el.legende.innerHTML = '';
+        el['graph-hinweis'].textContent = 'Merkmale werden geladen …';
+        el.netz.innerHTML = '';
       }
       return;
     }
 
-    el.count.textContent = K.zahl(attrs.length) + ' von ' + K.zahl(e.anzahl) + ' Attributen';
+    var psets = {};
+    merkmale.forEach(function (m) { psets[m.pset] = true; });
 
-    if (K.state.ansicht === 'liste') {
+    titel(e.name,
+      K.zahl(merkmale.length) +
+      (merkmale.length === e.anzahl ? '' : ' von ' + K.zahl(e.anzahl)) +
+      ' Merkmale · ' + Object.keys(psets).length + ' Property Sets · ' + e.quelle,
+      e.beschreibung, null);
+
+    el.treffer.textContent = K.zahl(merkmale.length) + ' Treffer';
+
+    var aus = blaettere(merkmale.length);
+    var seite = merkmale.slice(aus.von, aus.bis);
+    var mitPhase = merkmale.some(function (m) { return m.phasen.length; });
+
+    if (st.ansicht === 'liste') {
       sichtbareAnsicht('liste');
+      var spalten = [
+        { titel: 'Merkmal', breite: '28%' },
+        { titel: 'Datentyp', breite: '10%' },
+        { titel: 'Reifegrad', breite: '10%' },
+        { titel: 'Property Set', breite: '20%' }
+      ];
+      if (mitPhase) spalten.push({ titel: 'Projektphase', breite: '130px' });
+      spalten.push({ titel: 'Einheit / Zulässige Werte' });
+
       K.zeichneListe({
-        spalten: [
-          { titel: 'Attribut', breite: '32%' },
-          { titel: 'Typ', breite: '11%' },
-          { titel: 'Property Set', breite: '24%' },
-          { titel: 'Einheit / Werte' }
-        ],
-        zeilen: attrs.map(function (a) {
-          return {
-            titel: a.name + ' im Detail',
-            onClick: function () { K.geheZuAttribut(a.uri); },
-            zellen: [
-              function () {
-                var box = document.createDocumentFragment();
-                var nm = document.createElement('span');
-                nm.className = 'attr-name';
-                nm.textContent = a.name;
-                box.appendChild(nm);
-                if (a.beschreibung && a.beschreibung !== a.name) {
-                  var de = document.createElement('span');
-                  de.className = 'attr-desc';
-                  de.textContent = a.beschreibung;
-                  box.appendChild(de);
-                }
-                return box;
-              },
-              function () { return typChip(a); },
-              function () { return psetZelle(e, a); },
-              function () { return einheitZelle(a); }
-            ]
-          };
+        titel: 'Merkmale von ' + e.name,
+        spalten: spalten,
+        zeilen: seite.map(function (m) {
+          var zellen = [
+            function () {
+              var box = document.createDocumentFragment();
+              box.appendChild(K.zeilenKnopf(m.name, null,
+                function () { K.geheZuMerkmal(m.uri); }));
+              if (m.beschreibung && m.beschreibung !== m.name) {
+                var de = document.createElement('span');
+                de.className = 'merkmal-desc';
+                de.textContent = m.beschreibung;
+                box.appendChild(de);
+              }
+              return box;
+            },
+            function () { return typMarke(m); },
+            function () { return statusMarke(m.status) || K.leer('ohne Reifegrad'); },
+            function () { return psetZelle(e, m); }
+          ];
+          if (mitPhase) zellen.push(function () { return K.phasen(m.phasen, st.allePhasen); });
+          zellen.push(function () { return werteZelle(m); });
+          return { onClick: function () { K.geheZuMerkmal(m.uri); }, zellen: zellen };
         })
       });
-    } else if (K.state.ansicht === 'galerie') {
+    } else if (st.ansicht === 'galerie') {
       sichtbareAnsicht('galerie');
-      K.zeichneGalerie(attrs.map(function (a) {
+      K.zeichneGalerie(seite.map(function (m) {
         return {
-          name: a.name,
-          sub: a.beschreibung && a.beschreibung !== a.name
-                 ? K.gekuerzt(a.beschreibung, 120) : '',
-          chips: [{ name: a.pset, farbe: e.farbe[a.pset] }]
-                   .concat(a.typ ? [{ name: a.typ }] : []),
-          fuss: [a.einheit, a.ifcTyp,
-                 a.liste && a.liste.anzahl ? a.liste.anzahl + ' Werte' : '']
-                  .filter(Boolean).join(' · '),
-          onClick: function () { K.geheZuAttribut(a.uri); }
+          name: m.name,
+          text: (m.beschreibung && m.beschreibung !== m.name) ? m.beschreibung : '',
+          marken: [{ name: m.pset, farbe: e.farbe[m.pset] }]
+            .concat(m.typ ? [{ name: m.typ, art: 'fill' }] : [])
+            .concat(m.status ? [{ name: m.status, art: 'status' }] : []),
+          fuss: [m.einheit, m.ifcTyp,
+                 m.liste && m.liste.anzahl ? m.liste.anzahl + ' zulässige Werte' : '']
+                 .filter(Boolean).join(' · '),
+          onClick: function () { K.geheZuMerkmal(m.uri); }
         };
       }));
     } else {
-      sichtbareAnsicht('grafik');
-      K.zeichneRadial(e, attrs,
-        'Die Attribute von ' + e.name + ', gruppiert nach Property Set. ' +
-        'Auf ein Attribut klicken zeigt es im Detail.');
+      sichtbareAnsicht('graph');
+      graphMeldung(null);
+      K.zeichneRadial(e, merkmale,
+        'Die Merkmale von ' + e.name + ', gruppiert nach Property Set. Ein Merkmal öffnet ' +
+        'seine Angaben. Mausrad oder +/− zoomt, Pfeiltasten verschieben.');
     }
   }
 
-  function typChip(a) {
-    if (!a.typ) return K.leer();
-    var tp = document.createElement('span');
-    tp.className = 'typ' + (a.typ === 'Auswahl' ? ' auswahl' : '');
-    tp.textContent = a.typ;
-    if (a.ifcTyp) tp.title = 'IFC-Datentyp: ' + a.ifcTyp;
-    return tp;
+  /* Reifegrad. Der Katalog kennt bisher nur Candidate und Preview —
+     verabschiedet ist nichts. Das gehört an jeden Eintrag. */
+  function statusMarke(wert) {
+    if (!wert) return null;
+    var t = document.createElement('span');
+    t.className = 'token token--status';
+    t.textContent = wert;
+    t.title = wert === 'Preview'
+      ? 'Vorschau — noch in Erarbeitung'
+      : 'Kandidat — vorgeschlagen, noch nicht verabschiedet';
+    return t;
   }
 
-  function psetZelle(e, a) {
+  /* Statt einer leeren Zeichenfläche: sagen, was zu tun ist */
+  function graphMeldung(titel, text) {
+    var zeigen = !!titel;
+    el['graph-meldung'].hidden = !zeigen;
+    el['graph-wrap'].hidden = zeigen;
+    el['graph-steuerung'].hidden = zeigen;
+    el['graph-hinweis'].hidden = zeigen;
+    if (!zeigen) return;
+
+    el['graph-meldung'].innerHTML = '';
+    var h = document.createElement('h2');
+    h.textContent = titel;
+    el['graph-meldung'].appendChild(h);
+    var p = document.createElement('p');
+    p.textContent = text;
+    el['graph-meldung'].appendChild(p);
+  }
+
+  function typMarke(m) {
+    if (!m.typ) return K.leer('ohne Typangabe');
+    var t = document.createElement('span');
+    t.className = 'token token--fill';
+    t.textContent = m.typ;
+    return t;
+  }
+
+  function psetZelle(e, m) {
     var box = document.createElement('span');
     box.className = 'pset';
     var sw = document.createElement('span');
     sw.className = 'swatch';
-    sw.style.background = e.farbe[a.pset] || 'var(--rule)';
+    sw.style.background = e.farbe[m.pset] || 'var(--rule)';
     box.appendChild(sw);
     var pn = document.createElement('span');
     pn.className = 'pset-name';
-    pn.textContent = a.pset;
-    if (a.ifcPset) {
+    pn.textContent = m.pset;
+    if (m.ifcPset) {
       var ip = document.createElement('span');
       ip.className = 'pset-ifc';
-      ip.textContent = 'IFC: ' + a.ifcPset;
+      ip.textContent = 'IFC: ' + m.ifcPset;
       pn.appendChild(ip);
     }
     box.appendChild(pn);
     return box;
   }
 
-  function einheitZelle(a) {
+  function werteZelle(m) {
     var box = document.createDocumentFragment();
     var etwas = false;
-    if (a.einheit) {
+    if (m.einheit) {
       var eh = document.createElement('span');
       eh.className = 'einheit';
-      eh.textContent = a.einheit;
+      eh.textContent = m.einheit;
       box.appendChild(eh);
       etwas = true;
     }
-    if (a.liste && a.liste.anzahl) {
+    if (m.liste && m.liste.anzahl) {
       var w = document.createElement('span');
       w.className = 'werte';
       var n = document.createElement('span');
-      n.className = 'n';
-      n.textContent = a.liste.anzahl + ' Werte: ';
+      n.className = 'werte-n';
+      n.textContent = m.liste.anzahl + ' Werte: ';
       w.appendChild(n);
-      w.appendChild(document.createTextNode(K.gekuerzt(a.liste.werte, 70)));
-      w.title = a.liste.werte;
+      w.appendChild(document.createTextNode(K.gekuerzt(m.liste.werte, 70)));
       box.appendChild(w);
       etwas = true;
     }
-    return etwas ? box : K.leer();
+    return etwas ? box : K.leer('ohne Einheit und ohne Werteliste');
   }
 
-  /* --- Stufe einzelnes Attribut --- */
+  /* --- Ein Merkmal --- */
 
-  function zeigeAttribut() {
-    var e = objekttypVon(K.state.pfad.objekttyp);
-    var a = attributVon();
-    if (!e || !a) { K.state.pfad.attribut = null; zeichne(); return; }
+  function zeigeMerkmal() {
+    var e = objekttypVon(K.state.objekttyp);
+    var m = merkmalVon();
+    if (!e || !m) { K.state.merkmal = null; zeichne(); return; }
 
     sichtbareAnsicht(null);
-    el['view-attribut'].hidden = false;
-    el.count.textContent = '';
+    el['view-merkmal'].hidden = false;
+    el.treffer.textContent = '';
 
-    var ziel = el['attribut-detail'];
+    titel(m.name, e.name + ' · ' + m.pset + ' · ' + e.quelle, null, null);
+
+    var ziel = el['merkmal-detail'];
     ziel.innerHTML = '';
 
-    var h = document.createElement('h2');
-    h.textContent = a.name;
-    ziel.appendChild(h);
-
-    if (a.beschreibung && a.beschreibung !== a.name) {
+    if (m.beschreibung && m.beschreibung !== m.name) {
       var p = document.createElement('p');
-      p.className = 'attribut-beschreibung';
-      p.textContent = a.beschreibung;
+      p.className = 'lead';
+      p.textContent = m.beschreibung;
       ziel.appendChild(p);
     }
 
     var dl = document.createElement('dl');
     dl.className = 'daten';
 
-    function zeile(titel, wert, mono) {
+    function zeile(t, wert) {
       if (!wert) return;
       var dt = document.createElement('dt');
-      dt.textContent = titel;
+      dt.textContent = t;
       var dd = document.createElement('dd');
-      if (mono) dd.className = 'mono';
       if (typeof wert === 'string') dd.textContent = wert;
       else dd.appendChild(wert);
-      dl.appendChild(dt);
-      dl.appendChild(dd);
+      dl.appendChild(dt); dl.appendChild(dd);
     }
 
     zeile('Objekttyp', e.name);
-    zeile('Quelle', e.quelle);
-    zeile('Property Set', psetZelle(e, a));
-    zeile('Typ', typChip(a));
-    zeile('IFC-Datentyp', a.ifcTyp);
-    zeile('IFC-Property-Set', a.ifcPset);
-    zeile('Einheit', a.einheit);
-    if (a.liste && a.liste.anzahl) {
-      zeile('Zulässige Werte (' + a.liste.anzahl + ')', a.liste.werte);
+    zeile('Katalog', e.quelle);
+    zeile('Property Set', psetZelle(e, m));
+    zeile('Datentyp', typMarke(m));
+    zeile('Reifegrad', statusMarke(m.status));
+    zeile('IFC-Datentyp', m.ifcTyp);
+    zeile('IFC-Property-Set', m.ifcPset);
+    zeile('Einheit', m.einheit);
+    if (m.liste && m.liste.anzahl) {
+      zeile('Zulässige Werte (' + m.liste.anzahl + ')', m.liste.werte);
     }
-    zeile('Phasen', a.phasen.length ? a.phasen.join(' · ') : '');
-    zeile('URI', a.uri, true);
+    if (K.state.allePhasen && K.state.allePhasen.length) {
+      zeile('Projektphasen', K.phasen(m.phasen, K.state.allePhasen));
+    }
+    var uri = document.createElement('span');
+    uri.className = 'mono';
+    uri.textContent = m.uri;
+    zeile('URI', uri);
 
     ziel.appendChild(dl);
   }
 
-  /* ---------- Ansicht umschalten ---------- */
+  /* ---------- Ansicht ---------- */
 
   function setzeAnsicht(name) {
     K.state.ansicht = name;
-    ['liste', 'galerie', 'grafik'].forEach(function (v) {
+    ['liste', 'galerie', 'graph'].forEach(function (v) {
       document.getElementById('v-' + v).setAttribute('aria-pressed', String(v === name));
     });
-    if (K.state.pfad.attribut) K.state.pfad.attribut = null;   // Detail verlassen
+    if (K.state.merkmal) K.state.merkmal = null;
+    inUrl();
     zeichne();
   }
   K.setzeAnsicht = setzeAnsicht;
 
   /* ---------- CSV ---------- */
 
-  function toCsv() {
-    var sep = ';';
-    function zelle(w) {
-      var s = w == null ? '' : String(w);
-      return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-    }
+  function csvZelle(w) {
+    var s = w == null ? '' : String(w);
+    return /[";\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
 
-    var p = K.state.pfad, zeilen, name;
-
-    if (p.objekttyp && K.state.detail[p.objekttyp]) {
-      var e = objekttypVon(p.objekttyp);
-      var attrs = sichtbareAttribute(p.objekttyp) || [];
-      zeilen = [['Objekttyp', 'Quelle', 'Attribut', 'Attribut-URI', 'Beschreibung', 'Typ',
-                 'Property Set', 'IFC-Property-Set', 'Einheit', 'Zulässige Werte',
-                 'IFC-Datentyp', 'Phasen'].join(sep)];
-      attrs.forEach(function (a) {
-        zeilen.push([
-          zelle(e.name), zelle(e.quelle), zelle(a.name), zelle(a.uri),
-          zelle(a.beschreibung), zelle(a.typ), zelle(a.pset), zelle(a.ifcPset),
-          zelle(a.einheit), zelle(a.liste ? a.liste.werte : ''),
-          zelle(a.ifcTyp), zelle(a.phasen.join(' '))
-        ].join(sep));
-      });
-      name = 'kbob-' + e.name.replace(/[^\wäöüÄÖÜß]+/g, '-').toLowerCase() + '.csv';
-    } else {
-      var objekttypen = sichtbareObjekttypen(p.quelle);
-      zeilen = [['Objekttyp', 'Objekttyp-URI', 'Quelle', 'Attribute', 'Property Sets',
-                 'Typen', 'Phasen'].join(sep)];
-      objekttypen.forEach(function (b) {
-        zeilen.push([
-          zelle(b.name), zelle(b.uri), zelle(b.quelle), zelle(b.anzahl),
-          zelle(b.psets.map(function (x) { return x.name + ' (' + x.n + ')'; }).join(', ')),
-          zelle(b.typen.join(' ')), zelle(b.phasen.join(' '))
-        ].join(sep));
-      });
-      name = 'kbob-objekttypen.csv';
-    }
-
+  function speichere(zeilen, name) {
     var blob = new Blob(['﻿' + zeilen.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -819,16 +1101,77 @@ var KBOB = window.KBOB || (window.KBOB = {});
     URL.revokeObjectURL(url);
   }
 
-  /* ---------- Dialoge und Ereignisse ---------- */
+  var KOPF = ['Objekttyp', 'Reifegrad Objekttyp', 'Katalog', 'Merkmal', 'Merkmal-URI',
+              'Beschreibung', 'Datentyp', 'Reifegrad Merkmal', 'Property Set',
+              'IFC-Property-Set', 'Einheit', 'Zulässige Werte', 'IFC-Datentyp',
+              'Projektphasen'];
 
-  var dlgQuery = document.getElementById('dlg-query');
+  function merkmalZeile(e, m) {
+    return [e.name, e.status, e.quelle, m.name, m.uri, m.beschreibung, m.typ, m.status,
+            m.pset, m.ifcPset, m.einheit, m.liste ? m.liste.werte : '', m.ifcTyp,
+            m.phasen.join(' ')].map(csvZelle).join(';');
+  }
+
+  function dateiname(s) {
+    return s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue')
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
+  /* Ein Objekttyp: sofort. Eine ganze Auswahl: die Merkmale werden dafür
+     nachgeladen — genau das braucht die Datenübergabe an einen Integrator. */
+  function toCsv() {
+    var st = K.state;
+
+    if (st.objekttyp && st.detail[st.objekttyp]) {
+      var e = objekttypVon(st.objekttyp);
+      var zeilen = [KOPF.join(';')];
+      (sichtbareMerkmale(st.objekttyp) || []).forEach(function (m) {
+        zeilen.push(merkmalZeile(e, m));
+      });
+      speichere(zeilen, 'kbob-' + dateiname(e.name) + '.csv');
+      setStatus(K.zahl(zeilen.length - 1) + ' Merkmale gespeichert.');
+      return;
+    }
+
+    var auswahl = sichtbareObjekttypen();
+    if (!auswahl.length) return;
+
+    if (auswahl.length > 60) {
+      setStatus('Für den Export bitte auf höchstens 60 Objekttypen filtern — aktuell sind ' +
+                K.zahl(auswahl.length) + ' ausgewählt.', true);
+      return;
+    }
+
+    el.csv.disabled = true;
+    busy(true, 'Merkmale für den Export werden geladen …');
+
+    Promise.all(auswahl.map(function (e) {
+      return K.holeDetail(endpunkt(), graphUri(), e.uri);
+    })).then(function () {
+      busy(false);
+      el.csv.disabled = false;
+      var zeilen = [KOPF.join(';')];
+      auswahl.forEach(function (e) {
+        (st.detail[e.uri] || []).forEach(function (m) { zeilen.push(merkmalZeile(e, m)); });
+      });
+      speichere(zeilen, 'kbob-merkmale.csv');
+      setStatus(K.zahl(auswahl.length) + ' Objekttypen mit ' + K.zahl(zeilen.length - 1) +
+                ' Merkmalen gespeichert.');
+    }).catch(function (err) {
+      busy(false);
+      el.csv.disabled = false;
+      setStatus('Export fehlgeschlagen: ' + String(err && err.message || err), true);
+    });
+  }
+
+  /* ---------- Abfragen zeigen ---------- */
 
   function zeigeAbfrage(welche) {
     ['uebersicht', 'detail', 'werte'].forEach(function (w) {
       document.getElementById('tab-' + w).setAttribute('aria-pressed', String(w === welche));
     });
     var g = graphUri();
-    var beispiel = K.state.pfad.objekttyp ||
+    var beispiel = K.state.objekttyp ||
                    (K.state.elemente.length ? K.state.elemente[0].uri : 'https://beispiel/klasse');
     document.getElementById('query-text').value =
       welche === 'uebersicht' ? K.uebersichtQuery(g)
@@ -836,33 +1179,64 @@ var KBOB = window.KBOB || (window.KBOB = {});
       :                         K.werteQuery(g);
   }
 
+  /* ---------- Verdrahtung ---------- */
+
   function verdrahten() {
+    el.version.textContent = 'kbob-data ' + K.VERSION;
+
     el.neuladen.addEventListener('click', laden);
 
-    ['liste', 'galerie', 'grafik'].forEach(function (v) {
+    ['liste', 'galerie', 'graph'].forEach(function (v) {
       document.getElementById('v-' + v).addEventListener('click', function () { setzeAnsicht(v); });
     });
 
-    document.getElementById('show-query').addEventListener('click', function () {
+    el.verbindung.addEventListener('click', function () {
       zeigeAbfrage('uebersicht');
-      dlgQuery.showModal();
+      dlgVerbindung.showModal();
     });
     ['uebersicht', 'detail', 'werte'].forEach(function (w) {
       document.getElementById('tab-' + w).addEventListener('click', function () { zeigeAbfrage(w); });
     });
-    document.getElementById('close-query').addEventListener('click', function () { dlgQuery.close(); });
+    document.getElementById('close-verbindung')
+      .addEventListener('click', function () { dlgVerbindung.close(); });
     document.getElementById('copy-query').addEventListener('click', function () {
       var ta = document.getElementById('query-text');
       ta.select();
-      try { document.execCommand('copy'); this.textContent = 'Kopiert'; } catch (e) {}
-      var b = this;
-      setTimeout(function () { b.textContent = 'In Zwischenablage kopieren'; }, 1600);
+      try { document.execCommand('copy'); } catch (e) {}
+      setStatus('Abfrage in die Zwischenablage kopiert.');
     });
 
+    el.barrierefreiheit.addEventListener('click', function () { dlgA11y.showModal(); });
+    document.getElementById('close-a11y')
+      .addEventListener('click', function () { dlgA11y.close(); });
+
     el.csv.addEventListener('click', toCsv);
-    el.filter.addEventListener('input', zeichne);
-    el['f-phase'].addEventListener('change', zeichne);
-    el['f-typ'].addEventListener('change', zeichne);
+
+    /* Entprellt: im Netz kostet ein Neuaufbau bis zu 200 ms */
+    var sucheTimer = null;
+    el.filter.addEventListener('input', function () {
+      clearTimeout(sucheTimer);
+      sucheTimer = setTimeout(function () { inUrl(); zeichne(); }, 180);
+    });
+
+    window.addEventListener('popstate', function () { ausUrl(); zeichne(); });
+
+    /* Die Kopfzeile klebt — die Tabellenköpfe müssen wissen, wie hoch sie ist */
+    var kopf = document.querySelector('header');
+    var subkopf = document.querySelector('.subkopf');
+    function messeKopf() {
+      var wurzel = document.documentElement;
+      wurzel.style.setProperty('--kopf', kopf.offsetHeight + 'px');
+      wurzel.style.setProperty('--kopf-gesamt', (kopf.offsetHeight + subkopf.offsetHeight) + 'px');
+    }
+    messeKopf();
+    if (window.ResizeObserver) {
+      var beobachter = new ResizeObserver(messeKopf);
+      beobachter.observe(kopf);
+      beobachter.observe(subkopf);
+    } else {
+      window.addEventListener('resize', messeKopf);
+    }
 
     K.grafikSteuerung();
   }

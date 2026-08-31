@@ -10,21 +10,25 @@ welchem Format, aus welchem Property Set.**
 
 ## Starten
 
+Der Endpunkt schickt CORS-Header (`access-control-allow-origin` spiegelt die
+Origin), daher genügt ein beliebiger statischer Server:
+
 ```bash
-python lindas-proxy.py          # http://localhost:8765
+python -m http.server 8000      # http://localhost:8000
 ```
 
-Der Proxy liefert das Frontend aus und leitet SPARQL an den Endpunkt weiter.
-Weil Frontend und Abfrage dieselbe Origin haben, entfällt CORS. Der Katalog
-lädt automatisch beim Öffnen der Seite.
+Wer den Endpunkt wechseln oder eine Anmeldung braucht, nimmt den Proxy:
 
 ```bash
+python lindas-proxy.py                          # http://localhost:8765
 python lindas-proxy.py --check                  # nur Erreichbarkeit testen
 python lindas-proxy.py --user me --password xy  # Endpunkt mit Anmeldung
 ```
 
-Ohne Proxy lässt sich `index.html` auch direkt öffnen — dann scheitert die
-Abfrage aber meist an CORS.
+Der Proxy liefert das Frontend aus und leitet SPARQL weiter; Frontend und
+Abfrage haben dann dieselbe Origin. Der Katalog lädt in beiden Fällen
+automatisch beim Öffnen der Seite. Direkt per `file://` geöffnet scheitert
+die Abfrage dagegen an CORS.
 
 ## Navigation
 
@@ -33,9 +37,14 @@ Drei Stufen, über die Brotkrumen jederzeit umschaltbar:
     Katalog  ›  Quelle  ›  Objekttyp  ›  Attribut
 
 Jede Stufe gibt es als **Liste**, **Galerie** (eine Karte je Eintrag) und
-**Grafik** (Netz beziehungsweise radiale Darstellung eines Objekttyps).
+**Graph** (Netz beziehungsweise radiale Darstellung eines Objekttyps).
 Dazu Filter nach Phase und Datentyp sowie eine Volltextsuche; die jeweils
 sichtbare Auswahl lässt sich als CSV speichern.
+
+Objekttypen führen im Graphen durchgehend eine Definition in Prosa — die
+Listen und Karten zeigen darum die Beschreibung statt der technischen
+Property-Set-Namen. Quellen haben keine Beschreibung, dort stehen weiterhin
+die Property Sets.
 
 ## Zwei Abfragestufen
 
@@ -52,9 +61,10 @@ Die Abfragen sind in der App unter «Verbindung und Abfrage» →
 
 Der Katalog vereint fünf Quellen: KBOB Data Dictionary FM, AG ATB iDSK
 Pilot-Datenkatalog, Data Dictionary Flächenmanagement, RTE 26201 (VöV) und
-den KBOB Dokumenttypenkatalog. Letzterer stellt mit 666 Einträgen die
-grosse Mehrheit der Klassen, ist aber ein Dokument- und kein Objekttypenkatalog —
-über die Quellenstufe ist er sauber getrennt.
+den KBOB Dokumenttypenkatalog. Letzterer stellt mit 666 von 719 Einträgen
+die grosse Mehrheit — er beschreibt Dokumenttypen, nicht Bauteile. Genau
+darum heisst die Stufe neutral «Objekttyp»: der Katalog verwaltet beides.
+Über die Quellenstufe sind sie sauber getrennt.
 
 SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
 `DataTemplate` → `PropertyRequirement` → `Property`.
@@ -68,3 +78,6 @@ SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
     js/views.js       Liste, Galerie, Netz- und Radialgrafik
     js/app.js         Navigation, Filter, Start
     lindas-proxy.py   lokaler Proxy, nur Standardbibliothek
+
+Endpunkt, Named Graph und die drei Abfragen sind zur Laufzeit über
+«Verbindung und Abfrage» in der Fusszeile einsehbar.

@@ -3,76 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>KBOB Data Dictionary — Objekttypen und Attribute</title>
+<title>Übersicht, KBOB Data Dictionary</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/main.css">
 </head>
 <body>
 
+<a class="sr-only" href="#inhalt">Springe zum Hauptteil</a>
+
 <header>
-  <div class="titlebar">
-    <h1>KBOB Data Dictionary</h1>
-    <span class="subtitle">Welche Attribute ein Objekttyp mitbringen muss</span>
-    <span class="spacer"></span>
-    <div class="views" role="group" aria-label="Ansicht">
-      <button id="v-liste" aria-pressed="true">Liste</button>
-      <button id="v-galerie" aria-pressed="false">Galerie</button>
-      <button id="v-grafik" aria-pressed="false">Grafik</button>
-    </div>
+  <div class="kopf-innen">
+    <p class="marke">KBOB Data Dictionary</p>
+    <p class="status" id="status" role="status" aria-live="polite">Katalog wird geladen …</p>
+    <p class="spinner" id="spinner" hidden><span class="ring"></span>Wird geladen …</p>
+    <button id="csv" class="ghost kopf-rechts" disabled
+            title="Speichert eine CSV-Datei, die Excel direkt öffnet">Für Excel speichern</button>
   </div>
-
-  <nav class="krumen" id="krumen" aria-label="Pfad"></nav>
-
-  <details class="conn">
-    <summary>Verbindung und Abfrage</summary>
-    <div class="controls">
-      <div class="field">
-        <label for="endpoint">SPARQL-Endpunkt</label>
-        <input id="endpoint" type="text" value="https://int.lindas.admin.ch/query" spellcheck="false">
-      </div>
-      <div class="field">
-        <label for="graph">Named Graph</label>
-        <input id="graph" type="url" value="https://lindas.admin.ch/fobl/kbob/dd-fm" spellcheck="false">
-      </div>
-      <button id="neuladen" class="ghost">Neu laden</button>
-      <button id="show-query" class="ghost">Abfragen ansehen</button>
-      <button id="csv" class="ghost" disabled>Als CSV speichern</button>
-    </div>
-  </details>
-
-  <div class="status" id="status">Katalog wird geladen …</div>
-  <div class="spinner" id="spinner" role="status" hidden></div>
 </header>
 
+<nav class="subkopf" aria-label="Pfad">
+  <ol class="krumen" id="krumen"></ol>
+</nav>
+
 <div class="shell">
-  <main>
-    <div class="toolbar" id="toolbar" hidden>
-      <div class="field">
-        <label for="f-phase">Phase</label>
-        <select id="f-phase"></select>
-      </div>
-      <div class="field">
-        <label for="f-typ">Typ</label>
-        <select id="f-typ"></select>
-      </div>
-      <div class="field">
-        <label for="filter">Suche</label>
-        <input type="search" id="filter" placeholder="Quelle, Objekttyp oder Attribut" aria-label="Suche">
-      </div>
-      <span class="count" id="count"></span>
+  <main id="inhalt" tabindex="-1">
+
+    <div class="titelblock" id="titelblock" hidden>
+      <h1 id="titel" tabindex="-1"></h1>
+      <p class="kennzahlen" id="kennzahlen"></p>
+      <p class="titel-text" id="titel-text" hidden></p>
+      <p class="hinweis" id="hinweis" hidden></p>
     </div>
 
-    <div id="empty" class="empty">
-      <h3>Katalog wird geladen …</h3>
-      <p>Die Übersicht holt alle Quellen und Objekttypen mit ihren Kennzahlen. Die
-         Attribute eines Objekttyps kommen erst dazu, wenn du es öffnest.</p>
-      <p>Scheitert die Abfrage an CORS – typisch beim Öffnen der Datei per
-         <code>file://</code> – starte <code>lindas-proxy.py</code> und rufe
-         <code>http://localhost:8765</code> auf.</p>
+    <div class="toolbar" id="toolbar" hidden>
+      <div class="feld">
+        <label class="label" for="filter">Suche</label>
+        <input type="search" id="filter" placeholder="Objekttyp oder Merkmal">
+      </div>
+      <div class="facetten" id="facetten"></div>
+      <span class="werkzeuge-rechts">
+        <span class="treffer" id="treffer" aria-live="polite"></span>
+        <span class="views" role="group" aria-label="Ansicht">
+          <button id="v-liste" aria-pressed="true">Liste</button>
+          <button id="v-galerie" aria-pressed="false">Galerie</button>
+          <button id="v-graph" aria-pressed="false">Graph</button>
+        </span>
+      </span>
     </div>
+
+    <div class="aktive-filter" id="aktive-filter" hidden></div>
+
+    <div id="platzhalter" class="laden-platzhalter">Katalog wird geladen …</div>
 
     <div id="view-liste" hidden></div>
 
@@ -80,32 +64,97 @@
       <div class="galerie" id="galerie"></div>
     </div>
 
-    <div id="view-grafik" hidden>
-      <div class="graph-wrap">
-        <svg id="netz" role="img" aria-label="Quellen, Objekttypen und Attribute als Netzgrafik"></svg>
-        <div class="tip" id="tip" role="status"></div>
+    <div id="view-graph" hidden>
+      <div class="graph-steuerung" id="graph-steuerung">
+        <button class="ghost" id="zoom-plus" aria-label="Vergrössern">+</button>
+        <button class="ghost" id="zoom-minus" aria-label="Verkleinern">−</button>
+        <button class="ghost" id="zoom-reset">Ansicht zurücksetzen</button>
+      </div>
+      <div class="meldung" id="graph-meldung" hidden></div>
+      <div class="graph-wrap weit" id="graph-wrap">
+        <svg id="netz" aria-labelledby="graph-hinweis"></svg>
+        <div class="tip" id="tip" aria-hidden="true"></div>
         <div class="legend" id="legende"></div>
       </div>
       <p class="graph-hint" id="graph-hinweis"></p>
+      <div class="sr-only" id="graph-text"></div>
     </div>
 
-    <div id="view-attribut" hidden>
-      <div class="attribut-detail" id="attribut-detail"></div>
+    <div id="view-merkmal" hidden>
+      <div class="merkmal-detail" id="merkmal-detail"></div>
     </div>
+
+    <nav class="blaettern" id="blaettern" hidden aria-label="Seiten"></nav>
+
   </main>
 </div>
 
-<dialog id="dlg-query">
-  <h3>SPARQL-Abfragen</h3>
+<footer>
+  <div class="fuss-innen">
+    <span class="version" id="version"></span>
+    <button class="link" id="verbindung">Verbindung und Abfrage</button>
+    <button class="link" id="barrierefreiheit">Erklärung zur Barrierefreiheit</button>
+    <a href="https://github.com/KBOB-admin"
+       target="_blank" rel="noopener">KBOB auf GitHub ↗</a>
+    <a class="rechts" href="https://github.com/bbl-dres/kbob-data"
+       target="_blank" rel="noopener">Quellcode dieser Anwendung ↗</a>
+    <p class="fuss-herkunft">
+      Daten: KBOB Data Dictionary (FM) über LINDAS. Der ausgewertete Graph liegt auf der
+      Integrationsumgebung und ist <b>kein publizierter Stand</b>; die Veröffentlichung
+      ist über I14Y vorgesehen.
+    </p>
+  </div>
+</footer>
+
+<dialog id="dlg-verbindung" aria-labelledby="dlg-verbindung-titel">
+  <h2 id="dlg-verbindung-titel">Verbindung und Abfrage</h2>
+
+  <div class="controls">
+    <div class="feld">
+      <label class="label" for="endpoint">SPARQL-Endpunkt</label>
+      <input id="endpoint" type="text" value="https://int.lindas.admin.ch/query" spellcheck="false">
+    </div>
+    <div class="feld">
+      <label class="label" for="graph">Named Graph</label>
+      <input id="graph" type="url" value="https://lindas.admin.ch/fobl/kbob/dd-fm" spellcheck="false">
+    </div>
+    <button id="neuladen">Neu laden</button>
+  </div>
+
+  <h3>Abfragen</h3>
   <div class="tabs">
     <button class="ghost" id="tab-uebersicht" aria-pressed="true">Übersicht</button>
-    <button class="ghost" id="tab-detail" aria-pressed="false">Attribute eines Objekttyps</button>
+    <button class="ghost" id="tab-detail" aria-pressed="false">Merkmale eines Objekttyps</button>
     <button class="ghost" id="tab-werte" aria-pressed="false">Zulässige Werte</button>
   </div>
-  <textarea id="query-text" readonly spellcheck="false"></textarea>
+  <textarea id="query-text" readonly spellcheck="false" aria-label="SPARQL-Abfrage"></textarea>
+
   <div class="row">
     <button class="ghost" id="copy-query">In Zwischenablage kopieren</button>
-    <button id="close-query">Schliessen</button>
+    <button id="close-verbindung">Schliessen</button>
+  </div>
+</dialog>
+
+<dialog id="dlg-a11y" aria-labelledby="dlg-a11y-titel">
+  <h2 id="dlg-a11y-titel">Erklärung zur Barrierefreiheit</h2>
+  <p>Diese Anwendung ist so gebaut, dass sie die Kriterien der
+     <b>WCAG 2.1 Stufe AA</b> erfüllt, wie sie der Standard <b>eCH-0059 v3.0</b>
+     für Dienste des Bundes verbindlich vorgibt.</p>
+  <h3>Bekannte Einschränkungen</h3>
+  <ul>
+    <li>Die Graph-Ansicht ist mit der Tastatur bedienbar und hat eine Textfassung;
+        bei sehr vielen Knoten bleibt sie dennoch schwer erfassbar. Dieselben
+        Angaben stehen vollständig in der Listenansicht.</li>
+    <li>Die Beschriftungen stammen aus den Quelldaten. Fehlt eine deutsche
+        Fassung, wird die englische gezeigt und als <code>lang="en"</code>
+        ausgezeichnet.</li>
+  </ul>
+  <h3>Rückmeldung</h3>
+  <p>Hinweise auf Hürden nimmt die Stelle entgegen, die diese Anwendung betreibt —
+     über das
+     <a href="https://github.com/bbl-dres/kbob-data/issues" target="_blank" rel="noopener">Fehlerverzeichnis auf GitHub ↗</a>.</p>
+  <div class="row">
+    <button id="close-a11y">Schliessen</button>
   </div>
 </dialog>
 

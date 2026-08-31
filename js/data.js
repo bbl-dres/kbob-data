@@ -2,7 +2,7 @@
 
    Zwei Stufen, damit beim Start nur wenig über die Leitung geht:
      L1  Übersicht — ein Datensatz je Objekttyp und Property Set (rund 800 Zeilen)
-     L2  Detail    — die Attribute eines einzelnen Objekttyps, erst auf Abruf
+     L2  Detail    — die Merkmale eines einzelnen Objekttyps, erst auf Abruf
 
    Alles haengt am gemeinsamen Namensraum KBOB. */
 
@@ -11,10 +11,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
 (function (K) {
   'use strict';
 
+  K.VERSION = '1.0.0';
+
   var DD = 'https://lindas.admin.ch/fobl/kbob/dd-fm/vocab/';
 
   /* Datentypen des Katalogs in Alltagssprache */
   K.TYPEN = {
+    AUSWAHL: 'Auswahl',
     STRING:  'Text',
     REAL:    'Zahl',
     INTEGER: 'Ganzzahl',
@@ -103,11 +106,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
       'SELECT ?klasse ?gop ?istDokument',
       '       (SAMPLE(?elementL)      AS ?element)',
       '       (SAMPLE(?beschreibungL) AS ?beschreibung)',
+      '       (SAMPLE(?statusRaw)     AS ?status)',
       '       (SAMPLE(?psetL)         AS ?pset)',
       '       (SAMPLE(?quelleL)       AS ?quelle)',
       '       (COUNT(DISTINCT ?prop) AS ?anzahl)',
-      '       (GROUP_CONCAT(DISTINCT ?typRaw;   separator=" ") AS ?typen)',
+      '       (GROUP_CONCAT(DISTINCT ?typWert;  separator=" ") AS ?typen)',
       '       (GROUP_CONCAT(DISTINCT ?phaseRaw; separator=" ") AS ?phasen)',
+      '       (SAMPLE(?nameSprache) AS ?sprache)',
       'FROM <' + graph + '>',
       'WHERE {',
       '  ?tpl a dd:DataTemplate ;',
@@ -115,7 +120,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       '       dd:hasPropertyRequirement ?pr .',
       '  ?pr  dd:requiresProperty       ?prop .',
       '',
-      '  # Dokumenttypen sind ebenfalls Templates, aber keine Objekttypen',
+      '  # Dokumenttypen sind eigene Objekttypen und als solche markiert',
       '  OPTIONAL { ?klasse a dd:DocumentType . BIND(true AS ?dok) }',
       '  BIND(COALESCE(?dok, false) AS ?istDokument)',
       '',
@@ -123,9 +128,21 @@ var KBOB = window.KBOB || (window.KBOB = {});
       '  OPTIONAL { ?pr  dd:contextualDatatype  ?typRaw }',
       '  OPTIONAL { ?tpl dd:loinMilestone       ?phaseRaw }',
       '',
+      '  # Ein Text mit Werteliste ist eine Auswahl. Dieselbe Ableitung trifft',
+      '  # die Detailabfrage — sonst filtert die Übersicht an den Zeilen vorbei.',
+      '  OPTIONAL { ?pr   dd:usesEnumerationScheme ?enumPr }',
+      '  OPTIONAL { ?prop dd:usesEnumerationScheme ?enumProp }',
+      '  BIND(COALESCE(?typRaw, "") AS ?tRoh)',
+      '  BIND(IF((BOUND(?enumPr) || BOUND(?enumProp)) && ?tRoh = "STRING",',
+      '          "AUSWAHL", ?tRoh) AS ?typWert)',
+      '',
       '  OPTIONAL { ?klasse rdfs:label ?k1 FILTER(lang(?k1) = "de" || lang(?k1) = "") }',
       '  OPTIONAL { ?klasse rdfs:label ?k2 FILTER(lang(?k2) = "en") }',
       '  BIND(COALESCE(?k1, ?k2) AS ?elementL)',
+      '  BIND(IF(BOUND(?k1), "de", "en") AS ?nameSprache)',
+      '',
+      '  # Reifegrad: im Katalog steht bisher alles auf Candidate oder Preview',
+      '  OPTIONAL { ?klasse dd:status ?statusRaw }',
       '',
       '  # Jeder Objekttyp im Graphen fuehrt eine Definition in Prosa',
       '  OPTIONAL { ?klasse skos:definition ?b1 FILTER(lang(?b1) = "de" || lang(?b1) = "") }',
@@ -148,10 +165,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
     ]).join('\n');
   };
 
-  /* L2: die Attribute eines Objekttyps */
+  /* L2: die Merkmale eines Objekttyps */
   K.detailQuery = function (graph, klasse) {
     return PREFIXE.concat([
-      '# Detail: alle Attribute eines Objekttyps.',
+      '# Detail: alle Merkmale eines Objekttyps.',
       'SELECT ?prop ?gop',
       '       (SAMPLE(?attributL)     AS ?attribut)',
       '       (SAMPLE(?beschreibungL) AS ?beschreibung)',
@@ -160,6 +177,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       '       (SAMPLE(?ifcPsetRaw)    AS ?ifcPset)',
       '       (SAMPLE(?einheitRaw)    AS ?einheit)',
       '       (SAMPLE(?ifcRaw)        AS ?ifcTyp)',
+      '       (SAMPLE(?statusRaw)     AS ?status)',
       '       (SAMPLE(?schemaRaw)     AS ?werteSchema)',
       '       (GROUP_CONCAT(DISTINCT ?phaseRaw; separator=" ") AS ?phasen)',
       'FROM <' + graph + '>',
@@ -183,6 +201,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       '  OPTIONAL { ?prop dd:usesEnumerationScheme ?s2 }',
       '  BIND(COALESCE(?s1, ?s2) AS ?schemaRaw)',
       '',
+      '  OPTIONAL { ?prop dd:status             ?statusRaw }',
       '  OPTIONAL { ?prop dd:ifcDatatype        ?ifcRaw }',
       '  OPTIONAL { ?prop dd:alignedWithIfcPset ?ifcPsetRaw }',
       '',
@@ -260,6 +279,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
         e = map[uri] = {
           uri: uri,
           name: v(r, 'element') || K.kurz(uri),
+          sprache: v(r, 'sprache') || 'de',
+          beschreibung: v(r, 'beschreibung'),
+          status: v(r, 'status'),
           quelle: v(r, 'quelle') || 'Ohne Quellenangabe',
           istDokument: v(r, 'istDokument') === 'true',
           anzahl: 0, psets: [], typen: [], phasen: [], farbe: {}
@@ -348,6 +370,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
         ifcPset: K.kurz(v(r, 'ifcPset')),
         einheit: einheitSymbol(v(r, 'einheit')),
         ifcTyp: v(r, 'ifcTyp'),
+        status: v(r, 'status'),
         liste: wl,
         phasen: liste(r, 'phasen')
       };
@@ -362,7 +385,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return attrs;
   };
 
-  /* Attribute eines Objekttyps besorgen — aus dem Zwischenspeicher oder vom Endpunkt.
+  /* Merkmale eines Objekttyps besorgen — aus dem Zwischenspeicher oder vom Endpunkt.
      Die Wertelisten kommen einmalig beim ersten Detail mit. */
   K.holeDetail = function (endpoint, graph, uri) {
     var st = K.state;
