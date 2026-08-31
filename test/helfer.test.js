@@ -12,26 +12,27 @@ var assert = require('node:assert');
 
 global.window = globalThis;
 require('../js/data.js');
+require('../js/export.js');
 var K = globalThis.KBOB;
 
 /* uebernehmeDetail liest K.state — minimaler Zustand genügt */
 K.state = { werte: {}, werteGeladen: false, detail: {}, detailOhneWerte: {},
             elemente: [], generation: 1 };
 
-test('csvZelle: Formel-Injection wird entschärft', function () {
-  assert.strictEqual(K.csvZelle('=SUMME(A1)'), "'=SUMME(A1)");
-  assert.strictEqual(K.csvZelle('+41 31 000 00 00'), "'+41 31 000 00 00");
-  assert.strictEqual(K.csvZelle('-1'), "'-1");
-  assert.strictEqual(K.csvZelle('@SUM'), "'@SUM");
-  assert.strictEqual(K.csvZelle('harmlos'), 'harmlos');
+test('crc32: bekannter Prüfwert der ZIP-Spezifikation', function () {
+  var bytes = Buffer.from('123456789', 'ascii');
+  assert.strictEqual(K.crc32(bytes), 0xCBF43926);
+  assert.strictEqual(K.crc32(new Uint8Array(0)), 0);
 });
 
-test('csvZelle: Quoting bei Semikolon, Anführungszeichen, Zeilenumbrüchen', function () {
-  assert.strictEqual(K.csvZelle('a;b'), '"a;b"');
-  assert.strictEqual(K.csvZelle('sagt "hallo"'), '"sagt ""hallo"""');
-  assert.strictEqual(K.csvZelle('zeile1\nzeile2'), '"zeile1\nzeile2"');
-  assert.strictEqual(K.csvZelle('zeile1\rzeile2'), '"zeile1\rzeile2"');
-  assert.strictEqual(K.csvZelle(null), '');
+test('xlsxSheetXml: Escaping, Zahlzellen, eingefrorene Kopfzeile', function () {
+  var xml = K.xlsxSheetXml(['Name', 'Anzahl'], [['<A> & "B"', 28], ['=SUMME(A1)', '']]);
+  assert.ok(xml.indexOf('&lt;A&gt; &amp; &quot;B&quot;') !== -1);   // escaped
+  assert.ok(xml.indexOf('<c t="n"><v>28</v></c>') !== -1);          // Zahl bleibt Zahl
+  /* Formel-Zeichen bleiben Text: Inline-Strings wertet Excel nie aus */
+  assert.ok(xml.indexOf('=SUMME(A1)') !== -1);
+  assert.ok(xml.indexOf('state="frozen"') !== -1);
+  assert.ok(xml.indexOf('<row r="1">') !== -1);
 });
 
 test('dateiname: Umlaute, Akzente, Leerfall, Datumssuffix', function () {
@@ -79,6 +80,13 @@ test('detailQuery: VALUES-Klausel und rdfs vor skos je Stufe', function () {
   var q = K.detailQuery('https://g', 'https://klasse/raum', 'de');
   assert.ok(q.indexOf('VALUES ?klasse { <https://klasse/raum> }') !== -1);
   assert.ok(q.indexOf('COALESCE(?pr0, ?ps0, ?pr1, ?ps1)') !== -1);
+});
+
+test('alleDetailsQuery: keine VALUES-Klausel, gruppiert nach Klasse', function () {
+  var q = K.alleDetailsQuery('https://g', 'de');
+  assert.ok(q.indexOf('VALUES ?klasse') === -1);
+  assert.ok(q.indexOf('SELECT ?klasse ?prop ?gop') !== -1);
+  assert.ok(q.indexOf('GROUP BY ?klasse ?prop ?gop') !== -1);
 });
 
 test('katalogRang: Prioritätskataloge zuerst, Dokumenttypen zuletzt', function () {

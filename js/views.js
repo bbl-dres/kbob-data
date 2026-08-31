@@ -45,24 +45,63 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return n;
   }
 
-  /* Ladehinweis mit drehendem Ring — für Leerflächen, deren Inhalt gerade
-     unterwegs ist. Der Ring ist dekorativ; der Text trägt die Aussage. */
+  /* Oblique-Icons: das Sprite (assets/icons/obliqueIcons.svg) wird einmal in
+     den Body injiziert, danach greift jedes <use href="#name"> — auch die
+     schon im statischen Markup stehenden Verweise lösen sich damit auf. */
+  (function ladeSprite() {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', 'assets/icons/obliqueIcons.svg', true);
+    xhr.onload = function () {
+      if (xhr.status !== 200 && xhr.status !== 0) return;
+      var box = document.createElement('div');
+      box.setAttribute('hidden', '');
+      box.setAttribute('aria-hidden', 'true');
+      box.innerHTML = xhr.responseText;
+      document.body.insertBefore(box, document.body.firstChild);
+    };
+    xhr.send();
+  })();
+
+  /* Icon aus dem Sprite — immer dekorativ; die Aussage trägt der Text
+     oder das aria-label des umgebenden Bedienelements. */
+  K.icon = function (name, klasse) {
+    var s = svgEl('svg', {
+      class: 'ob-icon' + (klasse ? ' ' + klasse : ''),
+      focusable: 'false', 'aria-hidden': 'true'
+    });
+    var u = document.createElementNS(SVGNS, 'use');
+    u.setAttribute('href', '#' + name);
+    u.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', '#' + name);
+    s.appendChild(u);
+    return s;
+  };
+
+  /* Oblique-Spinner (lib/spinner): ein Kreisbogen, animiert über ob-spin */
+  K.spinner = function () {
+    var s = svgEl('svg', { viewBox: '0 0 48 48', 'aria-hidden': 'true' });
+    s.appendChild(svgEl('circle', {
+      cx: 24, cy: 24, r: 20, fill: 'none',
+      stroke: '#2F4356', 'stroke-miterlimit': 10, 'stroke-width': 4
+    }));
+    return s;
+  };
+
+  /* Ladehinweis mit drehendem Bogen — für Leerflächen, deren Inhalt gerade
+     unterwegs ist. Der Bogen ist dekorativ; der Text trägt die Aussage. */
   K.ladeInhalt = function (text) {
-    var box = K.e('span', 'lade-inhalt');
-    var ring = K.e('span', 'ring');
-    ring.setAttribute('aria-hidden', 'true');
-    box.appendChild(ring);
+    var box = K.e('span', 'kbob-spinner-inline');
+    box.appendChild(K.spinner());
     box.appendChild(document.createTextNode(text));
     return box;
   };
 
   K.leer = function (bedeutung) {
     var s = document.createElement('span');
-    s.className = 'leer';
+    s.className = 'kbob-empty';
     s.textContent = '—';
     if (bedeutung) {
       var sr = document.createElement('span');
-      sr.className = 'sr-only';
+      sr.className = 'ob-screen-reader-only';
       sr.textContent = bedeutung;
       s.appendChild(sr);
     }
@@ -86,7 +125,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (!alle || !alle.length) return K.leer('ohne LOIN-Meilenstein');
 
     var box = document.createElement('span');
-    box.className = 'phasen';
+    box.className = 'kbob-phase-track';
     box.setAttribute('role', 'img');
     box.setAttribute('aria-label', gesetzt.length
       ? 'LOIN-Meilensteine: ' + gesetzt.join(', ')
@@ -103,7 +142,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     alle.forEach(function (p) {
       var an = gesetzt.indexOf(p) !== -1;
       var f = document.createElement('span');
-      f.className = 'ph' + (an ? ' an' : '');
+      f.className = 'kbob-phase' + (an ? ' an' : '');
       f.setAttribute('aria-hidden', 'true');
       f.title = p + (an ? ' — deklariert' : ' — nicht deklariert');
       f.textContent = vorsilbe && p.indexOf(vorsilbe) === 0 ? p.slice(vorsilbe.length) : p;
@@ -114,18 +153,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* Eine Badge-Form für alle Marken; farbe ergänzt einen Swatch (Galerie) */
   K.marken = function (eintraege) {
-    var box = K.e('span', 'marke-gruppe');
+    var box = K.e('span', 'kbob-tags');
     eintraege.forEach(function (m) {
-      var t = K.e('span', 'token');
+      var t = K.e('span', 'kbob-tag');
       if (m.title) t.title = m.title;
       if (m.farbe) {
-        var sw = K.e('span', 'swatch');
+        var sw = K.e('span', 'kbob-swatch');
         sw.style.background = m.farbe;
         t.appendChild(sw);
       }
       t.appendChild(document.createTextNode(m.name));
       if (m.n !== undefined && m.n !== null) {
-        t.appendChild(K.e('span', 'token--zahl', String(m.n)));
+        t.appendChild(K.e('span', 'kbob-count', String(m.n)));
       }
       box.appendChild(t);
     });
@@ -143,9 +182,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
     ziel.innerHTML = '';
 
     var tab = document.createElement('table');
+    tab.className = 'ob-table';
 
     var cap = document.createElement('caption');
-    cap.className = 'sr-only';
+    cap.className = 'ob-screen-reader-only';
     cap.textContent = spec.titel || '';
     tab.appendChild(cap);
 
@@ -155,17 +195,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var th = document.createElement('th');
       th.scope = 'col';
       if (s.breite) th.style.width = s.breite;
-      if (s.rechts) th.className = 'rechts';
+      if (s.rechts) th.className = 'kbob-right';
 
       /* Sortierbare Spalten tragen einen Knopf im Kopf; die aktive Spalte
-         sagt Richtung und Zustand über aria-sort und einen Pfeil. */
+         sagt Richtung und Zustand über aria-sort und einen Pfeil
+         (ArrowUp-Glyphe wie im Oblique-Tabellenkopf, gedreht = absteigend). */
       if (s.sort && spec.onSort) {
-        var b = K.knopf('sortier-knopf', s.titel,
+        var b = K.knopf('kbob-sort', s.titel,
                         function () { spec.onSort(s.sort, s.sortStart); });
         var aktiv = spec.sort && spec.sort.feld === s.sort;
         if (aktiv) {
           th.setAttribute('aria-sort', spec.sort.richtung > 0 ? 'ascending' : 'descending');
-          var pfeil = K.e('span', 'sortier-pfeil', spec.sort.richtung > 0 ? ' ▲' : ' ▼');
+          var pfeil = K.e('span', 'kbob-sort-arrow' + (spec.sort.richtung > 0 ? '' : ' kbob-desc'));
           pfeil.setAttribute('aria-hidden', 'true');
           b.appendChild(pfeil);
         }
@@ -184,7 +225,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var tr0 = document.createElement('tr');
       var td0 = document.createElement('td');
       td0.colSpan = spec.spalten.length;
-      td0.className = 'kein-treffer';
+      td0.className = 'kbob-no-results';
       var leerText = spec.leerText || 'Kein Treffer für diese Filter.';
       if (spec.laedt) td0.appendChild(K.ladeInhalt(leerText));
       else td0.textContent = leerText;
@@ -199,7 +240,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
       z.zellen.forEach(function (bau, i) {
         var td = document.createElement('td');
-        if (spec.spalten[i] && spec.spalten[i].rechts) td.className = 'rechts';
+        if (spec.spalten[i] && spec.spalten[i].rechts) td.className = 'kbob-right';
         var inhalt = bau();
         if (inhalt !== null && inhalt !== undefined) {
           if (typeof inhalt === 'string') td.textContent = inhalt;
@@ -226,7 +267,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
   };
 
   K.zeilenKnopf = function (name, sprache, onClick) {
-    return K.knopf('zeilen-knopf', K.text(name, sprache), onClick);
+    return K.knopf('kbob-row-link', K.text(name, sprache), onClick);
   };
 
   /* =========================================================
@@ -240,7 +281,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     ziel.innerHTML = '';
 
     if (!spec.karten.length) {
-      var p = K.e('p', 'kein-treffer');
+      var p = K.e('p', 'kbob-no-results');
       var text = spec.leerText || 'Kein Treffer für diese Filter.';
       if (spec.laedt) p.appendChild(K.ladeInhalt(text));
       else p.textContent = text;
@@ -252,22 +293,22 @@ var KBOB = window.KBOB || (window.KBOB = {});
       /* Immer ein div — der Knopf sitzt auf dem Namen und dehnt seine
          Klickfläche per CSS über die Karte. So verschmilzt der Karteninhalt
          für Screenreader nicht zu einem einzigen langen Knopfnamen. */
-      var karte = K.e('div', 'karte');
-      var kopf = K.e('span', 'karte-kopf');
+      var karte = K.e('div', 'ob-card');
+      var kopf = K.e('span', 'kbob-card-head');
       var nm = k.onClick
-        ? K.knopf('karte-knopf', K.text(k.name, k.sprache), k.onClick)
-        : K.e('span', 'karte-name', K.text(k.name, k.sprache));
+        ? K.knopf('kbob-card-button', K.text(k.name, k.sprache), k.onClick)
+        : K.e('span', 'kbob-card-name', K.text(k.name, k.sprache));
       kopf.appendChild(nm);
       if (k.zahl !== undefined && k.zahl !== null) {
-        var n = K.e('span', 'token token--zahl', String(k.zahl));
-        if (k.zahlText) n.appendChild(K.e('span', 'sr-only', ' ' + k.zahlText));
+        var n = K.e('span', 'kbob-tag kbob-count', String(k.zahl));
+        if (k.zahlText) n.appendChild(K.e('span', 'ob-screen-reader-only', ' ' + k.zahlText));
         kopf.appendChild(n);
       }
       karte.appendChild(kopf);
 
-      if (k.text) karte.appendChild(K.e('span', 'karte-text', k.text));
+      if (k.text) karte.appendChild(K.e('span', 'ob-card-content', k.text));
       if (k.marken && k.marken.length) karte.appendChild(K.marken(k.marken));
-      if (k.fuss) karte.appendChild(K.e('span', 'karte-fuss', k.fuss));
+      if (k.fuss) karte.appendChild(K.e('span', 'kbob-card-footer', k.fuss));
 
       ziel.appendChild(karte);
     });
@@ -430,7 +471,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     leg.innerHTML = '';
     (eintraege || []).forEach(function (e) {
       if (e.hinweis) {
-        leg.appendChild(K.e('span', 'legende-hinweis', e.hinweis));
+        leg.appendChild(K.e('span', 'kbob-legend-note', e.hinweis));
         return;
       }
       var b;
@@ -440,7 +481,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       } else {
         b = K.e('span', 'eintrag');
       }
-      var sw = K.e('span', 'swatch' + (e.form === 'quadrat' ? '' : ' rund'));
+      var sw = K.e('span', 'kbob-swatch' + (e.form === 'quadrat' ? '' : ' rund'));
       sw.style.background = e.farbe;
       b.appendChild(sw);
       b.appendChild(document.createTextNode(e.name + (e.n !== undefined ? '  ' + e.n : '')));
@@ -534,7 +575,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       .map(function (p) {
         return {
           pset: p,
-          farbe: element.farbe[p] || '#7D8B87',   // = --kante, 3.1:1 auf Weiss
+          farbe: element.farbe[p] || '#596978',   // ob bg-contrast_low (flipped), 4.6:1 auf Weiss
           merkmale: merkmale.filter(function (m) { return m.pset === p; })
         };
       });
@@ -749,7 +790,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   function tipZeile(t, text) {
     var z = document.createElement('span');
-    z.className = 'z';
+    z.className = 'kbob-tip-line';
     z.textContent = text;
     t.appendChild(z);
   }

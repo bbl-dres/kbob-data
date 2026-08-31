@@ -5,21 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KBOB Data Dictionary</title>
 <meta name="description" content="Nachschlagewerk zum KBOB Data Dictionary: 719 Objekttypen mit ihren Merkmalen, Datentypen, Einheiten, zulässigen Werten und Property Sets aus LINDAS.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src https: http://localhost:*; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; object-src 'none'; base-uri 'none'">
-<meta name="theme-color" content="#FBFBF9">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src https: http://localhost:*; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'">
+<meta name="theme-color" content="#ffffff">
 <meta property="og:title" content="KBOB Data Dictionary">
 <meta property="og:description" content="Objekttypen und Merkmale des KBOB Data Dictionary — mit Datentyp, Einheit, zulässigen Werten und Property Set.">
 <meta property="og:type" content="website">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230F5C4E'/%3E%3Ctext x='16' y='22' font-family='Arial,sans-serif' font-size='13' font-weight='700' fill='white' text-anchor='middle'%3EDD%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="shortcut icon" href="assets/images/favicon.png">
+<link rel="preload" href="assets/fonts/noto-sans-latin-regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/main.css">
 </head>
-<body>
-
-<a class="skip" href="#inhalt">Zum Hauptinhalt springen</a>
+<body class="ob-master-layout ob-has-layout ob-no-navigation ob-has-max-width">
 
 <noscript>
   <p style="max-width:74ch;margin:24px auto;padding:0 24px;font-family:Arial,sans-serif">
@@ -28,168 +24,235 @@
   </p>
 </noscript>
 
-<header>
-  <div class="kopf-innen">
-    <p class="marke">KBOB Data Dictionary</p>
-    <p class="status" id="status" role="status" aria-live="polite">Katalog wird geladen …</p>
-    <label class="sr-only" for="sprache">Sprache der Katalogbeschriftungen</label>
-    <select id="sprache" class="kopf-rechts sprache"
-            title="Sprache der Katalogbeschriftungen — fehlt eine Übersetzung, erscheint Deutsch oder Englisch. Die Oberfläche bleibt vorerst deutsch.">
-      <option value="de" selected>DE</option>
-      <option value="fr">FR</option>
-      <option value="it">IT</option>
-      <option value="en">EN</option>
-    </select>
-    <button id="csv" class="ghost" disabled
-            title="Speichert eine CSV-Datei, die Excel direkt öffnet">Als Excel exportieren</button>
-  </div>
-</header>
-
-<nav class="subkopf" aria-label="Pfad">
-  <ol class="krumen" id="krumen"></ol>
+<nav class="ob-access-keys" aria-label="Accesskeys">
+  <ul>
+    <li>
+      <a class="ob-accessible" accesskey="0" href="#content">
+        <span class="ob-icon-wrapper" aria-hidden="true">
+          <svg class="ob-icon" focusable="false"><use href="#accessibility"></use></svg>
+        </span>
+        Zum Hauptinhalt springen
+      </a>
+    </li>
+  </ul>
 </nav>
 
-<div class="shell">
-  <main id="inhalt" tabindex="-1">
-
-    <div class="titelblock" id="titelblock" hidden>
-      <button class="ghost zurueck" id="zurueck" hidden>← Zurück</button>
-      <h1 id="titel" tabindex="-1"></h1>
-      <p class="kennzahlen" id="kennzahlen"></p>
-      <p class="titel-text" id="titel-text" hidden></p>
+<div class="ob-master-layout-header">
+  <header class="ob-header">
+    <div class="ob-master-layout-header-title">
+      <div class="ob-master-layout-brand">
+        <a class="ob-master-layout-logo" href="./" tabindex="-1" aria-hidden="true">
+          <img src="assets/images/logo.svg" width="156" height="38"
+               alt="Logo Schweizerische Eidgenossenschaft, zur Startseite der Applikation">
+        </a>
+        <span class="ob-master-layout-brand-app-title">
+          <a href="./" class="ob-master-layout-brand-link">KBOB Data Dictionary</a>
+        </span>
+      </div>
     </div>
 
-    <div class="toolbar" id="toolbar" hidden>
-      <div class="feld">
-        <label class="label" for="filter">Suche</label>
+    <h2 class="ob-screen-reader-only">Service-Navigation</h2>
+    <div class="ob-service-navigation">
+      <ul class="ob-service-navigation-list">
+        <li class="ob-language-dropdown">
+          <span class="ob-screen-reader-only" id="ob-language-change">Sprache der Katalogbeschriftungen</span>
+          <select id="sprache" aria-labelledby="ob-language-change"
+                  title="Sprache der Katalogbeschriftungen — fehlt eine Übersetzung, erscheint Deutsch oder Englisch. Die Oberfläche bleibt vorerst deutsch.">
+            <option value="de" lang="de" aria-label="Deutsch" selected>DE</option>
+            <option value="fr" lang="fr" aria-label="Français">FR</option>
+            <option value="it" lang="it" aria-label="Italiano">IT</option>
+            <option value="en" lang="en" aria-label="English">EN</option>
+          </select>
+        </li>
+        <li class="ob-service-navigation-custom-control">
+          <button type="button" id="verbindung" class="ob-button ob-button-secondary">Verbindung und Abfrage</button>
+        </li>
+        <li class="ob-service-navigation-custom-control">
+          <button id="csv" class="ob-button ob-button-secondary" disabled
+                  title="Exportiert die sichtbare Auswahl als Excel-Arbeitsmappe (XLSX)">Als Excel exportieren</button>
+        </li>
+      </ul>
+    </div>
+  </header>
+</div>
+
+<div class="ob-master-layout-wrapper">
+  <main id="content" class="ob-main-layout" tabindex="-1">
+
+    <p class="kbob-status" id="status" role="status" aria-live="polite"></p>
+
+    <nav aria-label="Pfad">
+      <ol class="ob-breadcrumbs" id="krumen"></ol>
+    </nav>
+
+    <div class="kbob-page-header" id="titelblock" hidden>
+      <button class="ob-button ob-button-tertiary kbob-back" id="zurueck" hidden>
+        <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#arrow_left"></use></svg>
+        Zurück
+      </button>
+      <h1 id="titel" tabindex="-1"></h1>
+      <p class="kbob-page-meta" id="kennzahlen"></p>
+      <p class="kbob-page-lead" id="titel-text" hidden></p>
+    </div>
+
+    <div class="kbob-toolbar" id="toolbar" hidden>
+      <div class="kbob-field">
+        <label for="filter">Suche</label>
         <input type="search" id="filter" placeholder="Objekttyp oder Merkmal">
       </div>
-      <div class="facetten" id="facetten"></div>
-      <span class="werkzeuge-rechts">
-        <span class="treffer" id="treffer" aria-live="polite"></span>
-        <span class="views" role="group" aria-label="Ansicht">
-          <button id="v-liste" aria-pressed="true">Liste</button>
-          <button id="v-galerie" aria-pressed="false">Galerie</button>
-          <button id="v-graph" aria-pressed="false">Graph</button>
+      <div class="kbob-facets" id="facetten"></div>
+      <span class="kbob-toolbar-right">
+        <span class="kbob-hits" id="treffer" aria-live="polite"></span>
+        <span class="kbob-view-switch" role="group" aria-label="Ansicht">
+          <button id="v-liste" class="ob-button ob-button-secondary" aria-pressed="true">Liste</button>
+          <button id="v-galerie" class="ob-button ob-button-secondary" aria-pressed="false">Galerie</button>
+          <button id="v-graph" class="ob-button ob-button-secondary" aria-pressed="false">Graph</button>
         </span>
       </span>
     </div>
 
-    <div class="aktive-filter" id="aktive-filter" hidden></div>
+    <div class="kbob-active-filters" id="aktive-filter" hidden></div>
 
-    <div id="platzhalter" class="laden-platzhalter"><span class="ring" aria-hidden="true"></span>Katalog wird geladen …</div>
+    <div id="platzhalter" class="kbob-loading">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="none" stroke="#2F4356" stroke-miterlimit="10" stroke-width="4"/></svg>
+      Katalog wird geladen …
+    </div>
 
-    <div id="view-liste" hidden></div>
+    <div id="view-liste" class="ob-table-scrollable" hidden></div>
 
     <div id="view-galerie" hidden>
-      <div class="galerie" id="galerie"></div>
+      <div class="kbob-gallery" id="galerie"></div>
     </div>
 
     <div id="view-graph" hidden>
-      <div class="graph-steuerung" id="graph-steuerung">
-        <button class="ghost" id="zoom-plus" aria-label="Vergrössern">+</button>
-        <button class="ghost" id="zoom-minus" aria-label="Verkleinern">−</button>
-        <button class="ghost" id="zoom-reset">Ausschnitt zurücksetzen</button>
+      <div class="kbob-graph-controls" id="graph-steuerung">
+        <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-plus" aria-label="Vergrössern">
+          <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#plus"></use></svg>
+        </button>
+        <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-minus" aria-label="Verkleinern">
+          <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#minus"></use></svg>
+        </button>
+        <button class="ob-button ob-button-secondary" id="zoom-reset">Ausschnitt zurücksetzen</button>
       </div>
-      <div class="meldung" id="graph-meldung" hidden></div>
-      <div class="graph-wrap weit" id="graph-wrap">
+      <div class="kbob-message" id="graph-meldung" hidden></div>
+      <div class="kbob-graph-wrap kbob-wide" id="graph-wrap">
         <svg id="netz" tabindex="0" aria-labelledby="graph-hinweis"></svg>
-        <div class="tip" id="tip" aria-hidden="true"></div>
-        <div class="legend" id="legende"></div>
+        <div class="ob-tooltip" id="tip" aria-hidden="true"></div>
+        <div class="kbob-legend" id="legende"></div>
       </div>
-      <p class="graph-hint" id="graph-hinweis"></p>
-      <div class="sr-only" id="graph-text"></div>
+      <p class="kbob-graph-hint" id="graph-hinweis"></p>
+      <div class="ob-screen-reader-only" id="graph-text"></div>
     </div>
 
     <div id="view-merkmal" hidden>
-      <div class="merkmal-detail" id="merkmal-detail"></div>
+      <div class="kbob-detail ob-card" id="merkmal-detail"></div>
     </div>
 
-    <nav class="blaettern" id="blaettern" hidden aria-label="Seiten"></nav>
+    <nav class="kbob-paginator" id="blaettern" hidden aria-label="Blättern"></nav>
 
   </main>
+
+  <div class="ob-master-layout-footer">
+    <footer>
+      <div class="ob-footer-links">
+        <ul class="ob-footer-item ob-footer-item-links" aria-label="Links">
+          <li><button type="button" id="barrierefreiheit">Barrierefreiheit</button></li>
+          <li>
+            <a href="https://www.i14y.admin.ch/de/catalog/dataservices/kbob-fm-data-dictionary-sparql/description"
+               target="_blank" rel="noopener noreferrer">KBOB Data Dictionary auf I14Y</a>
+          </li>
+          <li>
+            <a href="https://github.com/KBOB-admin"
+               target="_blank" rel="noopener noreferrer">KBOB auf GitHub</a>
+          </li>
+          <li>
+            <a href="https://github.com/oblique-bit/oblique"
+               target="_blank" rel="noopener noreferrer">CD Design</a>
+          </li>
+        </ul>
+      </div>
+      <div class="ob-footer-info">
+        <div class="ob-footer-item ob-footer-item-info">
+          <p>
+            <a href="https://github.com/bbl-dres/kbob-data"
+               target="_blank" rel="noopener noreferrer">Quellcode dieser Anwendung</a>
+          </p>
+        </div>
+      </div>
+    </footer>
+  </div>
 </div>
 
-<footer>
-  <div class="fuss-innen">
-    <button class="link" id="verbindung">Verbindung und Abfrage</button>
-    <button class="link" id="barrierefreiheit">Erklärung zur Barrierefreiheit</button>
-    <a href="https://www.i14y.admin.ch/de/catalog/dataservices/kbob-fm-data-dictionary-sparql/description"
-       target="_blank" rel="noopener">KBOB Data Dictionary auf I14Y ↗</a>
-    <a href="https://github.com/KBOB-admin"
-       target="_blank" rel="noopener">KBOB auf GitHub ↗</a>
-    <a class="rechts" href="https://github.com/bbl-dres/kbob-data"
-       target="_blank" rel="noopener">Quellcode dieser Anwendung ↗</a>
-  </div>
-</footer>
+<dialog id="dlg-verbindung" class="ob-dialog" aria-labelledby="dlg-verbindung-titel">
+  <h2 class="ob-dialog-title" id="dlg-verbindung-titel" tabindex="-1" autofocus>Verbindung und Abfrage</h2>
 
-<dialog id="dlg-verbindung" aria-labelledby="dlg-verbindung-titel">
-  <h2 id="dlg-verbindung-titel" tabindex="-1" autofocus>Verbindung und Abfrage</h2>
-
-  <div class="controls">
-    <div class="feld">
-      <label class="label" for="endpoint">SPARQL-Endpunkt</label>
+  <div class="kbob-controls">
+    <div class="kbob-field">
+      <label for="endpoint">SPARQL-Endpunkt</label>
       <input id="endpoint" type="text" value="https://int.lindas.admin.ch/query" spellcheck="false">
     </div>
-    <div class="feld">
-      <label class="label" for="graph">Named Graph</label>
+    <div class="kbob-field">
+      <label for="graph">Named Graph</label>
       <input id="graph" type="url" value="https://lindas.admin.ch/fobl/kbob/dd-fm" spellcheck="false">
     </div>
-    <button id="neuladen">Neu laden</button>
+    <button id="neuladen" class="ob-button ob-button-primary">Neu laden</button>
   </div>
 
   <h3>Abfragen</h3>
-  <div class="tabs">
-    <button class="ghost" id="tab-uebersicht" aria-pressed="true">Übersicht</button>
-    <button class="ghost" id="tab-detail" aria-pressed="false">Merkmale eines Objekttyps</button>
-    <button class="ghost" id="tab-werte" aria-pressed="false">Zulässige Werte</button>
+  <div class="kbob-tabs">
+    <button class="kbob-tab" id="tab-uebersicht" aria-pressed="true">Übersicht</button>
+    <button class="kbob-tab" id="tab-detail" aria-pressed="false">Merkmale eines Objekttyps</button>
+    <button class="kbob-tab" id="tab-werte" aria-pressed="false">Zulässige Werte</button>
   </div>
   <textarea id="query-text" readonly spellcheck="false" aria-label="SPARQL-Abfrage"></textarea>
 
-  <div class="row">
-    <span class="dlg-status" id="copy-status" role="status"></span>
-    <button class="ghost" id="copy-query">In die Zwischenablage kopieren</button>
-    <button id="close-verbindung">Schliessen</button>
+  <div class="ob-dialog-actions">
+    <span class="kbob-dialog-status" id="copy-status" role="status"></span>
+    <button class="ob-button ob-button-secondary" id="copy-query">In die Zwischenablage kopieren</button>
+    <button class="ob-button ob-button-primary" id="close-verbindung">Schliessen</button>
   </div>
 </dialog>
 
-<dialog id="dlg-a11y" aria-labelledby="dlg-a11y-titel">
-  <h2 id="dlg-a11y-titel" tabindex="-1" autofocus>Erklärung zur Barrierefreiheit</h2>
-  <p>Diese Anwendung richtet sich nach den Kriterien der <b>WCAG 2.1 Stufe AA</b>,
-     wie sie der Standard <b>eCH-0059 v3.0</b> für Dienste des Bundes verbindlich
-     vorgibt. Sie ist mit diesen Anforderungen <b>teilweise vereinbar</b>; die
-     bekannten Abweichungen stehen unten.</p>
-  <h3>Bekannte Einschränkungen</h3>
-  <ul>
-    <li>Die Graph-Ansicht hat eine vollständige Textfassung und ist mit der
-        Tastatur bedienbar (Knoten per Tab, Zoomen und Verschieben über die
-        Knöpfe beziehungsweise +/−, Pfeiltasten und 0 bei fokussierter Grafik);
-        bei vielen Knoten sind es jedoch entsprechend viele Tab-Schritte.
-        Dieselben Angaben stehen vollständig in der Listenansicht.</li>
-    <li>Die Beschriftungen stammen aus den Quelldaten und folgen der oben
-        rechts gewählten Sprache (DE/FR/IT/EN). Fehlt eine Fassung, erscheint
-        die deutsche oder englische; Namen von Objekttypen und Merkmalen
-        werden dabei mit ihrer Sprache ausgezeichnet (<code>lang</code>),
-        Beschreibungstexte noch nicht durchgehend. Die Bedienoberfläche
-        selbst ist vorerst deutsch.</li>
-    <li>Unterhalb von rund 1100 Pixeln Fensterbreite scrollt die Tabelle in
-        einem eigenen Bereich horizontal; der Tabellenkopf bleibt dort beim
-        Scrollen nicht stehen.</li>
-  </ul>
-  <h3>Rückmeldung</h3>
-  <p>Hürden und Verbesserungsvorschläge nimmt die betreibende Stelle über eine
-     <a href="https://github.com/bbl-dres/kbob-data/issues" target="_blank" rel="noopener">Meldung auf GitHub ↗</a>
-     entgegen (GitHub-Konto erforderlich). Antworten erfolgen in der Regel
-     innert 14 Tagen. Für die vorgesehene Publikation wird ein Kontaktweg ohne
-     Konto (E-Mail) ergänzt.</p>
-  <p>Erklärung erstellt und zuletzt überprüft am 31.08.2026.</p>
-  <div class="row">
-    <button id="close-a11y">Schliessen</button>
+<dialog id="dlg-a11y" class="ob-dialog" aria-labelledby="dlg-a11y-titel">
+  <h2 class="ob-dialog-title" id="dlg-a11y-titel" tabindex="-1" autofocus>Erklärung zur Barrierefreiheit</h2>
+  <div class="ob-dialog-content">
+    <p>Diese Anwendung richtet sich nach den Kriterien der <b>WCAG 2.1 Stufe AA</b>,
+       wie sie der Standard <b>eCH-0059 v3.0</b> für Dienste des Bundes verbindlich
+       vorgibt. Sie ist mit diesen Anforderungen <b>teilweise vereinbar</b>; die
+       bekannten Abweichungen stehen unten.</p>
+    <h3>Bekannte Einschränkungen</h3>
+    <ul>
+      <li>Die Graph-Ansicht hat eine vollständige Textfassung und ist mit der
+          Tastatur bedienbar (Knoten per Tab, Zoomen und Verschieben über die
+          Knöpfe beziehungsweise +/−, Pfeiltasten und 0 bei fokussierter Grafik);
+          bei vielen Knoten sind es entsprechend viele Tab-Schritte.
+          Dieselben Angaben stehen vollständig in der Listenansicht.</li>
+      <li>Die Beschriftungen stammen aus den Quelldaten und folgen der oben
+          rechts gewählten Sprache (DE/FR/IT/EN). Fehlt eine Fassung, erscheint
+          die deutsche oder englische; Namen von Objekttypen und Merkmalen
+          werden dabei mit ihrer Sprache ausgezeichnet (<code>lang</code>),
+          Beschreibungstexte noch nicht durchgehend. Die Bedienoberfläche
+          selbst ist vorerst deutsch.</li>
+      <li>Unterhalb von rund 1240 Pixeln Fensterbreite scrollt die Tabelle in
+          einem eigenen Bereich horizontal; der Tabellenkopf bleibt dort beim
+          Scrollen nicht stehen.</li>
+    </ul>
+    <h3>Rückmeldung</h3>
+    <p>Hürden und Verbesserungsvorschläge nimmt die betreibende Stelle über eine
+       <a class="ob-external-link" href="https://github.com/bbl-dres/kbob-data/issues" target="_blank" rel="noopener noreferrer">Meldung auf GitHub<svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#link_external"></use></svg><span class="ob-screen-reader-only"> – externer Link</span></a>
+       entgegen (GitHub-Konto erforderlich). Antworten erfolgen in der Regel
+       innert 14 Tagen. Für die vorgesehene Publikation wird ein Kontaktweg ohne
+       Konto (E-Mail) ergänzt.</p>
+    <p>Erklärung erstellt und zuletzt überprüft am 31.08.2026.</p>
+  </div>
+  <div class="ob-dialog-actions">
+    <button class="ob-button ob-button-primary" id="close-a11y">Schliessen</button>
   </div>
 </dialog>
 
 <script src="js/data.js"></script>
 <script src="js/views.js"></script>
+<script src="js/export.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

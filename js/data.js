@@ -90,16 +90,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return n === 1 ? einzahl : mehrzahl;
   };
 
-  /* ---------- CSV-Bausteine (rein, testbar) ---------- */
-
-  K.csvZelle = function (w) {
-    var s = w == null ? '' : String(w);
-    /* Führende =, +, -, @ oder Tabs liest Excel als Formel — die Werte
-       stammen aus einem fremden Graphen (OWASP: CSV Injection). Ein
-       vorangestelltes Hochkomma entschärft sie. */
-    if (/^[=+\-@\t]/.test(s)) s = "'" + s;
-    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  };
+  /* ---------- Export-Bausteine (rein, testbar) ---------- */
 
   K.dateiname = function (s) {
     s = s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
@@ -290,8 +281,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
     ]).join('\n');
   };
 
-  /* L2: die Merkmale eines Objekttyps */
-  K.detailQuery = function (graph, klasse, lang) {
+  /* L2: die Merkmale eines Objekttyps — oder, ohne klasse, aller Objekttypen
+     auf einmal (eine Abfrage statt hunderter; braucht der Gesamtexport). */
+  function detailArtQuery(graph, klasse, lang) {
     var stufen = sprachStufen(lang);
     var pr = kette('?prop', 'rdfs:label', 'pr', stufen);
     var ps = kette('?prop', 'skos:prefLabel', 'ps', stufen);
@@ -304,9 +296,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
       nameGruppen.push([pr.vars[i], ps.vars[i]]);
     });
     return PREFIXE.concat([
-      '# Detail: alle Merkmale eines Objekttyps.',
+      klasse ? '# Detail: alle Merkmale eines Objekttyps.'
+             : '# Alle Merkmale aller Objekttypen (Gesamtexport).',
       '# Beschriftungssprache: ' + stufen.join(' → ') + '.',
-      'SELECT ?prop ?gop',
+      'SELECT ' + (klasse ? '' : '?klasse ') + '?prop ?gop',
       '       (SAMPLE(?merkmalL)      AS ?merkmal)',
       '       (SAMPLE(?beschreibungL) AS ?beschreibung)',
       '       (SAMPLE(?typRaw)        AS ?typ)',
@@ -319,8 +312,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
       '       (SAMPLE(?nameSprache)   AS ?sprache)',
       '       (GROUP_CONCAT(DISTINCT ?phaseRaw; separator=" ") AS ?phasen)',
       'FROM <' + graph + '>',
-      'WHERE {',
-      '  VALUES ?klasse { <' + klasse + '> }',
+      'WHERE {'
+    ]).concat(klasse ? ['  VALUES ?klasse { <' + klasse + '> }'] : []).concat([
       '  ?tpl a dd:DataTemplate ;',
       '       dd:appliesToClass         ?klasse ;',
       '       dd:hasPropertyRequirement ?pr .',
@@ -353,8 +346,16 @@ var KBOB = window.KBOB || (window.KBOB = {});
     ], gp.zeilen, [
       coalesce(gp.vars, '?psetL'),
       '}',
-      'GROUP BY ?prop ?gop'
+      'GROUP BY ' + (klasse ? '' : '?klasse ') + '?prop ?gop'
     ]).join('\n');
+  }
+
+  K.detailQuery = function (graph, klasse, lang) {
+    return detailArtQuery(graph, klasse, lang);
+  };
+
+  K.alleDetailsQuery = function (graph, lang) {
+    return detailArtQuery(graph, null, lang);
   };
 
   K.werteQuery = function (graph, lang) {
@@ -599,6 +600,47 @@ var KBOB = window.KBOB || (window.KBOB = {});
     });
 
     laufendDetail[uri] = p;
+    return p;
+  };
+
+  /* Alle Merkmale aller Objekttypen in EINER Abfrage — für den Gesamtexport.
+     Rund 3300 Zeilen sind für den Endpunkt eine einzige billige Antwort;
+     hunderte Einzelabfragen wären es nicht. Das Ergebnis füllt denselben
+     Detail-Zwischenspeicher, den auch die Ansicht nutzt. */
+  var alleVersprechen = null;
+
+  K.holeAlleDetails = function (v) {
+    var st = K.state;
+    if (alleVersprechen) return alleVersprechen;
+
+    var gen = st.generation;
+    var p = Promise.all([
+      K.run(v.endpoint, K.alleDetailsQuery(v.graph, v.sprache)),
+      holeWerte(v)
+    ]).then(function (res) {
+      alleVersprechen = null;
+      if (gen !== st.generation) return;   // veraltete Antwort: verwerfen
+
+      var werteFehler = !!(res[1] && res[1].fehler);
+      if (res[1] && !werteFehler) K.uebernehmeWerte(res[1].results.bindings);
+
+      var nachKlasse = {};
+      res[0].results.bindings.forEach(function (r) {
+        var uri = r.klasse ? r.klasse.value : '';
+        if (!uri) return;
+        (nachKlasse[uri] = nachKlasse[uri] || []).push(r);
+      });
+      Object.keys(nachKlasse).forEach(function (uri) {
+        K.uebernehmeDetail(uri, nachKlasse[uri]);
+        if (werteFehler) st.detailOhneWerte[uri] = true;
+        else delete st.detailOhneWerte[uri];
+      });
+    }, function (err) {
+      alleVersprechen = null;
+      throw err;
+    });
+
+    alleVersprechen = p;
     return p;
   };
 })(KBOB);
