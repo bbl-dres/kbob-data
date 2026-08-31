@@ -40,9 +40,25 @@ var KBOB = window.KBOB || (window.KBOB = {});
   K.FARBEN = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100',
               '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
 
+  /* Redaktionelle Reihenfolge der Kataloge: die beiden allgemeinen zuerst,
+     die Spezialkataloge danach, der Dokumenttypenkatalog zuletzt. Bestimmt
+     Facetten-Reihenfolge und Standardsortierung der Uebersicht. */
+  K.KATALOG_PRIORITAET = ['KBOB Data Dictionary FM', 'Data Dictionary Flächenmanagement'];
+
+  K.katalogRang = function (name, istDokument) {
+    var i = K.KATALOG_PRIORITAET.indexOf(name);
+    if (i !== -1) return i;
+    return istDokument ? 9 : 5;
+  };
+
   /* ---------- kleine Helfer ---------- */
 
   K.zahl = function (n) { return n.toLocaleString('de-CH'); };
+
+  /* Deutsche Kollation an einer Stelle — sonst vergisst eine kuenftige
+     Sortierstelle das Locale und Umlaute wandern ans Ende. */
+  K.deCompare = function (a, b) { return String(a).localeCompare(String(b), 'de'); };
+  K.nachName = function (a, b) { return K.deCompare(a.name, b.name); };
 
   K.kurz = function (uri) {
     if (!uri) return '';
@@ -74,8 +90,30 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return n === 1 ? einzahl : mehrzahl;
   };
 
-  K.anker = function (uri) {
-    return 'e-' + uri.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  /* ---------- CSV-Bausteine (rein, testbar) ---------- */
+
+  K.csvZelle = function (w) {
+    var s = w == null ? '' : String(w);
+    /* Führende =, +, -, @ oder Tabs liest Excel als Formel — die Werte
+       stammen aus einem fremden Graphen (OWASP: CSV Injection). Ein
+       vorangestelltes Hochkomma entschärft sie. */
+    if (/^[=+\-@\t]/.test(s)) s = "'" + s;
+    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+
+  K.dateiname = function (s) {
+    s = s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
+    if (String.prototype.normalize) {
+      s = s.normalize('NFD').replace(/[̀-ͯ]/g, '');   // é -> e, à -> a …
+    }
+    s = s.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    /* Datum im Namen: zwei Exporte von verschiedenen Tagen bleiben
+       unterscheidbar. */
+    var d = new Date();
+    var datum = d.getFullYear() + '-' +
+                ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+                ('0' + d.getDate()).slice(-2);
+    return (s || 'objekttyp') + '-' + datum;
   };
 
   function v(row, name) { return row[name] ? row[name].value : ''; }
@@ -122,11 +160,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return stufen;
   }
 
-  function stufenFilter(v, stufe) {
+  /* Parameter heisst vn, nicht v — v(row, name) ist in dieser Datei der
+     zentrale Zeilen-Accessor und darf nicht verschattet werden. */
+  function stufenFilter(vn, stufe) {
     return stufe === 'de'
-      ? 'lang(' + v + ') = "de" || lang(' + v + ') = ""'
-      : 'lang(' + v + ') = "' + stufe + '"';
+      ? 'lang(' + vn + ') = "de" || lang(' + vn + ') = ""'
+      : 'lang(' + vn + ') = "' + stufe + '"';
   }
+  K.sprachStufen = sprachStufen;   // exportiert für Tests
 
   /* OPTIONAL-Zeilen für ein Prädikat über alle Stufen */
   function kette(subjekt, praedikat, basis, stufen) {
@@ -352,6 +393,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
         });
       }
       return r.json();
+    }).then(function (json) {
+      /* Ein 200er kann auch eine Wartungsseite oder ein Anmeldeportal sein —
+         dann soll die Meldung das sagen, nicht «Unexpected token». */
+      if (!json || !json.results || !(json.results.bindings instanceof Array)) {
+        throw new Error('Die Antwort ist kein SPARQL-Ergebnis — der Endpunkt ' +
+                        'hat vermutlich eine Fehler- oder Anmeldeseite geliefert.');
+      }
+      return json;
     });
   };
 
@@ -359,9 +408,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   K.uebernehmeUebersicht = function (rows) {
     var st = K.state;
-    if (rows && rows.length) st.rohUebersicht = rows;
-    rows = st.rohUebersicht || [];
-    if (!rows.length) return;
+    if (!rows || !rows.length) return;
 
     var map = {};
 
@@ -398,13 +445,23 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     st.elemente = Object.keys(map).map(function (uri) {
       var e = map[uri];
-      e.psets.sort(function (a, b) { return a.name.localeCompare(b.name, 'de'); });
+      e.psets.sort(K.nachName);
       e.typen.sort();
       e.phasen.sort();
       return e;
     });
 
-    st.elemente.sort(function (a, b) { return a.name.localeCompare(b.name, 'de'); });
+    /* Standardreihenfolge nach Katalog-Priorität (die allgemeinen Kataloge
+       zuerst, Dokumenttypen zuletzt), innerhalb alphabetisch — die
+       fachlichen Objekttypen sind der häufigere Einstieg. Eine explizite
+       Spaltensortierung der Nutzenden übersteuert diese Vorgabe. */
+    st.elemente.sort(function (a, b) {
+      var ra = K.katalogRang(a.quelle, a.istDokument);
+      var rb = K.katalogRang(b.quelle, b.istDokument);
+      if (ra !== rb) return ra - rb;
+      if (a.quelle !== b.quelle) return K.deCompare(a.quelle, b.quelle);
+      return K.deCompare(a.name, b.name);
+    });
 
     st.elemente.forEach(farbenZuordnen);
   };
@@ -473,44 +530,75 @@ var KBOB = window.KBOB || (window.KBOB = {});
     });
 
     attrs.sort(function (a, b) {
-      if (a.pset !== b.pset) return a.pset.localeCompare(b.pset, 'de');
-      return a.name.localeCompare(b.name, 'de');
+      if (a.pset !== b.pset) return K.deCompare(a.pset, b.pset);
+      return K.nachName(a, b);
     });
 
     st.detail[uri] = attrs;
     return attrs;
   };
 
-  /* Merkmale eines Objekttyps besorgen — aus dem Zwischenspeicher oder vom Endpunkt.
-     Die Wertelisten kommen einmalig beim ersten Detail mit. */
-  K.holeDetail = function (endpoint, graph, uri, lang) {
+  /* Die Wertelisten kommen einmalig beim ersten Detail mit. Ein laufendes
+     Versprechen wird geteilt, damit parallele Details (Export-Bündel,
+     Doppelklick) nicht sechs identische Abfragen feuern. */
+  var werteVersprechen = null;
+
+  function holeWerte(v) {
     var st = K.state;
-    if (st.detail[uri]) return Promise.resolve(st.detail[uri]);
-
-    var noetig = [K.run(endpoint, K.detailQuery(graph, uri, lang))];
-    if (!st.werteGeladen) {
-      noetig.push(K.run(endpoint, K.werteQuery(graph, lang))
-        .catch(function () { return { fehler: true }; }));
+    if (st.werteGeladen) return Promise.resolve(null);
+    if (!werteVersprechen) {
+      werteVersprechen = K.run(v.endpoint, K.werteQuery(v.graph, v.sprache))
+        .then(function (r) { werteVersprechen = null; return r; },
+              function () { werteVersprechen = null; return { fehler: true }; });
     }
+    return werteVersprechen;
+  }
 
-    return Promise.all(noetig).then(function (res) {
-      var werteFehler = false;
-      if (res[1]) {
-        if (res[1].fehler) werteFehler = true;
-        else K.uebernehmeWerte(res[1].results.bindings);
-      }
+  /* Merkmale eines Objekttyps besorgen — aus dem Zwischenspeicher oder vom
+     Endpunkt. v ist der beim Laden eingefrorene Verbindungsstand
+     {endpoint, graph, sprache}; eine Antwort aus einer älteren Generation
+     (Sprach-/Endpunktwechsel während des Ladens) wird verworfen, statt den
+     frischen Cache zu vergiften. Läuft dieselbe URI bereits, wird das
+     laufende Versprechen geteilt statt doppelt abgefragt. */
+  var laufendDetail = {};
+
+  K.holeDetail = function (v, uri) {
+    var st = K.state;
+    if (st.detail[uri] && !st.detailOhneWerte[uri]) {
+      return Promise.resolve(st.detail[uri]);
+    }
+    if (laufendDetail[uri]) return laufendDetail[uri];
+
+    /* Unvollständiges Detail (Werteliste fehlte) wird komplett neu geholt */
+    delete st.detail[uri];
+
+    var gen = st.generation;
+    var p = Promise.all([
+      K.run(v.endpoint, K.detailQuery(v.graph, uri, v.sprache)),
+      holeWerte(v)
+    ]).then(function (res) {
+      delete laufendDetail[uri];
+      if (gen !== st.generation) return [];   // veraltete Antwort: verwerfen
+
+      var werteFehler = !!(res[1] && res[1].fehler);
+      if (res[1] && !werteFehler) K.uebernehmeWerte(res[1].results.bindings);
+
       var attrs = K.uebernehmeDetail(uri, res[0].results.bindings);
       if (werteFehler) {
         /* Ohne Wertelisten würde jedes Auswahl-Merkmal still zu «Text».
-           Nicht zwischenspeichern (nächstes Öffnen versucht es erneut)
-           und den Umstand sagen, statt ihn zu verschweigen. */
-        delete st.detail[uri];
-        if (K.setStatus) {
-          K.setStatus('Die Wertelisten konnten nicht geladen werden — ' +
-                      'Auswahl-Merkmale erscheinen vorerst als «Text».', true);
-        }
+           Merken statt löschen: die Ansicht rendert, das nächste Öffnen
+           lädt neu, und der Aufrufer kann den Umstand melden. */
+        st.detailOhneWerte[uri] = true;
+      } else {
+        delete st.detailOhneWerte[uri];
       }
       return attrs;
+    }, function (err) {
+      delete laufendDetail[uri];
+      throw err;
     });
+
+    laufendDetail[uri] = p;
+    return p;
   };
 })(KBOB);

@@ -192,6 +192,12 @@ Schritt statt drei entfernt. Die Brotkrume — als eigenes Band unter der Kopfze
 Begründung: Bei 666 zu 53 ist die Quelle keine sinnvolle Gliederung, sondern
 eine Hürde.
 
+**Nachtrag:** In der Standardreihenfolge stehen die Bauobjekte vor den
+Dokumenttypen (und der Dokumenttypenkatalog zuletzt in der Katalog-Facette) —
+die 53 fachlichen Objekttypen sind der häufigere Einstieg und sollen nicht
+vom Alphabet der 666 Dokumenttypen verdrängt werden. Eine explizite
+Spaltensortierung übersteuert das.
+
 ### E2 — Drei Facetten, als Auswahlfelder mit Mehrfachauswahl
 
 **Katalog**, **Reifegrad**, **Projektphase** — je ein Auswahlfeld mit
@@ -246,10 +252,12 @@ Graphen und KBOBs eigene Repositorien (`KBOB-data-dictionary`). Eine
 Zwischenfassung nannte es «Datenkatalog FM» nach der Formulierung im
 Jahresbericht; das war eine Verschlimmbesserung.
 
-Der Export heisst **«Für Excel speichern»**, nicht «Als CSV speichern»: das
-Zielpublikum denkt in Excel. Die Datei *ist* eine CSV (Semikolon, BOM, CRLF)
-und öffnet direkt in Excel — «für» statt «als» hält beides zusammen, ohne
-eine .xlsx zu behaupten.
+Der Export hiess zunächst **«Für Excel speichern»**, nicht «Als CSV
+speichern»: das Zielpublikum denkt in Excel. Die Datei *ist* eine CSV
+(Semikolon, BOM, CRLF) und öffnet direkt in Excel. **Nachtrag:** Der Knopf
+heisst inzwischen **«Als Excel exportieren»** — «exportieren» benennt die
+Handlung klarer; dass technisch eine CSV entsteht, sagt weiterhin der
+Tooltip.
 
 ### E5 — Titelblock je Ansicht
 
@@ -391,8 +399,12 @@ Parameter. Damit werden Ansichten teilbar und der Zurück-Knopf funktioniert.
 KBOB nennt das Werk selbst **«Datenkatalog FM»**. Der hier ausgewertete Graph
 liegt **nur auf der Integrationsumgebung** (`int.lindas.admin.ch`); auf der
 produktiven LINDAS-Instanz ist er leer. Die Veröffentlichung ist laut
-KBOB-Jahresbericht über **I14Y im Verlauf von 2026** vorgesehen. Die Anwendung
-sagt das in der Fusszeile, damit niemand sie für den publizierten Stand hält.
+KBOB-Jahresbericht über **I14Y im Verlauf von 2026** vorgesehen.
+
+**Nachtrag:** Der SPARQL-Dienst ist inzwischen auf I14Y verzeichnet
+(«KBOB FM Data Dictionary SPARQL»); die Fusszeile verlinkt den Eintrag.
+Der frühere Warnhinweis samt Abfragezeitpunkt ist auf Entscheid des
+Betreibers aus der Fusszeile entfallen.
 
 ## 8. Offene Fragen an die Datenherausgeber
 

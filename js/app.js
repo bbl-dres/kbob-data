@@ -14,22 +14,26 @@ var KBOB = window.KBOB || (window.KBOB = {});
   'use strict';
 
   K.state = {
+    /* — gehört data.js (Zwischenspeicher, geschrieben von uebernehmeX/holeDetail) — */
     elemente: [],
-    kataloge: [],
     werte: {},
     werteGeladen: false,
     detail: {},
+    detailOhneWerte: {}, // Detail geladen, aber Wertelisten-Abfrage scheiterte
+
+    /* — gehört app.js (Bedien- und Navigationszustand) — */
+    kataloge: [],
     detailFehler: {},    // Fehlermeldung je Objekttyp-URI, falls das Detail scheiterte
-    rohUebersicht: null,
-    verbindung: null,    // beim Laden eingefrorene {endpoint, graph} — Folgeabfragen
-                         // gehen gegen diesen Stand, nicht gegen das Dialogfeld
+    generation: 1,       // zählt Neuladen; Antworten älterer Generationen werden verworfen
+    verbindung: null,    // beim Laden eingefrorene {endpoint, graph, sprache} —
+                         // Folgeabfragen gehen gegen diesen Stand, nicht gegen das Dialogfeld
     objekttyp: null,     // offener Objekttyp (URI)
     merkmal: null,       // offenes Merkmal (URI)
     sprache: 'de',       // Sprache der Katalogbeschriftungen (nicht der Oberfläche)
     sort: null,          // { feld, richtung } — null heisst Standardreihenfolge der Ebene
     ansicht: 'liste',
-    hervor: null,
-    laedt: 0,
+    hervor: null,        // hervorgehobenes Property Set im Graphen (flüchtig)
+    allePhasen: [],      // alle im Katalog vorkommenden LOIN-Meilensteine
     stumm: false,        // true, während die URL gelesen wird
     facetten: { katalog: [], status: [], phase: [] },
     seite: 1,
@@ -37,16 +41,20 @@ var KBOB = window.KBOB || (window.KBOB = {});
   };
 
   K.SEITENGROESSEN = [50, 100, 200];
+  K.EXPORT_MAX = 60;         // Objekttypen je CSV-Export — schont den Endpunkt
+  K.EXPORT_BUENDEL = 6;      // parallele Detailabfragen je Export-Bündel
+  K.SUCH_DEBOUNCE_MS = 180;  // Neuaufbau im Netz kostet bis zu ~25 ms Layout
 
   var el = K.el = {};
   ['endpoint', 'graph', 'status', 'krumen', 'toolbar', 'platzhalter',
-   'titelblock', 'titel', 'kennzahlen', 'titel-text', 'hinweis',
+   'titelblock', 'titel', 'kennzahlen', 'titel-text',
    'view-liste', 'view-galerie', 'view-graph', 'view-merkmal', 'galerie',
    'treffer', 'filter', 'csv', 'netz', 'legende', 'tip', 'graph-hinweis',
-   'graph-text', 'neuladen', 'version', 'verbindung', 'barrierefreiheit',
+   'graph-text', 'neuladen', 'verbindung', 'barrierefreiheit',
    'graph-meldung', 'graph-wrap', 'graph-steuerung', 'aktive-filter',
    'merkmal-detail', 'zoom-plus', 'zoom-minus', 'zoom-reset',
-   'facetten', 'blaettern', 'datenstand', 'copy-status', 'sprache'].forEach(function (id) {
+   'facetten', 'blaettern', 'copy-status', 'sprache',
+   'zurueck'].forEach(function (id) {
     el[id] = document.getElementById(id);
   });
 
@@ -65,8 +73,6 @@ var KBOB = window.KBOB || (window.KBOB = {});
      Graph, Platzhalter); die Statuszeile ist die Live-Region, über die auch
      Screenreader vom Ladevorgang erfahren. */
   function busy(an, text) {
-    K.state.laedt += an ? 1 : -1;
-    if (K.state.laedt < 0) K.state.laedt = 0;
     if (an && text) setStatus(text);
   }
 
@@ -75,20 +81,39 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function endpunkt() { return el.endpoint.value.trim(); }
   function graphUri() { return el.graph.value.trim(); }
 
+  /* Übersetzt rohe Fetch-Fehler in eine deutsche Erklärung — für die
+     Fehlerpfade jenseits des Erstladens (Detail, Export). */
+  var NETZFEHLER = /Failed to fetch|NetworkError|CORS/i;
+  function fehlerText(err) {
+    var m = String(err && err.message || err);
+    return NETZFEHLER.test(m)
+      ? 'Der Datenserver ist nicht erreichbar — Verbindung prüfen (VPN/Proxy).'
+      : m;
+  }
+
   function laden() {
     if (!endpunkt() || !graphUri()) { setStatus('Endpunkt und Graph ausfüllen.', true); return; }
     if (dlgVerbindung.open) dlgVerbindung.close();
 
+    /* Verbindungsstand zur ANFRAGEzeit einfrieren und die Generation
+       hochzählen: von zwei schnellen Neu-Laden gewinnt so immer das
+       zuletzt angestossene — nicht die zufällig letzte Antwort. */
+    var st = K.state;
+    var anfrage = { endpoint: endpunkt(), graph: graphUri(), sprache: st.sprache };
+    st.generation += 1;
+    var meineGen = st.generation;
+
     el.neuladen.disabled = true;
     busy(true, 'Katalog wird geladen …');
 
-    K.run(endpunkt(), K.uebersichtQuery(graphUri(), K.state.sprache)).then(function (json) {
+    K.run(anfrage.endpoint, K.uebersichtQuery(anfrage.graph, anfrage.sprache)).then(function (json) {
+      if (meineGen !== st.generation) return;   // inzwischen neu geladen
       var rows = json.results.bindings;
       busy(false);
       el.neuladen.disabled = false;
 
       if (!rows.length) {
-        zeigeFehler('Der Graph ' + graphUri() + ' enthält keine Objekttypen. ' +
+        zeigeFehler('Der Graph ' + anfrage.graph + ' enthält keine Objekttypen. ' +
                     'Den Namen des Graphen unter «Verbindung und Abfrage» prüfen — ' +
                     'möglicherweise ist der Graph noch nicht befüllt.');
         return;
@@ -96,27 +121,26 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
       /* Neuer Stand heisst neuer Stand: alte Details und Wertelisten
          verwerfen, sonst mischen sich beim Endpunktwechsel zwei Quellen. */
-      var st = K.state;
       st.detail = {};
+      st.detailOhneWerte = {};
       st.detailFehler = {};
       st.werte = {};
       st.werteGeladen = false;
-      st.verbindung = { endpoint: endpunkt(), graph: graphUri(), sprache: st.sprache };
+      st.verbindung = anfrage;
 
       K.uebernehmeUebersicht(rows);
       baueKataloge();
-      baueFacetten();
-      zeigeDatenstand();
 
       el.platzhalter.hidden = true;
       el.toolbar.hidden = false;
       el.titelblock.hidden = false;
       el.csv.disabled = false;
 
-      ausUrl();
+      ausUrl();   // baut auch die Facetten
       zeichne();
       setStatus('');
     }).catch(function (err) {
+      if (meineGen !== st.generation) return;
       busy(false);
       el.neuladen.disabled = false;
       var msg = String(err && err.message || err);
@@ -128,27 +152,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
                 'blockiert der Browser die Abfrage (CORS). Abhilfe: lindas-proxy.py ' +
                 'starten und http://localhost:8765 öffnen.';
       }
-      zeigeFehler(/Failed to fetch|NetworkError|CORS/i.test(msg)
+      zeigeFehler(NETZFEHLER.test(msg)
         ? text
         : 'Die Abfrage ist fehlgeschlagen: ' + msg);
     });
   }
 
-  /* Fusszeile: wann und woher der angezeigte Stand stammt. Der Satz zur
-     Integrationsumgebung gilt nur für den LINDAS-INT-Endpunkt — bei einem
-     anderen Endpunkt wäre er eine falsche Behauptung. */
-  function zeigeDatenstand() {
-    var jetzt = new Date();
-    var text = 'Abgefragt am ' + jetzt.toLocaleDateString('de-CH') +
-               ', ' + jetzt.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) + '.';
-    var host = '';
-    try { host = new URL(endpunkt(), location.href).host; } catch (e) {}
-    var ist_int = !host || host.indexOf('int.lindas.admin.ch') !== -1 ||
-                  host === location.host;   // Proxy: gleiche Origin, Ziel bleibt INT
-    if (!ist_int) text = 'Daten von ' + host + '. ' + text;
-    document.getElementById('hinweis-int').hidden = !ist_int;
-    el.datenstand.textContent = text;
-  }
 
   /* Der Ladehinweis darf nicht stehen bleiben, wenn das Laden scheitert —
      sonst widerspricht die Seite sich selbst. */
@@ -165,34 +174,30 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     el.platzhalter.hidden = false;
     el.platzhalter.className = 'meldung';
-    el.platzhalter.innerHTML = '';
-
-    var h = document.createElement('h2');
-    h.textContent = 'Der Katalog konnte nicht geladen werden';
-    el.platzhalter.appendChild(h);
-
-    var p = document.createElement('p');
-    p.textContent = text;
-    el.platzhalter.appendChild(p);
-
-    var b = document.createElement('button');
-    b.textContent = 'Erneut versuchen';
-    b.addEventListener('click', laden);
-    el.platzhalter.appendChild(b);
-    b.focus();
+    meldung(el.platzhalter, {
+      titel: 'Der Katalog konnte nicht geladen werden',
+      text: text,
+      aktion: { text: 'Erneut versuchen', onClick: laden, fokus: true }
+    });
   }
 
   function baueKataloge() {
     var map = {};
     K.state.elemente.forEach(function (e) {
       var q = map[e.quelle];
-      if (!q) q = map[e.quelle] = { name: e.quelle, objekttypen: 0, merkmale: 0, dok: false };
+      if (!q) q = map[e.quelle] = { name: e.quelle, objekttypen: 0, dok: false };
       q.objekttypen++;
-      q.merkmale += e.anzahl;
       if (e.istDokument) q.dok = true;
     });
+    /* Redaktionelle Reihenfolge (K.KATALOG_PRIORITAET): die allgemeinen
+       Kataloge zuerst, der Dokumenttypenkatalog zuletzt. */
     K.state.kataloge = Object.keys(map).map(function (n) { return map[n]; })
-      .sort(function (a, b) { return b.objekttypen - a.objekttypen; });
+      .sort(function (a, b) {
+        var ra = K.katalogRang(a.name, a.dok);
+        var rb = K.katalogRang(b.name, b.dok);
+        if (ra !== rb) return ra - rb;
+        return b.objekttypen - a.objekttypen;
+      });
   }
 
   /* ---------- Facetten ---------- */
@@ -455,8 +460,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* ---------- Sortieren ---------- */
 
-  /* Felder, nach denen die Listen sortieren können (auch aus der URL). */
-  var SORT_FELDER = ['name', 'anzahl', 'status', 'quelle', 'pset', 'typ'];
+  /* Felder je Ebene — ein t=-Parameter mit einem Feld der falschen Ebene
+     würde sonst still umsortieren, ohne dass ein Spaltenkopf es anzeigt. */
+  var SORT_UEBERSICHT = ['name', 'anzahl', 'status', 'quelle'];
+  var SORT_MERKMALE   = ['name', 'pset', 'typ', 'status'];
 
   /* Klick auf denselben Spaltenkopf kehrt die Richtung um; eine neue Spalte
      startet aufsteigend — Zahlenspalten absteigend (das Grosse zuerst). */
@@ -562,11 +569,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (st.ansicht !== 'liste') p.push('v=' + st.ansicht);
     if (st.sprache !== 'de') p.push('l=' + st.sprache);
     if (st.sort) p.push('t=' + st.sort.feld + (st.sort.richtung < 0 ? '.d' : ''));
+    /* Schreib- und Leseseite müssen synchron bleiben: ein neuer Parameter
+       gehört HIER und in ausUrl() — beide kodieren symmetrisch. */
     if (st.facetten.katalog.length) {
       p.push('k=' + st.facetten.katalog.map(encodeURIComponent).join(','));
     }
-    if (st.facetten.status.length) p.push('r=' + st.facetten.status.join(','));
-    if (st.facetten.phase.length) p.push('p=' + st.facetten.phase.join(','));
+    if (st.facetten.status.length) {
+      p.push('r=' + st.facetten.status.map(encodeURIComponent).join(','));
+    }
+    if (st.facetten.phase.length) {
+      p.push('p=' + st.facetten.phase.map(encodeURIComponent).join(','));
+    }
     if (el.filter.value.trim()) p.push('q=' + encodeURIComponent(el.filter.value.trim()));
     if (st.seite > 1) p.push('s=' + st.seite);
     if (st.proSeite !== 50) p.push('n=' + st.proSeite);
@@ -578,6 +591,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
     }
   }
 
+  /* Leseseite zu inUrl() — jeder Parameter erscheint in beiden Funktionen.
+     Kaputtes Prozent-Encoding (abgeschnittene geteilte Links) darf die App
+     nicht lahmlegen: dec() fällt auf den Rohwert zurück. */
+  function dec(s) {
+    try { return decodeURIComponent(s); } catch (e) { return s; }
+  }
+
   function ausUrl() {
     var st = K.state, p = {};
     location.hash.replace(/^#/, '').split('&').forEach(function (teil) {
@@ -586,29 +606,29 @@ var KBOB = window.KBOB || (window.KBOB = {});
     });
 
     function liste(wert) {
-      return wert ? wert.split(',').map(decodeURIComponent).filter(Boolean) : [];
+      return wert ? wert.split(',').map(dec).filter(Boolean) : [];
     }
 
     st.stumm = true;
     st.facetten.katalog = liste(p.k);
     st.facetten.status  = liste(p.r);
     st.facetten.phase   = liste(p.p);
-    el.filter.value = p.q ? decodeURIComponent(p.q) : '';
+    el.filter.value = p.q ? dec(p.q) : '';
     st.ansicht = (p.v === 'galerie' || p.v === 'graph') ? p.v : 'liste';
-    ['liste', 'galerie', 'graph'].forEach(function (v) {
-      document.getElementById('v-' + v).setAttribute('aria-pressed', String(v === st.ansicht));
-    });
-    st.objekttyp = p.o ? decodeURIComponent(p.o) : null;
-    st.merkmal   = p.m ? decodeURIComponent(p.m) : null;
+    ansichtKnoepfe(st.ansicht);
+    st.objekttyp = p.o ? dec(p.o) : null;
+    st.merkmal   = p.m ? dec(p.m) : null;
     st.seite     = Math.max(1, parseInt(p.s, 10) || 1);
     st.proSeite  = K.SEITENGROESSEN.indexOf(parseInt(p.n, 10)) !== -1
-                     ? parseInt(p.n, 10) : 50;
+                     ? parseInt(p.n, 10) : K.SEITENGROESSEN[0];
     st.sprache   = K.SPRACHEN.indexOf(p.l) !== -1 ? p.l : 'de';
     el.sprache.value = st.sprache;
+    st.hervor = null;   // flüchtiger Grafikzustand überlebt keine Navigation
     st.sort = null;
     if (p.t) {
       var t = p.t.split('.');
-      if (SORT_FELDER.indexOf(t[0]) !== -1) {
+      var erlaubt = p.o ? SORT_MERKMALE : SORT_UEBERSICHT;
+      if (erlaubt.indexOf(t[0]) !== -1) {
         st.sort = { feld: t[0], richtung: t[1] === 'd' ? -1 : 1 };
       }
     }
@@ -622,10 +642,20 @@ var KBOB = window.KBOB || (window.KBOB = {});
     }
 
     /* Ein geteilter Link kann auf einen Eintrag zeigen, den dieser Katalog
-       nicht kennt — das darf nicht still auf der Übersicht enden. */
-    if (st.objekttyp && !objekttypVon(st.objekttyp)) {
+       nicht kennt — das darf nicht still auf der Übersicht enden. Vor der
+       Datenankunft (popstate während des Erstladens) wird nicht geprüft,
+       sonst würde ein gültiger Deep-Link fälschlich getilgt. */
+    if (st.elemente.length && st.objekttyp && !objekttypVon(st.objekttyp)) {
       setStatus('Der verlinkte Eintrag existiert in diesem Katalog nicht.', true);
       st.objekttyp = null;
+      st.merkmal = null;
+      inUrl(true);
+    }
+
+    /* Dieselbe Prüfung für das Merkmal, wenn das Detail schon im Cache
+       liegt — sonst bliebe eine «…»-Krume für ein Phantom-Merkmal stehen. */
+    if (st.merkmal && st.objekttyp && st.detail[st.objekttyp] && !merkmalVon()) {
+      setStatus('Das verlinkte Merkmal existiert bei diesem Objekttyp nicht.', true);
       st.merkmal = null;
       inUrl(true);
     }
@@ -635,6 +665,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
   }
 
   /* ---------- Navigation ---------- */
+
+  /* Gedrückt-Zustand der drei Ansichtsknöpfe — einzige Schreibstelle */
+  function ansichtKnoepfe(name) {
+    ['liste', 'galerie', 'graph'].forEach(function (v) {
+      document.getElementById('v-' + v).setAttribute('aria-pressed', String(v === name));
+    });
+  }
 
   K.geheZuUebersicht = function () {
     K.state.objekttyp = null;
@@ -647,10 +684,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   K.geheZuObjekttyp = function (uri) {
     if (!objekttypVon(uri)) return;
+    /* Rückkehr vom Merkmal zum selben Objekttyp behält die Sortierung —
+       nur ein echter Wechsel startet in der Standardreihenfolge. */
+    if (K.state.objekttyp !== uri) K.state.sort = null;
     K.state.objekttyp = uri;
     K.state.merkmal = null;
     K.state.hervor = null;
-    K.state.sort = null;
     inUrl();
     zeichne(true);
     if (!K.state.detail[uri]) ladeDetail(uri);
@@ -669,13 +708,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
            { endpoint: endpunkt(), graph: graphUri(), sprache: K.state.sprache };
   }
 
+  var WERTE_WARNUNG = 'Die Wertelisten konnten nicht geladen werden — ' +
+                      'Auswahl-Merkmale erscheinen vorerst als «Text».';
+
   function ladeDetail(uri) {
     var e = objekttypVon(uri);
     var v = verbindung();
+    var gen = K.state.generation;
     delete K.state.detailFehler[uri];
     busy(true, 'Merkmale von ' + (e ? e.name : '…') + ' werden geladen …');
-    K.holeDetail(v.endpoint, v.graph, uri, v.sprache).then(function () {
+    K.holeDetail(v, uri).then(function () {
       busy(false);
+      if (gen !== K.state.generation) return;   // inzwischen neu geladen
       if (K.state.objekttyp !== uri) return;
       /* Ein per Link angefordertes Merkmal kann sich als unbekannt erweisen */
       if (K.state.merkmal && !merkmalVon()) {
@@ -685,13 +729,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
         zeichne();
         return;
       }
-      setStatus('');
+      setStatus(K.state.detailOhneWerte[uri] ? WERTE_WARNUNG : '',
+                !!K.state.detailOhneWerte[uri]);
       /* Bei einem Deep-Link auf ein Merkmal erscheint die Zielansicht erst
          jetzt — der Fokus soll dorthin, sonst bleibt der Wechsel unbemerkt. */
       zeichne(!!K.state.merkmal);
     }).catch(function (err) {
       busy(false);
-      K.state.detailFehler[uri] = String(err && err.message || err);
+      if (gen !== K.state.generation) return;
+      K.state.detailFehler[uri] = fehlerText(err);
       setStatus('Merkmale konnten nicht geladen werden.', true);
       if (K.state.objekttyp === uri) zeichne();
     });
@@ -748,15 +794,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* ---------- Titelblock ---------- */
 
-  function titel(text, kennzahlen, beschreibung, hinweis, sprache) {
+  function titel(text, kennzahlen, beschreibung, sprache) {
     el.titel.textContent = text;
     if (sprache && sprache !== 'de') el.titel.setAttribute('lang', sprache);
     else el.titel.removeAttribute('lang');
     el.kennzahlen.textContent = kennzahlen || '';
     el['titel-text'].hidden = !beschreibung;
     el['titel-text'].textContent = beschreibung || '';
-    el.hinweis.hidden = !hinweis;
-    if (hinweis) el.hinweis.textContent = hinweis;
     document.title = text + ' – KBOB Data Dictionary';
   }
 
@@ -770,13 +814,26 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     var aufMerkmal = !!(st.merkmal && merkmalVon());
 
+    /* Sichtbarer Rückweg eine Ebene hoch — die Brotkrume ist klein,
+       der Knopf trägt das Ziel im zugänglichen Namen. */
+    el.zurueck.hidden = !st.objekttyp;
+    if (st.objekttyp) {
+      var elternName = aufMerkmal
+        ? (objekttypVon(st.objekttyp) || {}).name || 'Objekttyp'
+        : 'Objekttypen';
+      el.zurueck.setAttribute('aria-label', 'Zurück zu ' + elternName);
+      el.zurueck.title = 'Zurück zu ' + elternName;
+    }
+
     /* Auf der Merkmal-Ebene gibt es nichts zu suchen, zu filtern oder
        umzuschalten — die Werkzeugleiste würde nur so tun als ob. */
     el.toolbar.hidden = aufMerkmal;
     if (aufMerkmal) el['aktive-filter'].hidden = true;
     else zeichneAktiveFilter();
 
-    el['view-merkmal'].hidden = true;
+    /* Grundzustand je Renderdurchlauf: die zeige*-Funktionen setzen nur
+       noch, was auf ihrer Ebene tatsächlich etwas anzeigt. */
+    el.treffer.textContent = '';
 
     if (aufMerkmal)        zeigeMerkmal();
     else if (st.objekttyp) zeigeObjekttyp();
@@ -869,10 +926,31 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return { von: von, bis: bis };
   }
 
+  /* Einzige Stelle, die die vier View-Container kennt */
   function sichtbareAnsicht(name) {
-    ['liste', 'galerie', 'graph'].forEach(function (v) {
+    ['liste', 'galerie', 'graph', 'merkmal'].forEach(function (v) {
       el['view-' + v].hidden = (v !== name);
     });
+  }
+
+  /* Meldungskachel (Fehler, Lade-, Leerzustand) — ein Bauplan für alle:
+     h2 (mit Ring, wenn laedt), optionaler Text, optionale Aktion. */
+  function meldung(ziel, opt) {
+    ziel.innerHTML = '';
+    var h = document.createElement('h2');
+    if (opt.laedt) h.appendChild(K.ladeInhalt(opt.titel));
+    else h.textContent = opt.titel;
+    ziel.appendChild(h);
+    if (opt.text) {
+      var p = document.createElement('p');
+      p.textContent = opt.text;
+      ziel.appendChild(p);
+    }
+    if (opt.aktion) {
+      var b = K.knopf('', opt.aktion.text, opt.aktion.onClick);
+      ziel.appendChild(b);
+      if (opt.aktion.fokus) b.focus();
+    }
   }
 
   /* --- Übersicht: alle Objekttypen, flach und facettiert --- */
@@ -905,8 +983,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       'Jeder Objekttyp führt die Merkmale, die der Katalog für ihn vorsieht — mit ' +
       'Datentyp, Einheit beziehungsweise zulässigen Werten und Property Set. Alle ' +
       'Merkmale sind gleichrangig; eine Pflicht-/Kann-Unterscheidung kennt der ' +
-      'Katalog nicht.',
-      null);
+      'Katalog nicht.');
 
     /* Der Zähler trägt nur bei aktivem Filter etwas bei — ungefiltert stünde
        dieselbe Zahl bereits in den Kennzahlen. Die Live-Region bleibt. */
@@ -958,7 +1035,6 @@ var KBOB = window.KBOB || (window.KBOB = {});
             return s;
           });
           return {
-            id: K.anker(e.uri),
             onClick: function () { K.geheZuObjekttyp(e.uri); },
             zellen: zellen
           };
@@ -966,25 +1042,25 @@ var KBOB = window.KBOB || (window.KBOB = {});
       });
     } else if (st.ansicht === 'galerie') {
       sichtbareAnsicht('galerie');
-      K.zeichneGalerie(seite.map(function (e) {
+      K.zeichneGalerie({ karten: seite.map(function (e) {
         return {
-          id: K.anker(e.uri), name: e.name, sprache: e.sprache,
+          name: e.name, sprache: e.sprache,
           zahl: e.anzahl, zahlText: 'Merkmale',
           text: e.beschreibung,
-          marken: e.status ? [{ name: e.status, art: 'status',
-                                title: statusErklaerung(e.status) }] : [],
+          marken: e.status ? [{ name: e.status, title: statusErklaerung(e.status) }] : [],
           fuss: e.quelle,
           onClick: function () { K.geheZuObjekttyp(e.uri); }
         };
-      }));
+      }) });
     } else {
       sichtbareAnsicht('graph');
       uebersichtsGraph(liste);
     }
   }
 
-  /* Netz nur, solange es lesbar bleibt. Darüber hilft keine Ersatzgrafik —
-     die Auswahl muss enger werden, und das sagt die Meldung. */
+  /* Netz nur, solange es lesbar bleibt. Die Dokumenttypen bleiben draussen —
+     sie würden das Netz fluten und führen alle dasselbe kleine Merkmalschema.
+     Wer ausdrücklich nach ihnen filtert, bekommt sie trotzdem. */
   function uebersichtsGraph(liste) {
     if (!liste.length) {
       graphMeldung('Kein Treffer für diese Filter',
@@ -993,9 +1069,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
         'gerade eingrenzt.');
       return;
     }
-    if (liste.length > K.NETZ_MAX) {
+
+    var netzListe = liste.filter(function (e) { return !e.istDokument; });
+    if (!netzListe.length) netzListe = liste;   // Auswahl besteht nur aus Dokumenttypen
+    var ausgeblendet = liste.length - netzListe.length;
+
+    if (netzListe.length > K.NETZ_MAX) {
       graphMeldung('Zu viele Objekttypen für eine Netzdarstellung',
-        K.zahl(liste.length) + ' Objekttypen ergeben ein unlesbares Knäuel. ' +
+        K.zahl(netzListe.length) + ' Objekttypen ergeben ein unlesbares Knäuel. ' +
         'Die Auswahl über Katalog, Reifegrad oder die Suche auf höchstens ' +
         K.NETZ_MAX + ' Objekttypen eingrenzen — dann erscheint das Netz. ' +
         'Die Liste zeigt die volle Auswahl.');
@@ -1004,7 +1085,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     graphMeldung(null);
 
     var knoten = [], kanten = [], nachPset = {};
-    liste.forEach(function (e) {
+    netzListe.forEach(function (e) {
       var k = {
         id: 'o:' + e.uri, name: e.name, farbe: '#0F5C4E' /* = --pine */, form: 'kreis',
         r: 4 + Math.sqrt(e.anzahl) * 1.5,
@@ -1047,12 +1128,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
     });
 
     K.zeichneNetz(knoten, kanten, [
-      { name: 'Objekttyp', n: liste.length, farbe: '#0F5C4E' },
+      { name: 'Objekttyp', n: netzListe.length, farbe: '#0F5C4E' },
       { name: 'Property Set', n: Object.keys(nachPset).length, farbe: '#6B5B4A', form: 'quadrat' },
       { hinweis: K.state.hervor ? 'Hervorgehoben: ' + K.state.hervor
                                 : 'Punktgrösse: Anzahl Merkmale' }
     ], 'Objekttypen und die Property Sets, die sie teilen. Ein Objekttyp öffnet seine ' +
-       'Merkmale, ein Property Set hebt seine Objekttypen hervor. ' + GRAFIK_BEDIENUNG,
+       'Merkmale, ein Property Set hebt seine Objekttypen hervor. ' +
+       (ausgeblendet
+         ? 'Die ' + K.zahl(ausgeblendet) + ' Dokumenttypen sind hier ausgeblendet ' +
+           '(einheitliches Merkmalschema) — über die Katalog-Facette lassen sie ' +
+           'sich gezielt zeigen. '
+         : '') + GRAFIK_BEDIENUNG,
        'Objekttypen und Property Sets');
   }
 
@@ -1080,8 +1166,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     }
 
     if (merkmale === null) {
-      titel(e.name, 'Merkmale werden geladen …', e.beschreibung, null, e.sprache);
-      el.treffer.textContent = '';
+      titel(e.name, 'Merkmale werden geladen …', e.beschreibung, e.sprache);
       el.blaettern.hidden = true;
       sichtbareAnsicht(st.ansicht);
       /* Der Ladezustand dreht dort, wo der Blick ist: im Inhaltsbereich */
@@ -1089,7 +1174,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
         K.zeichneListe({ titel: e.name, spalten: [{ titel: 'Merkmal' }], zeilen: [],
                          leerText: 'Merkmale werden geladen …', laedt: true });
       } else if (st.ansicht === 'galerie') {
-        K.zeichneGalerie([], 'Merkmale werden geladen …', true);
+        K.zeichneGalerie({ karten: [], leerText: 'Merkmale werden geladen …', laedt: true });
       } else {
         graphMeldung('Merkmale werden geladen …', '', true);
       }
@@ -1105,7 +1190,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       (merkmale.length === e.anzahl ? '' : ' von ' + K.zahl(e.anzahl)) +
       ' ' + K.plural(e.anzahl, 'Merkmal', 'Merkmale') + ' · ' +
       nPsets + ' ' + K.plural(nPsets, 'Property Set', 'Property Sets') + ' · ' + e.quelle,
-      e.beschreibung, null, e.sprache);
+      e.beschreibung, e.sprache);
 
     el.treffer.textContent = (suchbegriff() || st.facetten.phase.length)
       ? K.zahl(merkmale.length) + ' von ' + K.zahl(e.anzahl)
@@ -1117,15 +1202,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     if (st.ansicht === 'liste') {
       sichtbareAnsicht('liste');
-      /* Reihenfolge wie im Merkmaldetail: Property Set, Datentyp, Reifegrad */
+      /* Beschreibung als eigene Spalte (wie in der Übersicht);
+         Marken-Reihenfolge wie im Merkmaldetail: Property Set, Datentyp, Reifegrad */
       var spalten = [
-        { titel: 'Merkmal', breite: '28%', sort: 'name' },
-        { titel: 'Property Set', breite: '20%', sort: 'pset' },
-        { titel: 'Datentyp', breite: '10%', sort: 'typ' },
-        { titel: 'Reifegrad', breite: '10%', sort: 'status' }
+        { titel: 'Merkmal', breite: '18%', sort: 'name' },
+        { titel: 'Beschreibung' },
+        { titel: 'Property Set', breite: '16%', sort: 'pset' },
+        { titel: 'Datentyp', breite: '90px', sort: 'typ' },
+        { titel: 'Reifegrad', breite: '90px', sort: 'status' }
       ];
       if (mitPhase) spalten.push({ titel: 'LOIN-Meilenstein', breite: '130px' });
-      spalten.push({ titel: 'Einheit / Zulässige Werte' });
+      spalten.push({ titel: 'Einheit / Zulässige Werte', breite: '18%' });
 
       K.zeichneListe({
         titel: 'Merkmale von ' + e.name,
@@ -1135,16 +1222,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
         zeilen: seite.map(function (m) {
           var zellen = [
             function () {
-              var box = document.createDocumentFragment();
-              box.appendChild(K.zeilenKnopf(m.name, m.sprache,
-                function () { K.geheZuMerkmal(m.uri); }));
-              if (m.beschreibung && m.beschreibung !== m.name) {
-                var de = document.createElement('span');
-                de.className = 'merkmal-desc';
-                de.textContent = m.beschreibung;
-                box.appendChild(de);
+              return K.zeilenKnopf(m.name, m.sprache,
+                function () { K.geheZuMerkmal(m.uri); });
+            },
+            function () {
+              if (!m.beschreibung || m.beschreibung === m.name) {
+                return K.leer('ohne Beschreibung');
               }
-              return box;
+              var s = document.createElement('span');
+              s.className = 'beschreibung';
+              s.textContent = m.beschreibung;
+              return s;
             },
             function () { return psetZelle(e, m); },
             function () { return typMarke(m); },
@@ -1157,20 +1245,19 @@ var KBOB = window.KBOB || (window.KBOB = {});
       });
     } else if (st.ansicht === 'galerie') {
       sichtbareAnsicht('galerie');
-      K.zeichneGalerie(seite.map(function (m) {
+      K.zeichneGalerie({ karten: seite.map(function (m) {
         return {
           name: m.name, sprache: m.sprache,
           text: (m.beschreibung && m.beschreibung !== m.name) ? m.beschreibung : '',
           marken: [{ name: m.pset, farbe: e.farbe[m.pset] }]
-            .concat(m.typ ? [{ name: m.typ, art: 'fill' }] : [])
-            .concat(m.status ? [{ name: m.status, art: 'status',
-                                  title: statusErklaerung(m.status) }] : []),
+            .concat(m.typ ? [{ name: m.typ }] : [])
+            .concat(m.status ? [{ name: m.status, title: statusErklaerung(m.status) }] : []),
           fuss: [m.einheit, m.ifcTyp,
                  m.liste && m.liste.anzahl ? m.liste.anzahl + ' zulässige Werte' : '']
                  .filter(Boolean).join(' · '),
           onClick: function () { K.geheZuMerkmal(m.uri); }
         };
-      }));
+      }) });
     } else {
       sichtbareAnsicht('graph');
       if (!merkmale.length) {
@@ -1182,34 +1269,32 @@ var KBOB = window.KBOB || (window.KBOB = {});
       graphMeldung(null);
       K.zeichneRadial(e, merkmale,
         'Die Merkmale von ' + e.name + ', gruppiert nach Property Set. Ein Merkmal ' +
-        'öffnet seine Angaben. ' + GRAFIK_BEDIENUNG);
+        'öffnet seine Angaben. ' + GRAFIK_BEDIENUNG,
+        K.geheZuMerkmal);
     }
   }
 
   /* Scheitert die Detailabfrage, darf «wird geladen …» nicht stehen bleiben —
      dieselbe Regel wie beim Erstladen (Befund K1), eine Ebene tiefer. */
   function zeigeDetailFehler(e) {
-    titel(e.name, 'Die Merkmale konnten nicht geladen werden.', null, null, e.sprache);
-    el.treffer.textContent = '';
+    titel(e.name, 'Die Merkmale konnten nicht geladen werden.', null, e.sprache);
     el.blaettern.hidden = true;
     sichtbareAnsicht('liste');
 
-    var ziel = el['view-liste'];
-    ziel.innerHTML = '';
-    var box = document.createElement('div');
-    box.className = 'meldung';
-    var h = document.createElement('h2');
-    h.textContent = 'Die Merkmale konnten nicht geladen werden';
-    box.appendChild(h);
-    var p = document.createElement('p');
-    p.textContent = K.state.detailFehler[e.uri];
-    box.appendChild(p);
-    var b = document.createElement('button');
-    b.textContent = 'Erneut versuchen';
-    b.addEventListener('click', function () { ladeDetail(e.uri); });
-    box.appendChild(b);
-    ziel.appendChild(box);
+    el['view-liste'].innerHTML = '';
+    var box = K.e('div', 'meldung');
+    meldung(box, {
+      titel: 'Die Merkmale konnten nicht geladen werden',
+      text: K.state.detailFehler[e.uri],
+      aktion: { text: 'Erneut versuchen', onClick: function () { ladeDetail(e.uri); } }
+    });
+    el['view-liste'].appendChild(box);
   }
+
+  /* ---------- Domänen-Zellen: KBOB-spezifische DOM-Bausteine ----------
+     Bewusst in app.js, nicht in views.js: sie kennen Katalogsemantik
+     (Reifegrad-Erklärungen, IFC-Psets, Wertelisten) und werden von
+     Tabelle, Galerie und Merkmaldetail geteilt. */
 
   /* Reifegrad. Der Katalog kennt bisher nur Candidate und Preview —
      verabschiedet ist nichts. Das gehört an jeden Eintrag.
@@ -1224,7 +1309,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function statusMarke(wert) {
     if (!wert) return null;
     var t = document.createElement('span');
-    t.className = 'token token--status';
+    t.className = 'token';
     t.appendChild(K.text(wert, 'en'));   // Datenwerte sind englisch
     if (STATUS_ERKLAERUNG[wert]) t.title = STATUS_ERKLAERUNG[wert];
     return t;
@@ -1238,35 +1323,19 @@ var KBOB = window.KBOB || (window.KBOB = {});
     el['graph-wrap'].hidden = zeigen;
     el['graph-steuerung'].hidden = zeigen;
     el['graph-hinweis'].hidden = zeigen;
-    if (!zeigen) return;
-
-    el['graph-meldung'].innerHTML = '';
-    var h = document.createElement('h2');
-    if (laedt) h.appendChild(K.ladeInhalt(titel));
-    else h.textContent = titel;
-    el['graph-meldung'].appendChild(h);
-    if (text) {
-      var p = document.createElement('p');
-      p.textContent = text;
-      el['graph-meldung'].appendChild(p);
-    }
+    if (zeigen) meldung(el['graph-meldung'], { titel: titel, text: text, laedt: laedt });
   }
 
   function typMarke(m) {
     if (!m.typ) return K.leer('ohne Typangabe');
-    var t = document.createElement('span');
-    t.className = 'token token--fill';
-    t.textContent = m.typ;
-    return t;
+    return K.e('span', 'token', m.typ);
   }
 
+  /* Ohne Farbtupfer: in der Tabelle trägt der Name die Aussage — die
+     Property-Set-Farben bleiben der Grafik und der Galerie vorbehalten. */
   function psetZelle(e, m) {
     var box = document.createElement('span');
     box.className = 'pset';
-    var sw = document.createElement('span');
-    sw.className = 'swatch';
-    sw.style.background = e.farbe[m.pset] || 'var(--rule)';
-    box.appendChild(sw);
     var pn = document.createElement('span');
     pn.className = 'pset-name';
     pn.textContent = m.pset;
@@ -1311,12 +1380,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var m = merkmalVon();
     if (!e || !m) { K.state.merkmal = null; zeichne(); return; }
 
-    sichtbareAnsicht(null);
-    el['view-merkmal'].hidden = false;
-    el.treffer.textContent = '';
+    sichtbareAnsicht('merkmal');
     el.blaettern.hidden = true;   // die Blätterleiste gehört zur Liste darüber
 
-    titel(m.name, e.name + ' · ' + m.pset + ' · ' + e.quelle, null, null, m.sprache);
+    titel(m.name, e.name + ' · ' + m.pset + ' · ' + e.quelle, null, m.sprache);
 
     var ziel = el['merkmal-detail'];
     ziel.innerHTML = '';
@@ -1372,9 +1439,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   function setzeAnsicht(name) {
     K.state.ansicht = name;
-    ['liste', 'galerie', 'graph'].forEach(function (v) {
-      document.getElementById('v-' + v).setAttribute('aria-pressed', String(v === name));
-    });
+    ansichtKnoepfe(name);
     if (K.state.merkmal) K.state.merkmal = null;
     inUrl();
     zeichne();
@@ -1383,17 +1448,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* ---------- CSV ---------- */
 
-  function csvZelle(w) {
-    var s = w == null ? '' : String(w);
-    /* Führende =, +, -, @ oder Tabs liest Excel als Formel — die Werte
-       stammen aus einem fremden Graphen (OWASP: CSV Injection). Ein
-       vorangestelltes Hochkomma entschärft sie. */
-    if (/^[=+\-@\t]/.test(s)) s = "'" + s;
-    return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  }
-
   function speichere(zeilen, name) {
-    var blob = new Blob(['﻿' + zeilen.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    /* \uFEFF: BOM, damit Excel UTF-8 erkennt — als Escape statt als
+       unsichtbares Literal, das ein Formatter still entfernen könnte. */
+    var blob = new Blob(['\uFEFF' + zeilen.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -1414,22 +1472,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function merkmalZeile(e, m) {
     return [e.name, e.status, e.quelle, m.name, m.uri, m.beschreibung, m.typ, m.typRaw,
             m.status, m.pset, m.ifcPset, m.einheit, m.liste ? m.liste.werte : '',
-            m.ifcTyp, m.phasen.join(' ')].map(csvZelle).join(';');
-  }
-
-  function dateiname(s) {
-    s = s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
-    if (String.prototype.normalize) {
-      s = s.normalize('NFD').replace(/[̀-ͯ]/g, '');   // é -> e, à -> a …
-    }
-    s = s.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    /* Datum im Namen: zwei Exporte von verschiedenen Tagen bleiben
-       unterscheidbar, solange die Quelle eine Integrationsumgebung ist. */
-    var d = new Date();
-    var datum = d.getFullYear() + '-' +
-                ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
-                ('0' + d.getDate()).slice(-2);
-    return (s || 'objekttyp') + '-' + datum;
+            m.ifcTyp, m.phasen.join(' ')].map(K.csvZelle).join(';');
   }
 
   /* Ein Objekttyp: sofort. Eine ganze Auswahl: die Merkmale werden dafür
@@ -1445,7 +1488,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       (sichtbareMerkmale(st.objekttyp) || []).forEach(function (m) {
         zeilen.push(merkmalZeile(e, m));
       });
-      speichere(zeilen, 'kbob-' + dateiname(e.name) + '.csv');
+      speichere(zeilen, 'kbob-' + K.dateiname(e.name) + '.csv');
       setStatus(K.zahl(zeilen.length - 1) + ' Merkmale gespeichert.');
       return;
     }
@@ -1456,10 +1499,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
       return;
     }
 
-    if (auswahl.length > 60) {
-      setStatus('Für den Export die Auswahl auf höchstens 60 Objekttypen eingrenzen — ' +
-                'die Liste zeigt zurzeit ' + K.zahl(auswahl.length) + '. Die Merkmale ' +
-                'werden je Objekttyp einzeln nachgeladen.', true);
+    if (auswahl.length > K.EXPORT_MAX) {
+      setStatus('Für den Export die Auswahl auf höchstens ' + K.EXPORT_MAX +
+                ' Objekttypen eingrenzen — die Liste zeigt zurzeit ' +
+                K.zahl(auswahl.length) + '. Die Merkmale werden je Objekttyp ' +
+                'einzeln nachgeladen.', true);
       return;
     }
 
@@ -1467,7 +1511,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     busy(true, 'Merkmale für den Export werden geladen …');
 
     var v = verbindung();
-    var BUENDEL = 6;
+    var gen = st.generation;
     var i = 0;
 
     function fertig() {
@@ -1477,24 +1521,30 @@ var KBOB = window.KBOB || (window.KBOB = {});
       auswahl.forEach(function (e) {
         (st.detail[e.uri] || []).forEach(function (m) { zeilen.push(merkmalZeile(e, m)); });
       });
-      speichere(zeilen, 'kbob-' + dateiname('merkmale') + '.csv');
+      speichere(zeilen, 'kbob-' + K.dateiname('merkmale') + '.csv');
       setStatus(K.zahl(auswahl.length) + ' Objekttypen mit ' + K.zahl(zeilen.length - 1) +
                 ' Merkmalen gespeichert.');
     }
 
     function naechstesBuendel() {
+      if (gen !== st.generation) {
+        busy(false);
+        el.csv.disabled = false;
+        setStatus('Export abgebrochen — der Katalog wurde inzwischen neu geladen.', true);
+        return;
+      }
       if (i >= auswahl.length) { fertig(); return; }
-      var teil = auswahl.slice(i, i + BUENDEL);
+      var teil = auswahl.slice(i, i + K.EXPORT_BUENDEL);
       i += teil.length;
       setStatus('Merkmale für den Export werden geladen — ' +
                 Math.min(i, auswahl.length) + ' von ' + auswahl.length + ' Objekttypen …');
       Promise.all(teil.map(function (e) {
-        return K.holeDetail(v.endpoint, v.graph, e.uri, v.sprache);
+        return K.holeDetail(v, e.uri);
       })).then(naechstesBuendel).catch(function (err) {
         busy(false);
         el.csv.disabled = false;
-        setStatus('Export abgebrochen bei «' + teil[0].name + '»: ' +
-                  String(err && err.message || err), true);
+        setStatus('Export abgebrochen beim Nachladen (Objekttypen ' +
+                  (i - teil.length + 1) + '–' + i + '): ' + fehlerText(err), true);
       });
     }
 
@@ -1520,9 +1570,25 @@ var KBOB = window.KBOB || (window.KBOB = {});
   /* ---------- Verdrahtung ---------- */
 
   function verdrahten() {
-    el.version.textContent = 'kbob-data ' + K.VERSION;
+    /* Frühe, benannte Diagnose statt spätem «Cannot read properties of null» */
+    Object.keys(el).forEach(function (id) {
+      if (!el[id]) throw new Error('index.html: Element #' + id + ' fehlt');
+    });
+
+    /* Der lokale Proxy gibt sein Abfrageziel per Marker mit — robuster als
+       ein Byte-Replace auf dem value-Attribut (siehe lindas-proxy.py). */
+    if (window.KBOB_PROXY) el.endpoint.value = window.KBOB_PROXY;
+
+    /* Das Export-Limit steht nur hier — der Tooltip lügt so nie */
+    el.csv.title = 'Speichert eine CSV-Datei, die Excel direkt öffnet — ' +
+                   'die sichtbare Auswahl, höchstens ' + K.EXPORT_MAX + ' Objekttypen';
 
     el.neuladen.addEventListener('click', laden);
+
+    el.zurueck.addEventListener('click', function () {
+      if (K.state.merkmal) K.geheZuObjekttyp(K.state.objekttyp);
+      else K.geheZuUebersicht();
+    });
 
     /* Sprachwahl betrifft die Katalogbeschriftungen: neue Sprache heisst
        neue Abfragen — der Katalog wird neu geladen. */
@@ -1584,7 +1650,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
         K.state.hervor = null;
         inUrl(true);
         zeichne();
-      }, 180);
+      }, K.SUCH_DEBOUNCE_MS);
     });
 
     /* Klick ausserhalb schliesst offene Facetten-Menüs — focusout allein

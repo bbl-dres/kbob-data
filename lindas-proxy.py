@@ -17,6 +17,8 @@ Nur Standardbibliothek, keine Installation noetig.
 import argparse
 import base64
 import getpass
+import gzip
+import http.client
 import json
 import os
 import socket
@@ -35,21 +37,37 @@ FRONTEND = os.path.join(HERE, "index.html")
 CFG = {"endpoint": DEFAULT_ENDPOINT, "auth": None, "timeout": 300}
 
 
+def _entpackt(headers, body):
+    """gzip-Antworten entpacken — der Browser sieht immer Klartext."""
+    if headers.get("Content-Encoding") == "gzip":
+        return gzip.decompress(body)
+    return body
+
+
 def upstream(query, accept="application/sparql-results+json"):
-    """Schickt eine Query an den echten Endpunkt. Gibt (status, headers, body) zurueck."""
+    """Schickt eine Query an den echten Endpunkt. Gibt (status, headers, body) zurueck.
+
+    Komprimiert anfordern: die Uebersichtsabfrage ist 1,3 MB roh, aber nur
+    ~40 KB gzip — ausgerechnet im VPN-Szenario, fuer das dieser Proxy
+    gedacht ist, macht das den Katalogstart um Sekunden schneller.
+    User-Agent haelt kbob-data/<K.VERSION aus js/data.js> — bei einem
+    Release-Bump beide Stellen anfassen."""
     body = urllib.parse.urlencode({"query": query}).encode("utf-8")
     req = urllib.request.Request(CFG["endpoint"], data=body, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
     req.add_header("Accept", accept)
+    req.add_header("Accept-Encoding", "gzip")
     req.add_header("User-Agent", "kbob-data/1.0.0")
     if CFG["auth"]:
         req.add_header("Authorization", "Basic " + CFG["auth"])
 
     try:
         with urllib.request.urlopen(req, timeout=CFG["timeout"]) as resp:
-            return resp.status, resp.headers.get("Content-Type", "text/plain"), resp.read()
+            return (resp.status, resp.headers.get("Content-Type", "text/plain"),
+                    _entpackt(resp.headers, resp.read()))
     except urllib.error.HTTPError as e:
-        return e.code, e.headers.get("Content-Type", "text/plain"), e.read()
+        return (e.code, e.headers.get("Content-Type", "text/plain"),
+                _entpackt(e.headers, e.read()))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -88,10 +106,12 @@ class Handler(BaseHTTPRequestHandler):
                 return
             with open(FRONTEND, "rb") as fh:
                 html = fh.read()
-            # Endpunkt im Formular auf den Proxy vorbelegen
+            # Endpunkt per Marker mitgeben statt per Byte-Replace auf dem
+            # value-Attribut: das uebersteht jede Aenderung am Formular.
+            # app.js liest window.KBOB_PROXY in verdrahten().
             html = html.replace(
-                b'value="https://int.lindas.admin.ch/query"',
-                b'value="/query"')
+                b"</head>",
+                b"<script>window.KBOB_PROXY='/query'</script></head>")
             self._send(200, "text/html; charset=utf-8", html)
             return
 
@@ -102,13 +122,18 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/health":
             started = time.time()
-            status, ctype, body = upstream("SELECT * WHERE { ?s ?p ?o } LIMIT 1")
-            self._send(200, "application/json; charset=utf-8", json.dumps({
-                "endpoint": CFG["endpoint"],
-                "status": status,
-                "dauer_s": round(time.time() - started, 2),
-                "auszug": body[:400].decode("utf-8", "replace"),
-            }, ensure_ascii=False, indent=2))
+            # Gerade der Diagnose-Endpunkt muss den Fehlerfall ueberleben
+            try:
+                status, ctype, body = upstream("SELECT * WHERE { ?s ?p ?o } LIMIT 1")
+                antwort = {"endpoint": CFG["endpoint"], "status": status,
+                           "dauer_s": round(time.time() - started, 2),
+                           "auszug": body[:400].decode("utf-8", "replace")}
+            except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
+                antwort = {"endpoint": CFG["endpoint"], "status": None,
+                           "dauer_s": round(time.time() - started, 2),
+                           "fehler": "%s: %s" % (type(e).__name__, getattr(e, "reason", e))}
+            self._send(200, "application/json; charset=utf-8",
+                       json.dumps(antwort, ensure_ascii=False, indent=2))
             return
 
         self._send(404, "text/plain; charset=utf-8", "Nicht gefunden")
@@ -147,7 +172,8 @@ class Handler(BaseHTTPRequestHandler):
         accept = self.headers.get("Accept") or "application/sparql-results+json"
         try:
             status, ctype, body = upstream(query, accept)
-        except (urllib.error.URLError, socket.timeout) as e:
+        except (urllib.error.URLError, socket.timeout, OSError,
+                http.client.HTTPException) as e:
             reason = getattr(e, "reason", e)
             self._send(502, "text/plain; charset=utf-8",
                        "Der Endpunkt ist von diesem Rechner aus nicht erreichbar. "

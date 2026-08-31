@@ -28,6 +28,9 @@ body {
 
 code, .mono { font-family: var(--schrift-mono); font-size: 12px; }
 
+/* Die Typoskala endet bei 600 — nacktes <b> soll kein 700er-Font laden */
+b, strong { font-weight: 600; }
+
 a { color: var(--pine); text-underline-offset: 3px; }
 a:hover { text-decoration-thickness: 2px; }
 
@@ -135,7 +138,13 @@ button.krume:hover { background: var(--pine-bg); text-decoration-color: currentC
 
 /* ---------- 4 Titelblock ---------- */
 
-.titelblock { margin: 0 0 var(--s5); }
+.titelblock { margin: 0 0 var(--s5); position: relative; }
+
+/* Sichtbarer Rückweg beim Drilldown — die Brotkrume bleibt, ist aber klein */
+.zurueck { position: absolute; top: 0; right: 0; }
+@media (max-width: 600px) {
+  .zurueck { position: static; margin-bottom: var(--s2); }
+}
 .titelblock h1 {
   font-size: 26px; font-weight: 600; line-height: 1.15;
   letter-spacing: -0.02em;
@@ -154,17 +163,6 @@ button.krume:hover { background: var(--pine-bg); text-decoration-color: currentC
   margin: var(--s3) 0 0; font-size: 13px; line-height: 1.5;
   color: var(--ink); max-width: 68ch;
 }
-
-/* Sachlicher Hinweis, keine Warnung */
-.hinweis {
-  margin: var(--s4) 0 0;
-  padding: var(--s3) var(--s4);
-  border-left: 3px solid var(--rule);
-  background: var(--sunken);
-  font-size: 12px; color: var(--muted);
-  max-width: 74ch;
-}
-.hinweis b { color: var(--ink); font-weight: 600; }
 
 /* ---------- 5 Werkzeugleiste ---------- */
 
@@ -341,10 +339,12 @@ tbody tr.klick { cursor: pointer; }
 
 th.rechts, td.rechts { text-align: right; font-variant-numeric: tabular-nums; }
 
-/* Der Name ist der Knopf — nicht die ganze Zeile */
+/* Der Name ist der Knopf — nicht die ganze Zeile. Er trägt dieselbe
+   Schrift wie der übrige Zeileninhalt; klickbar zeigt ihn Unterstreichung
+   und Zeiger, nicht Fettung. */
 .zeilen-knopf {
   background: none; border: 0; padding: 0; height: auto;
-  font-family: inherit; font-size: 15px; font-weight: 500;
+  font-family: inherit; font-size: 13px; font-weight: 400;
   color: var(--ink); text-align: left; cursor: pointer;
   text-decoration: underline; text-decoration-color: transparent;
   text-underline-offset: 3px;
@@ -353,7 +353,6 @@ th.rechts, td.rechts { text-align: right; font-variant-numeric: tabular-nums; }
 tr:hover .zeilen-knopf { text-decoration-color: var(--pine-linie); }
 
 .beschreibung { display: block; font-size: 13px; color: var(--ink); max-width: 62ch; }
-.merkmal-desc { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; max-width: 62ch; }
 .zell-muted { font-size: 12px; color: var(--muted); }
 .leer { color: var(--faint); }
 
@@ -393,7 +392,6 @@ tr:hover .zeilen-knopf { text-decoration-color: var(--pine-linie); }
   font-size: 15px; font-weight: 600; line-height: 1.25;
   letter-spacing: -0.01em; color: var(--ink);
 }
-.karte-quelle { font-size: 12px; color: var(--muted); }
 .karte-text {
   font-size: 13px; line-height: 1.45; color: var(--ink);
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
@@ -409,21 +407,17 @@ tr:hover .zeilen-knopf { text-decoration-color: var(--pine-linie); }
 
 .marke-gruppe { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
 
+/* Eine einzige Badge-Form für alle Marken (Datentyp, Reifegrad, …) —
+   neutral umrandet; Grün bleibt der Interaktion vorbehalten (E3). */
 .token {
   display: inline-flex; align-items: center; gap: 5px;
-  font-size: 12px; font-weight: 500; line-height: 1.5;
+  font-size: 12px; font-weight: 400; line-height: 1.5;
   padding: 1px 7px; border-radius: var(--radius-s);
   white-space: nowrap;
-}
-/* Datentyp: neutral — Grün ist der Interaktion vorbehalten (E3) */
-.token--fill { background: var(--sunken); color: var(--ink); border: 1px solid var(--rule-soft); }
-.token--outline { border: 1px solid var(--rule-soft); color: var(--ink); font-weight: 400; }
-.token--status {
-  border: 1px solid var(--rule-soft); color: var(--muted);
-  font-weight: 400; font-size: 11px; letter-spacing: .02em;
+  border: 1px solid var(--rule-soft); background: none; color: var(--ink);
 }
 .token--zahl {
-  background: none; padding: 0; color: var(--muted); font-weight: 400;
+  border: 0; background: none; padding: 0; color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -433,8 +427,7 @@ tr:hover .zeilen-knopf { text-decoration-color: var(--pine-linie); }
   box-shadow: inset 0 0 0 1px var(--marke-rand);
 }
 
-.pset { display: flex; align-items: flex-start; gap: 6px; }
-.pset .swatch { margin-top: 5px; }
+.pset { display: flex; align-items: flex-start; }
 .pset-name { font-size: 13px; }
 .pset-ifc { display: block; font-size: 12px; color: var(--muted); }
 
@@ -548,11 +541,13 @@ tr:hover .zeilen-knopf { text-decoration-color: var(--pine-linie); }
   border-top: 1px solid var(--rule-soft);
   font-size: 12px; color: var(--muted);
 }
-.blaettern .bereich { font-variant-numeric: tabular-nums; }
-.blaettern .seiten { display: flex; align-items: center; gap: var(--s2); margin: 0 auto; }
+/* Gleich schwere Flanken (flex: 1) — nur so sitzt die Seitenwahl exakt in
+   der Mitte der Leiste, nicht in der Mitte des Restraums. */
+.blaettern .bereich { font-variant-numeric: tabular-nums; flex: 1 1 0; }
+.blaettern .seiten { display: flex; align-items: center; gap: var(--s2); }
 .blaettern .feld {
-  flex-direction: row; align-items: center; gap: var(--s2);
-  margin-left: auto; flex: none;
+  flex-direction: row; align-items: center; justify-content: flex-end;
+  gap: var(--s2); flex: 1 1 0;
 }
 .blaettern .feld .label { padding: 0; }
 .blaettern button { height: 30px; padding: 0 var(--s3); font-size: 12px; }
@@ -593,8 +588,6 @@ footer {
   display: flex; align-items: baseline; gap: var(--s3) var(--s5); flex-wrap: wrap;
 }
 .fuss-innen .rechts { margin-left: auto; }
-.fuss-herkunft { flex-basis: 100%; margin: 0; color: var(--muted); max-width: 84ch; }
-.version { font-variant-numeric: tabular-nums; }
 
 /* ---------- 12 Dialog ---------- */
 
@@ -616,7 +609,7 @@ dialog textarea {
   padding: var(--s3); background: var(--surface); color: var(--ink);
   resize: vertical;
 }
-dialog .tabs { display: flex; gap: var(--s2); flex-wrap: wrap; }
+dialog .tabs { display: flex; gap: var(--s2); flex-wrap: wrap; margin-bottom: var(--s3); }
 dialog .tabs button { font-size: 12px; height: 30px; padding: 0 var(--s3); }
 dialog .row { display: flex; gap: var(--s2); justify-content: flex-end; margin-top: var(--s4); align-items: center; }
 dialog .dlg-status { margin-right: auto; font-size: 12px; color: var(--muted); }

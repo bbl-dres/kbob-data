@@ -12,8 +12,32 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   var SVGNS = 'http://www.w3.org/2000/svg';
 
-  /* Darüber wird die Netzdarstellung unlesbar und das O(N²)-Layout teuer. */
+  /* Darüber wird die Netzdarstellung unlesbar und das O(N²)-Layout teuer.
+     Der Cap zählt Objekttypen; mit Property-Set-Knoten sind es real bis
+     ~176 Knoten und ~25 ms Layout — gemessen, vertretbar. */
   K.NETZ_MAX = 150;
+
+  /* ---------- DOM-Kurzformen ----------
+     Das Muster createElement + className + Inhalt steht dutzendfach in
+     app.js und views.js — K.e/K.knopf bündeln es. Attribute (aria-*, id,
+     title) setzen die Aufrufer weiterhin selbst. Neuer Code nutzt die
+     Helfer; Bestand wird beim Anfassen migriert. */
+  K.e = function (tag, klasse, inhalt) {
+    var n = document.createElement(tag);
+    if (klasse) n.className = klasse;
+    if (inhalt !== undefined && inhalt !== null) {
+      if (typeof inhalt === 'string') n.textContent = inhalt;
+      else n.appendChild(inhalt);
+    }
+    return n;
+  };
+
+  K.knopf = function (klasse, inhalt, onClick) {
+    var b = K.e('button', klasse, inhalt);
+    b.type = 'button';
+    if (onClick) b.addEventListener('click', onClick);
+    return b;
+  };
 
   function svgEl(name, attrs) {
     var n = document.createElementNS(SVGNS, name);
@@ -24,10 +48,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
   /* Ladehinweis mit drehendem Ring — für Leerflächen, deren Inhalt gerade
      unterwegs ist. Der Ring ist dekorativ; der Text trägt die Aussage. */
   K.ladeInhalt = function (text) {
-    var box = document.createElement('span');
-    box.className = 'lade-inhalt';
-    var ring = document.createElement('span');
-    ring.className = 'ring';
+    var box = K.e('span', 'lade-inhalt');
+    var ring = K.e('span', 'ring');
     ring.setAttribute('aria-hidden', 'true');
     box.appendChild(ring);
     box.appendChild(document.createTextNode(text));
@@ -90,25 +112,20 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return box;
   };
 
+  /* Eine Badge-Form für alle Marken; farbe ergänzt einen Swatch (Galerie) */
   K.marken = function (eintraege) {
-    var box = document.createElement('span');
-    box.className = 'marke-gruppe';
+    var box = K.e('span', 'marke-gruppe');
     eintraege.forEach(function (m) {
-      var t = document.createElement('span');
-      t.className = 'token token--' + (m.art || 'outline');
+      var t = K.e('span', 'token');
       if (m.title) t.title = m.title;
       if (m.farbe) {
-        var sw = document.createElement('span');
-        sw.className = 'swatch';
+        var sw = K.e('span', 'swatch');
         sw.style.background = m.farbe;
         t.appendChild(sw);
       }
       t.appendChild(document.createTextNode(m.name));
       if (m.n !== undefined && m.n !== null) {
-        var n = document.createElement('span');
-        n.className = 'token--zahl';
-        n.textContent = m.n;
-        t.appendChild(n);
+        t.appendChild(K.e('span', 'token--zahl', String(m.n)));
       }
       box.appendChild(t);
     });
@@ -143,20 +160,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
       /* Sortierbare Spalten tragen einen Knopf im Kopf; die aktive Spalte
          sagt Richtung und Zustand über aria-sort und einen Pfeil. */
       if (s.sort && spec.onSort) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'sortier-knopf';
-        b.textContent = s.titel;
+        var b = K.knopf('sortier-knopf', s.titel,
+                        function () { spec.onSort(s.sort, s.sortStart); });
         var aktiv = spec.sort && spec.sort.feld === s.sort;
         if (aktiv) {
           th.setAttribute('aria-sort', spec.sort.richtung > 0 ? 'ascending' : 'descending');
-          var pfeil = document.createElement('span');
-          pfeil.className = 'sortier-pfeil';
+          var pfeil = K.e('span', 'sortier-pfeil', spec.sort.richtung > 0 ? ' ▲' : ' ▼');
           pfeil.setAttribute('aria-hidden', 'true');
-          pfeil.textContent = spec.sort.richtung > 0 ? ' ▲' : ' ▼';
           b.appendChild(pfeil);
         }
-        b.addEventListener('click', function () { spec.onSort(s.sort, s.sortStart); });
         th.appendChild(b);
       } else {
         th.textContent = s.titel;
@@ -214,87 +226,48 @@ var KBOB = window.KBOB || (window.KBOB = {});
   };
 
   K.zeilenKnopf = function (name, sprache, onClick) {
-    var b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'zeilen-knopf';
-    b.appendChild(K.text(name, sprache));
-    b.addEventListener('click', onClick);
-    return b;
+    return K.knopf('zeilen-knopf', K.text(name, sprache), onClick);
   };
 
   /* =========================================================
      Galerie
      ========================================================= */
 
-  K.zeichneGalerie = function (karten, leerText, laedt) {
+  /* spec: { karten, leerText, laedt } — benannte Felder statt einer
+     Boolean-Falle am Aufrufort. */
+  K.zeichneGalerie = function (spec) {
     var ziel = K.el.galerie;
     ziel.innerHTML = '';
 
-    if (!karten.length) {
-      var p = document.createElement('p');
-      p.className = 'kein-treffer';
-      var text = leerText || 'Kein Treffer für diese Filter.';
-      if (laedt) p.appendChild(K.ladeInhalt(text));
+    if (!spec.karten.length) {
+      var p = K.e('p', 'kein-treffer');
+      var text = spec.leerText || 'Kein Treffer für diese Filter.';
+      if (spec.laedt) p.appendChild(K.ladeInhalt(text));
       else p.textContent = text;
       ziel.appendChild(p);
       return;
     }
 
-    karten.forEach(function (k) {
+    spec.karten.forEach(function (k) {
       /* Immer ein div — der Knopf sitzt auf dem Namen und dehnt seine
          Klickfläche per CSS über die Karte. So verschmilzt der Karteninhalt
          für Screenreader nicht zu einem einzigen langen Knopfnamen. */
-      var karte = document.createElement('div');
-      karte.className = 'karte';
-      if (k.id) karte.id = k.id;
-
-      var kopf = document.createElement('span');
-      kopf.className = 'karte-kopf';
-      var nm;
-      if (k.onClick) {
-        nm = document.createElement('button');
-        nm.type = 'button';
-        nm.className = 'karte-knopf';
-        nm.addEventListener('click', k.onClick);
-      } else {
-        nm = document.createElement('span');
-        nm.className = 'karte-name';
-      }
-      nm.appendChild(K.text(k.name, k.sprache));
+      var karte = K.e('div', 'karte');
+      var kopf = K.e('span', 'karte-kopf');
+      var nm = k.onClick
+        ? K.knopf('karte-knopf', K.text(k.name, k.sprache), k.onClick)
+        : K.e('span', 'karte-name', K.text(k.name, k.sprache));
       kopf.appendChild(nm);
       if (k.zahl !== undefined && k.zahl !== null) {
-        var n = document.createElement('span');
-        n.className = 'token token--zahl';
-        n.textContent = k.zahl;
-        if (k.zahlText) {
-          var sr = document.createElement('span');
-          sr.className = 'sr-only';
-          sr.textContent = ' ' + k.zahlText;
-          n.appendChild(sr);
-        }
+        var n = K.e('span', 'token token--zahl', String(k.zahl));
+        if (k.zahlText) n.appendChild(K.e('span', 'sr-only', ' ' + k.zahlText));
         kopf.appendChild(n);
       }
       karte.appendChild(kopf);
 
-      if (k.sub) {
-        var src = document.createElement('span');
-        src.className = 'karte-quelle';
-        src.textContent = k.sub;
-        karte.appendChild(src);
-      }
-      if (k.text) {
-        var txt = document.createElement('span');
-        txt.className = 'karte-text';
-        txt.textContent = k.text;
-        karte.appendChild(txt);
-      }
+      if (k.text) karte.appendChild(K.e('span', 'karte-text', k.text));
       if (k.marken && k.marken.length) karte.appendChild(K.marken(k.marken));
-      if (k.fuss) {
-        var fuss = document.createElement('span');
-        fuss.className = 'karte-fuss';
-        fuss.textContent = k.fuss;
-        karte.appendChild(fuss);
-      }
+      if (k.fuss) karte.appendChild(K.e('span', 'karte-fuss', k.fuss));
 
       ziel.appendChild(karte);
     });
@@ -340,16 +313,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function textFassung(titel, eintraege) {
     var ziel = K.el['graph-text'];
     ziel.innerHTML = '';
-    var h = document.createElement('h2');
-    h.textContent = titel;
-    ziel.appendChild(h);
+    ziel.appendChild(K.e('h2', '', titel));
     var ul = document.createElement('ul');
-    eintraege.forEach(function (t) {
-      var li = document.createElement('li');
-      li.textContent = t;
-      ul.appendChild(li);
-    });
+    eintraege.forEach(function (t) { ul.appendChild(K.e('li', '', t)); });
     ziel.appendChild(ul);
+  }
+
+  /* Tooltip-Verdrahtung je Knoten — in Netz und Radial identisch */
+  function bindeTip(g, zeig) {
+    g.addEventListener('mouseenter', zeig);
+    g.addEventListener('mousemove', bewegeTip);
+    g.addEventListener('mouseleave', versteckeTip);
   }
 
   function knotenGruppe(id, beschriftung, onClick) {
@@ -414,9 +388,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
         cx: k.x, cy: k.y, r: Math.max(k.r + 8, 14), class: 'g-hit'
       }));
 
-      g.addEventListener('mouseenter', function (ev) { tipKnoten(ev, k); markiere(k.id); });
-      g.addEventListener('mousemove', bewegeTip);
-      g.addEventListener('mouseleave', function () { versteckeTip(); markiere(null); });
+      bindeTip(g, function (ev) { tipKnoten(ev, k); });
+      g.addEventListener('mouseenter', function () { markiere(k.id); });
+      g.addEventListener('mouseleave', function () { markiere(null); });
       g.addEventListener('focus', function () { markiere(k.id); });
       g.addEventListener('blur', function () { markiere(null); });
 
@@ -456,31 +430,23 @@ var KBOB = window.KBOB || (window.KBOB = {});
     leg.innerHTML = '';
     (eintraege || []).forEach(function (e) {
       if (e.hinweis) {
-        var h = document.createElement('span');
-        h.className = 'legende-hinweis';
-        h.textContent = e.hinweis;
-        leg.appendChild(h);
+        leg.appendChild(K.e('span', 'legende-hinweis', e.hinweis));
         return;
       }
       var b;
       if (e.onClick) {
-        b = document.createElement('button');
-        b.type = 'button';
+        b = K.knopf('', null, e.onClick);
         b.setAttribute('aria-pressed', String(!e.aus));
-        b.addEventListener('click', e.onClick);
       } else {
-        b = document.createElement('span');
-        b.className = 'eintrag';
+        b = K.e('span', 'eintrag');
       }
-      var sw = document.createElement('span');
-      sw.className = 'swatch' + (e.form === 'quadrat' ? '' : ' rund');
+      var sw = K.e('span', 'swatch' + (e.form === 'quadrat' ? '' : ' rund'));
       sw.style.background = e.farbe;
       b.appendChild(sw);
       b.appendChild(document.createTextNode(e.name + (e.n !== undefined ? '  ' + e.n : '')));
       leg.appendChild(b);
     });
   }
-  K.zeichneLegende = zeichneLegende;
 
   /* Kanten des überfahrenen Knotens hervorheben — per Klasse, damit die
      Farbe eine einzige Quelle hat (main.css). Präsentationsattribute würden
@@ -549,7 +515,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
      Radial: ein Objekttyp mit Property Sets und Merkmalen
      ========================================================= */
 
-  K.zeichneRadial = function (element, merkmale, hinweis) {
+  /* onMerkmal: Navigations-Callback aus app.js — views.js navigiert nicht
+     selbst. Der hervor-Toggle in radialLegende schreibt K.state.hervor als
+     bewusste Ausnahme direkt (schneller Teil-Rerender ohne Neulayout). */
+  K.zeichneRadial = function (element, merkmale, hinweis, onMerkmal) {
     var wurzel = neuesNetz();
     K.el['graph-hinweis'].textContent = hinweis || '';
     if (!merkmale.length) {
@@ -619,7 +588,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
         var beschriftung = m.name + ', ' + (m.typ || 'ohne Typangabe') +
                            (m.einheit ? ', ' + m.einheit : '') + ', Property Set ' + gr.pset;
         var knoten = knotenGruppe('m:' + m.uri, beschriftung,
-                                  function () { K.geheZuMerkmal(m.uri); });
+                                  function () { onMerkmal(m.uri); });
         knoten.setAttribute('data-pset', gr.pset);
         knoten.classList.add('g-group');
 
@@ -643,9 +612,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
           cx: R * Math.cos(m._w), cy: R * Math.sin(m._w), r: 13, class: 'g-hit'
         }));
 
-        knoten.addEventListener('mouseenter', function (ev) { tipMerkmal(ev, m, element); });
-        knoten.addEventListener('mousemove', bewegeTip);
-        knoten.addEventListener('mouseleave', versteckeTip);
+        bindeTip(knoten, function (ev) { tipMerkmal(ev, m, element); });
 
         wurzel.appendChild(knoten);
       });
