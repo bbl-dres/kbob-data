@@ -16,6 +16,10 @@
 
 A browser explorer for the [KBOB Data Dictionary](https://github.com/KBOB-admin/KBOB-data-dictionary). It translates the RDF model into the questions a BIM or facility manager asks: **which object type needs which attributes, in what format, from which property set, and with which allowed values?**
 
+## Demo
+
+**Live app:** https://bbl-dres.github.io/kbob-data/
+
 ## Highlights
 
 - Flat, faceted access to object types, with catalogue, maturity and LOIN-milestone filters and shareable URL state.
