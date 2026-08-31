@@ -69,16 +69,26 @@ funktioniert:
 - Der ausgewertete Graph liegt auf der **Integrationsumgebung** und ist kein
   publizierter Stand.
 
-## Zwei Abfragestufen
+## Abfragestufen
 
 | Stufe | Abfrage | Umfang |
 |---|---|---|
 | Übersicht | eine Zeile je Objekttyp und Property Set | ~800 Zeilen, beim Start |
 | Detail | die Merkmale eines Objekttyps | erst beim Öffnen des Objekttyps |
 | Werte | zulässige Werte je Werteliste | einmalig beim ersten Detail |
+| Gesamtexport | alle Merkmale aller Objekttypen | eine Abfrage, nur beim Export |
 
-Die Abfragen sind in der App unter «Verbindung und Abfrage» in der Fusszeile
+Die Abfragen sind in der App unter «Verbindung und Abfrage» im Kopf
 einsehbar und kopierbar.
+
+## Excel-Export
+
+«Als Excel exportieren» erzeugt ohne Bibliotheken eine echte
+XLSX-Arbeitsmappe (js/export.js) mit drei Tabellenblättern: **Objekttypen**
+(eine Zeile je Objekttyp), **Merkmale** (eine Zeile je Merkmal und
+Objekttyp) und **Info** (Quelle, Stand, angewandte Filter). Exportiert wird
+die sichtbare Auswahl — ungefiltert der ganze Katalog; die Merkmale dafür
+kommen in einer einzigen Abfrage.
 
 ## Was der Graph enthält
 
@@ -94,19 +104,23 @@ SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
 
 ## Dateien
 
-    index.html        Gerüst
-    css/tokens.css    Farben, Typografie, Abstände
-    css/main.css      alles Übrige
+    index.html        Gerüst (Oblique-Master-Layout)
+    css/tokens.css    Oblique-Design-Tokens (unverändert übernommen)
+    css/main.css      Komponenten und App-Stile auf Token-Basis
     js/data.js        Abfragen, Laden, Normalisieren, Palette
-    js/views.js       Liste, Galerie, Netz- und Radialgrafik
+    js/views.js       Liste, Galerie, Netz- und Radialgrafik, Icons
+    js/export.js      XLSX-Arbeitsmappe ohne Abhängigkeiten
     js/app.js         Navigation, Facetten, Blättern, Export
     lindas-proxy.py   lokaler Proxy, nur Standardbibliothek
     test/             Tests der reinen Helfer (node --test test/helfer.test.js)
-    assets/           Schriften und Icons aus dem Oblique-Designsystem (MIT)
+    assets/           Schriften, Icons und Logos aus dem Oblique-Designsystem (MIT)
     docs/DESIGN.md    Review, Entscheidungen und offene Fragen
     docs/REVIEW.md    Design-/UX-Durchsicht: Befunde und Umsetzungsstand
     docs/CODE-REVIEW.md  Code-Review: Performance, Komplexität, Robustheit
+    docs/OBLIQUE.md   Übernahme des Oblique-Designsystems: Quellen, Abweichungen
     LICENSE           MIT
 
-Endpunkt, Named Graph und die drei Abfragen sind zur Laufzeit über
-«Verbindung und Abfrage» in der Fusszeile einsehbar.
+Endpunkt, Named Graph und die Abfragen sind zur Laufzeit über
+«Verbindung und Abfrage» im Kopf einsehbar. Gestaltung und Bauteile folgen
+dem Oblique-Designsystem der Bundesverwaltung
+(https://github.com/oblique-bit/oblique, MIT) — Details in docs/OBLIQUE.md.

@@ -59,19 +59,22 @@ var KBOB = window.KBOB || (window.KBOB = {});
   var dlgVerbindung = document.getElementById('dlg-verbindung');
   var dlgA11y = document.getElementById('dlg-a11y');
 
-  function setStatus(text, isError) {
-    el.status.className = 'kbob-status' + (isError ? ' error' : '');
+  /* leise = nur für Screenreader (Live-Region), ohne sichtbare Zeile —
+     Fortschrittstexte stünden sonst doppelt neben dem Spinner im Inhalt. */
+  function setStatus(text, isError, leise) {
+    el.status.className = 'kbob-status' + (isError ? ' error' : '') +
+                          (leise ? ' ob-screen-reader-only' : '');
     el.status.textContent = text;
   }
   K.setStatus = setStatus;
 
   /* ---------- Ladeanzeige ---------- */
 
-  /* Der Ladezustand dreht als Ring im Inhaltsbereich (Tabelle, Galerie,
+  /* Der Ladezustand dreht als Bogen im Inhaltsbereich (Tabelle, Galerie,
      Graph, Platzhalter); die Statuszeile ist die Live-Region, über die auch
-     Screenreader vom Ladevorgang erfahren. */
+     Screenreader vom Ladevorgang erfahren — sichtbar ist sie dabei nicht. */
   function busy(an, text) {
-    if (an && text) setStatus(text);
+    if (an && text) setStatus(text, false, true);
   }
 
   /* ---------- Laden ---------- */
@@ -92,6 +95,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function laden() {
     if (!endpunkt() || !graphUri()) { setStatus('Endpunkt und Graph ausfüllen.', true); return; }
     if (dlgVerbindung.open) dlgVerbindung.close();
+
+    /* Sichtbarer Platzhalter (Erststart, erneuter Versuch nach Fehler):
+       eine Spinnerfläche — die einzige sichtbare Ladeanzeige. */
+    if (!el.platzhalter.hidden) {
+      meldung(el.platzhalter, { titel: 'Katalog wird geladen …', laedt: true });
+    }
 
     /* Verbindungsstand zur ANFRAGEzeit einfrieren und die Generation
        hochzählen: von zwei schnellen Neu-Laden gewinnt so immer das
@@ -254,21 +263,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var id = 'fac-' + schluessel;
 
     var box = document.createElement('div');
-    box.className = 'kbob-facet';
+    box.className = 'kbob-field kbob-facet';
     box.setAttribute('data-facette', schluessel);
 
-    var lab = document.createElement('span');
-    lab.className = 'kbob-facet-label';
-    lab.id = id;
-    lab.textContent = titel;
-    box.appendChild(lab);
-
+    /* Der Knopf trägt den Filternamen selbst — «Katalog (2)» sagt auf einen
+       Blick, WELCHER Filter wirkt; ein separates Beschriftungszeilchen und
+       «n von m gewählt» braucht es dann nicht. */
     var knopf = document.createElement('button');
     knopf.type = 'button';
     knopf.className = 'ob-button ob-button-secondary kbob-facet-toggle';
     knopf.setAttribute('aria-expanded', 'false');
-    knopf.setAttribute('aria-labelledby', id + ' ' + id + '-wert');
 
+    knopf.appendChild(K.icon('filter'));
     var wert = document.createElement('span');
     wert.className = 'kbob-facet-value';
     wert.id = id + '-wert';
@@ -281,15 +287,16 @@ var KBOB = window.KBOB || (window.KBOB = {});
     menu.id = id + '-menu';
     menu.hidden = true;
     menu.setAttribute('role', 'group');
-    menu.setAttribute('aria-labelledby', id);
+    menu.setAttribute('aria-label', titel);
     knopf.setAttribute('aria-controls', menu.id);
 
     var reset = null;   // wird unten gebaut; beschrifte() hält ihn aktuell
 
     function beschrifte() {
       var n = K.state.facetten[schluessel].length;
-      wert.textContent = n ? n + ' von ' + eintraege.length + ' gewählt' : 'Alle';
+      wert.textContent = titel + (n ? ' (' + n + ')' : '');
       wert.className = 'kbob-facet-value' + (n ? ' aktiv' : '');
+      knopf.setAttribute('aria-label', titel + (n ? ', ' + n + ' gewählt' : ''));
       if (reset) reset.disabled = n === 0;
     }
 
@@ -313,12 +320,6 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
       l.appendChild(cb);
       l.appendChild(document.createTextNode(e.text));
-      if (e.n !== undefined) {
-        var n = document.createElement('span');
-        n.className = 'kbob-facet-count';
-        n.textContent = e.n;
-        l.appendChild(n);
-      }
       menu.appendChild(l);
     });
 
@@ -399,7 +400,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       art.className = 'kbob-chip-kind';
       art.textContent = p.art + ':';
       b.appendChild(art);
-      b.appendChild(document.createTextNode(p.wert));
+      b.appendChild(K.e('span', 'kbob-chip-value', p.wert));
       b.appendChild(K.icon('xmark', 'ob-chip-trailing-icon'));
 
       b.addEventListener('click', function () {
@@ -766,7 +767,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function zeichneKrumen() {
     var st = K.state;
     el.krumen.innerHTML = '';
-    el.krumen.appendChild(krume('Objekttypen', K.geheZuUebersicht, !st.objekttyp));
+
+    /* Auf der Übersicht führt die Krume nirgendwohin und wiederholt nur
+       die Überschrift darunter — Brotkrumen erst ab Tiefe 2. */
+    el.krumen.parentNode.hidden = !st.objekttyp;
+    if (!st.objekttyp) return;
+
+    el.krumen.appendChild(krume('Objekttypen', K.geheZuUebersicht, false));
 
     if (st.objekttyp) {
       var e = objekttypVon(st.objekttyp);
@@ -799,6 +806,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function zeichne(fokussieren) {
     if (!K.state.elemente.length) return;
     var st = K.state;
+
+    /* Loesch-Knopf im Suchfeld folgt dem Feldinhalt — auch wenn der Wert
+       programmatisch gesetzt wurde (URL, Chip entfernt) */
+    var leerKnopf = document.getElementById('filter-leeren');
+    if (leerKnopf) leerKnopf.hidden = !el.filter.value;
 
     zeichneKrumen();
 
@@ -864,14 +876,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
       nav.className = 'kbob-paginator-nav';
 
       /* Vier Icon-Knöpfe wie im Oblique-Paginator (erste/vorherige/
-         nächste/letzte Seite); das Icon kommt per CSS, der zugängliche
-         Name per aria-label. */
-      var knopf = function (klasse, beschriftung, ziel, aus) {
+         nächste/letzte Seite); das Icon kommt aus dem Sprite in
+         currentColor, der zugängliche Name per aria-label. */
+      var knopf = function (klasse, icon, beschriftung, ziel, aus) {
         var b = document.createElement('button');
         b.type = 'button';
         b.className = 'kbob-paginator-button ' + klasse;
         b.setAttribute('aria-label', beschriftung);
         b.disabled = aus;
+        b.appendChild(K.icon(icon));
         b.addEventListener('click', function () {
           st.seite = ziel;
           inUrl(true);
@@ -881,13 +894,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
         return b;
       };
 
-      nav.appendChild(knopf('kbob-page-first', 'Erste Seite', 1, st.seite <= 1));
-      nav.appendChild(knopf('kbob-page-prev', 'Vorherige Seite', st.seite - 1, st.seite <= 1));
+      nav.appendChild(knopf('kbob-page-first', 'chevron_left_double', 'Erste Seite', 1, st.seite <= 1));
+      nav.appendChild(knopf('kbob-page-prev', 'chevron_left', 'Vorherige Seite', st.seite - 1, st.seite <= 1));
       var stand = document.createElement('span');
       stand.textContent = 'Seite ' + st.seite + ' von ' + seiten;
       nav.appendChild(stand);
-      nav.appendChild(knopf('kbob-page-next', 'Nächste Seite', st.seite + 1, st.seite >= seiten));
-      nav.appendChild(knopf('kbob-page-last', 'Letzte Seite', seiten, st.seite >= seiten));
+      nav.appendChild(knopf('kbob-page-next', 'chevron_right', 'Nächste Seite', st.seite + 1, st.seite >= seiten));
+      nav.appendChild(knopf('kbob-page-last', 'chevron_right_double', 'Letzte Seite', seiten, st.seite >= seiten));
       el.blaettern.appendChild(nav);
     }
 
@@ -895,7 +908,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var feld = document.createElement('div');
       feld.className = 'kbob-paginator-size';
       var lab = document.createElement('label');
-      lab.className = 'kbob-facet-label';
+      lab.className = 'kbob-field-label';
       lab.setAttribute('for', 'pro-seite');
       lab.textContent = 'Einträge pro Seite';
       var sel = document.createElement('select');
@@ -987,10 +1000,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
       K.zahl(liste.length) + ' ' + K.plural(liste.length, 'Objekttyp', 'Objekttypen') +
       ' · ' + K.zahl(merkmale) + ' ' + K.plural(merkmale, 'Merkmal', 'Merkmale') +
       ' · ' + K.zahl(nQuellen) + ' ' + K.plural(nQuellen, 'Katalog', 'Kataloge'),
-      'Jeder Objekttyp führt die Merkmale, die der Katalog für ihn vorsieht — mit ' +
-      'Datentyp, Einheit beziehungsweise zulässigen Werten und Property Set. Alle ' +
-      'Merkmale sind gleichrangig; eine Pflicht-/Kann-Unterscheidung kennt der ' +
-      'Katalog nicht.');
+      'Jeder Objekttyp führt die Merkmale, die der Katalog für ihn vorsieht — ' +
+      'mit Datentyp, Einheit beziehungsweise zulässigen Werten und Property Set.');
 
     /* Der Zähler trägt nur bei aktivem Filter etwas bei — ungefiltert stünde
        dieselbe Zahl bereits in den Kennzahlen. Die Live-Region bleibt. */
@@ -1032,7 +1043,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
               return s;
             },
             function () { return String(e.anzahl); },
-            function () { return statusMarke(e.status) || K.leer('ohne Reifegrad'); }
+            function () { return statusText(e.status) || K.leer('ohne Reifegrad'); }
           ];
           if (mitPhase) zellen.push(function () { return K.phasen(e.phasen, st.allePhasen); });
           zellen.push(function () { return e.quelle; });
@@ -1145,8 +1156,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
   }
 
   /* Einheitlicher Bedienhinweis beider Grafiken — er verspricht nur, was geht */
-  var GRAFIK_BEDIENUNG = 'Ctrl + Mausrad oder +/− zoomt; ist die Grafik fokussiert, ' +
-    'verschieben die Pfeiltasten den Ausschnitt und 0 setzt ihn zurück.';
+  var GRAFIK_BEDIENUNG = 'Zoomen mit Ctrl + Mausrad oder +/−; Pfeiltasten ' +
+    'verschieben, 0 setzt zurück (fokussierte Grafik).';
 
   /* --- Ein Objekttyp und seine Merkmale --- */
 
@@ -1168,7 +1179,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
     }
 
     if (merkmale === null) {
-      titel(e.name, 'Merkmale werden geladen …', e.beschreibung, e.sprache);
+      /* Kennzahlenzeile bleibt leer — der Spinner im Inhalt sagt es schon */
+      titel(e.name, '', e.beschreibung, e.sprache);
       el.blaettern.hidden = true;
       sichtbareAnsicht(st.ansicht);
       /* Der Ladezustand dreht dort, wo der Blick ist: im Inhaltsbereich */
@@ -1237,8 +1249,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
               return s;
             },
             function () { return psetZelle(e, m); },
-            function () { return typMarke(m); },
-            function () { return statusMarke(m.status) || K.leer('ohne Reifegrad'); }
+            function () { return m.typ || K.leer('ohne Typangabe'); },
+            function () { return statusText(m.status) || K.leer('ohne Reifegrad'); }
           ];
           if (mitPhase) zellen.push(function () { return K.phasen(m.phasen, st.allePhasen); });
           zellen.push(function () { return werteZelle(m); });
@@ -1318,6 +1330,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return t;
   }
 
+  /* In Tabellenzellen schlichter Text — der Spaltenkopf beschriftet schon,
+     eine Pillenform je Zeile wäre nur Rahmenwerk (eine Zeilenschrift). */
+  function statusText(wert) {
+    if (!wert) return null;
+    var s = K.text(wert, 'en');
+    if (STATUS_ERKLAERUNG[wert]) s.title = STATUS_ERKLAERUNG[wert];
+    return s;
+  }
+
   /* Statt einer leeren Zeichenfläche: sagen, was zu tun ist —
      beziehungsweise mit drehendem Ring, dass etwas unterwegs ist. */
   function graphMeldung(titel, text, laedt) {
@@ -1364,11 +1385,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (m.liste && m.liste.anzahl) {
       var w = document.createElement('span');
       w.className = 'kbob-values';
-      var n = document.createElement('span');
-      n.className = 'kbob-values-n';
-      n.textContent = m.liste.anzahl + ' zulässige Werte: ';
-      w.appendChild(n);
-      w.appendChild(document.createTextNode(K.kurzListe(m.liste.werte, 70)));
+      w.textContent = m.liste.anzahl + ' zulässige Werte: ' + K.kurzListe(m.liste.werte, 70);
       box.appendChild(w);
       etwas = true;
     }
@@ -1678,6 +1695,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
       }, K.SUCH_DEBOUNCE_MS);
     });
 
+    /* Loesch-Knopf im Suchfeld: leert sofort, Fokus bleibt im Feld */
+    document.getElementById('filter-leeren').addEventListener('click', function () {
+      el.filter.value = '';
+      clearTimeout(sucheTimer);
+      K.state.seite = 1;
+      K.state.hervor = null;
+      inUrl(true);
+      zeichne();
+      el.filter.focus();
+    });
+
     /* Klick ausserhalb schliesst offene Facetten-Menüs — focusout allein
        trägt nicht (Safari/Firefox fokussieren angeklickte Checkboxen nicht). */
     document.addEventListener('pointerdown', function (ev) {
@@ -1710,9 +1738,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     /* Die Kopfzeile klebt — die Tabellenköpfe müssen wissen, wie hoch sie ist */
     var kopf = document.querySelector('.ob-master-layout-header');
     function messeKopf() {
-      var wurzel = document.documentElement;
-      wurzel.style.setProperty('--kopf', kopf.offsetHeight + 'px');
-      wurzel.style.setProperty('--kopf-gesamt', kopf.offsetHeight + 'px');
+      document.documentElement.style.setProperty('--kopf-gesamt', kopf.offsetHeight + 'px');
     }
     messeKopf();
     if (window.ResizeObserver) {
@@ -1721,6 +1747,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
     } else {
       window.addEventListener('resize', messeKopf);
     }
+
+    /* Zum-Seitenanfang-Reiter: erscheint nach einer halben Fensterhöhe */
+    var nachOben = document.getElementById('nach-oben');
+    window.addEventListener('scroll', function () {
+      nachOben.hidden = window.scrollY < window.innerHeight / 2;
+    }, { passive: true });
+    nachOben.addEventListener('click', function () {
+      var ruhig = window.matchMedia &&
+                  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: ruhig ? 'auto' : 'smooth' });
+      el.titel.focus();
+    });
 
     K.grafikSteuerung();
 

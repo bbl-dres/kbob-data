@@ -54,22 +54,21 @@
     <h2 class="ob-screen-reader-only">Service-Navigation</h2>
     <div class="ob-service-navigation">
       <ul class="ob-service-navigation-list">
+        <li class="ob-service-navigation-custom-control">
+          <button type="button" id="verbindung" class="ob-button ob-button-secondary">Verbindung und Abfrage</button>
+        </li>
+        <li class="ob-service-navigation-custom-control">
+          <button id="csv" class="ob-button ob-button-secondary" disabled>Als Excel exportieren</button>
+        </li>
         <li class="ob-language-dropdown">
           <span class="ob-screen-reader-only" id="ob-language-change">Sprache der Katalogbeschriftungen</span>
-          <select id="sprache" aria-labelledby="ob-language-change"
-                  title="Sprache der Katalogbeschriftungen — fehlt eine Übersetzung, erscheint Deutsch oder Englisch. Die Oberfläche bleibt vorerst deutsch.">
+          <select id="sprache" class="ob-select ob-select-borderless" aria-labelledby="ob-language-change"
+                  title="Sprache der Katalogbeschriftungen">
             <option value="de" lang="de" aria-label="Deutsch" selected>DE</option>
             <option value="fr" lang="fr" aria-label="Français">FR</option>
             <option value="it" lang="it" aria-label="Italiano">IT</option>
             <option value="en" lang="en" aria-label="English">EN</option>
           </select>
-        </li>
-        <li class="ob-service-navigation-custom-control">
-          <button type="button" id="verbindung" class="ob-button ob-button-secondary">Verbindung und Abfrage</button>
-        </li>
-        <li class="ob-service-navigation-custom-control">
-          <button id="csv" class="ob-button ob-button-secondary" disabled
-                  title="Exportiert die sichtbare Auswahl als Excel-Arbeitsmappe (XLSX)">Als Excel exportieren</button>
         </li>
       </ul>
     </div>
@@ -98,11 +97,16 @@
     <div class="kbob-toolbar" id="toolbar" hidden>
       <div class="kbob-field">
         <label for="filter">Suche</label>
-        <input type="search" id="filter" placeholder="Objekttyp oder Merkmal">
+        <span class="kbob-search">
+          <input type="search" id="filter" placeholder="Objekttyp oder Merkmal">
+          <button type="button" class="kbob-search-clear" id="filter-leeren" aria-label="Suche löschen" hidden>
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#xmark"></use></svg>
+          </button>
+        </span>
       </div>
       <div class="kbob-facets" id="facetten"></div>
       <span class="kbob-toolbar-right">
-        <span class="kbob-hits" id="treffer" aria-live="polite"></span>
+        <span class="ob-screen-reader-only" id="treffer" aria-live="polite"></span>
         <span class="kbob-view-switch" role="group" aria-label="Ansicht">
           <button id="v-liste" class="ob-button ob-button-secondary" aria-pressed="true">Liste</button>
           <button id="v-galerie" class="ob-button ob-button-secondary" aria-pressed="false">Galerie</button>
@@ -113,12 +117,10 @@
 
     <div class="kbob-active-filters" id="aktive-filter" hidden></div>
 
-    <div id="platzhalter" class="kbob-loading">
-      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="none" stroke="#2F4356" stroke-miterlimit="10" stroke-width="4"/></svg>
-      Katalog wird geladen …
-    </div>
+    <div id="platzhalter" class="kbob-message"></div>
 
-    <div id="view-liste" class="ob-table-scrollable" hidden></div>
+    <div id="view-liste" class="ob-table-scrollable" tabindex="0" role="region"
+         aria-label="Tabelle — auf schmalen Fenstern seitlich scrollbar" hidden></div>
 
     <div id="view-galerie" hidden>
       <div class="kbob-gallery" id="galerie"></div>
@@ -151,6 +153,10 @@
     <nav class="kbob-paginator" id="blaettern" hidden aria-label="Blättern"></nav>
 
   </main>
+
+  <button type="button" class="ob-top-control" id="nach-oben" aria-label="Zum Seitenanfang" hidden>
+    <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#chevron_up"></use></svg>
+  </button>
 
   <div class="ob-master-layout-footer">
     <footer>

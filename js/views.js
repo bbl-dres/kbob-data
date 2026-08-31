@@ -197,19 +197,21 @@ var KBOB = window.KBOB || (window.KBOB = {});
       if (s.breite) th.style.width = s.breite;
       if (s.rechts) th.className = 'kbob-right';
 
-      /* Sortierbare Spalten tragen einen Knopf im Kopf; die aktive Spalte
-         sagt Richtung und Zustand über aria-sort und einen Pfeil
-         (ArrowUp-Glyphe wie im Oblique-Tabellenkopf, gedreht = absteigend). */
+      /* Sortierbare Spalten tragen einen Knopf im Kopf; der Pfeil steht
+         immer im Baum (ArrowUp-Glyphe wie im Oblique-Tabellenkopf) —
+         sichtbar voll auf der aktiven Spalte, angedeutet bei Hover/Fokus,
+         gedreht bei absteigend. aria-sort nur auf der aktiven Spalte. */
       if (s.sort && spec.onSort) {
         var b = K.knopf('kbob-sort', s.titel,
                         function () { spec.onSort(s.sort, s.sortStart); });
         var aktiv = spec.sort && spec.sort.feld === s.sort;
         if (aktiv) {
           th.setAttribute('aria-sort', spec.sort.richtung > 0 ? 'ascending' : 'descending');
-          var pfeil = K.e('span', 'kbob-sort-arrow' + (spec.sort.richtung > 0 ? '' : ' kbob-desc'));
-          pfeil.setAttribute('aria-hidden', 'true');
-          b.appendChild(pfeil);
         }
+        var pfeil = K.e('span', 'kbob-sort-arrow' +
+                        (aktiv && spec.sort.richtung < 0 ? ' kbob-desc' : ''));
+        pfeil.setAttribute('aria-hidden', 'true');
+        b.appendChild(pfeil);
         th.appendChild(b);
       } else {
         th.textContent = s.titel;
@@ -875,6 +877,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     var zieht = false, startX = 0, startY = 0, startVb = null;
     svg.addEventListener('pointerdown', function (ev) {
+      /* Ein zweiter Finger darf den laufenden Zug nicht überschreiben */
+      if (zieht) return;
       if (!vb || (ev.target.closest && ev.target.closest('.g-knoten'))) return;
       zieht = true;
       startX = ev.clientX; startY = ev.clientY;

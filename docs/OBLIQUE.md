@@ -62,7 +62,7 @@ Extraktionsbericht): `--pine` → Interaktionsblau, `--rust` →
 
 | App-Bauteil | Oblique-Klasse(n) | Quelle |
 |---|---|---|
-| Seitengerüst | `body.ob-master-layout.ob-has-layout.ob-no-navigation` + `ob-layout-expanded/-collapsed` (matchMedia 905 px) > `.ob-viewport` > Header > `.ob-master-layout-wrapper` > `main#content.ob-main-layout` | master-layout.component |
+| Seitengerüst | `body.ob-master-layout.ob-has-layout.ob-no-navigation` + `ob-layout-expanded/-collapsed` (matchMedia 905 px) > Header > `.ob-master-layout-wrapper` > `main#content.ob-main-layout` (kein `.ob-viewport` — Abweichung C1) | master-layout.component |
 | Kopfzeile | `.ob-master-layout-header` > `header.ob-header` > `.ob-master-layout-header-title` > `.ob-master-layout-brand` (Bundeslogo `a.ob-master-layout-logo` + `span.ob-master-layout-brand-app-title` > `a.ob-master-layout-brand-link`) | dito |
 | Sprachwahl | `.ob-service-navigation` > `ul.ob-service-navigation-list` > `li` > `.ob-language-dropdown` (natives `<select>`, rahmenlos, Chevron) | service-navigation/languages |
 | Export-Knopf | `li.ob-service-navigation-custom-control` > `button.ob-button.ob-button-secondary` | dito + Button-Tokens |
@@ -121,7 +121,7 @@ dokumentierter interner Namensraum der Fachvisualisierung.
 | B2 | Fokus app-weit `outline 3px solid #8b5cf6` + Offset (DS) statt Legacy-`box-shadow #8655f6` | outline überlebt forced-colors, box-shadow nicht; eine einheitliche Fokusfarbe statt zwei. |
 | C1 | Header klebt per `position: sticky` statt Obliques `100dvh`-Viewport mit scrollendem Wrapper | Funktional/visuell deckungsgleich, ohne das Scrollverhalten der ganzen App umzubauen. |
 | C2 | Sprachwahl als gestyltes natives `<select>`; das aufgeklappte Panel ist das native Browser-Popup | Kein Overlay-Nachbau in ES5; Trigger-Optik (rahmenlos, 36 px, Chevron) ist originalgetreu. |
-| C3 | Paginator: Chevron-SVGs direkt in Zielfarbe `#2f4356`/`#828e9a` statt Schwarz+CSS-`filter` | Gleiches Resultat ohne die Filter-Approximation (Obliques eigener Kommentar nennt den Filter «close to»). Layout (Bereich links, Seiten Mitte, Grösse rechts) bleibt wie gehabt — dokumentierte App-Anordnung. |
+| C3 | Paginator: Sprite-Chevrons in `currentColor` statt Schwarz+CSS-`filter` (löste die frühere Data-URI-Fassung ab) | Farben kommen aus den Knopf-Tokens, keine Filter-Approximation, keine doppelt gepflegten SVGs. Layout (Bereich links, Seiten Mitte, Grösse rechts) bleibt wie gehabt — dokumentierte App-Anordnung; unter md entfallen Erste/Letzte Seite. |
 | C4 | `:active`-Hintergründe ersetzen Material-Ripple (Farben = Ripple-Farben) | Vanilla-Vereinfachung aus dem Extraktionsbericht. |
 | C5 | Sticky-`thead` (nur ≥1240 px) ist eine App-Beigabe — Oblique kennt keinen klebenden Tabellenkopf | Bewährtes App-Verhalten; Kopf-Grundlinie als `box-shadow` (border wandert bei border-collapse+sticky). Darunter `.ob-table-scrollable`. |
 | C6 | `.ob-alert`-Kacheln: der «Erneut versuchen»-Knopf steht unter dem Alert (Oblique-Konvention), Ladezustand bleibt Karte+Spinner | |
@@ -129,6 +129,11 @@ dokumentierter interner Namensraum der Fachvisualisierung.
 | C8 | forced-colors- und `prefers-reduced-motion`-Blöcke der App bleiben (Oblique bringt keine mit) | dokumentierte Eigenleistung. |
 | C9 | Facetten-Checkbox-Dropdown, Ansichts-Umschalter, LOIN-Kästchen, Graph, Galerie-Raster: kein Oblique-Gegenstück → `kbob-*` im Oblique-Look (Overlay-Karte `#acb4bd`-Rand + Panel-Schatten, MDC-Checkbox-Optik `#2f4356`) | §3, Konvention. |
 | C10 | Die 8er-Kategorienpalette des Graphen (`K.FARBEN`) bleibt fachlich unverändert | Datenvisualisierung, kein UI-Chrome; gegen Weiss geprüft. |
+| C11 | **Service-Navigation bleibt unter md sichtbar** (kein Burger); dafür klebt der Kopf dort nicht (`position: static`), und die Markenzeile erhält die CD-Trennlinie | Ohne Navigationsmenü gibt es keinen Ort, hinter dem die Bedienelemente verschwinden könnten; ein klebender Dreizeilen-Kopf frässe ~25 % eines Telefon-Viewports. |
+| C12 | **Tabelle unter lg**: horizontales Scrollen in `.ob-table-scrollable` (fokussierbare Region, Mindestbreite 720 px) statt Obliques `ob-table-collapse`-Stapelmuster | Pragmatisch ohne Markup-Umbau; der Stapel-Umbau (`data-title` je Zelle) ist als Ausbau notiert (docs/CD-REVIEW.md). |
+| C13 | **Fusszeile einzeilig**: Flex (Links links, Quellcode-Hinweis rechts) statt CD-Grid `1fr 1fr` | Redaktioneller Entscheid; unter md weiterhin gestapelt wie im CD. |
+| C14 | **Suchfeld** mit Lupe links im Feld und Lösch-Knopf (×) rechts | Muster von `ob-search-box`, als natives Suchfeld umgesetzt; der native Webkit-Löschknopf ist abgeschaltet. |
+| C15 | **Facetten-Trigger** tragen Filter-Icon + Namen + «(n)» statt separatem Label und «n von m gewählt»; der Ansichts-Umschalter zeigt die Wahl als Interaction-`selected`-Fläche | Redaktioneller Entscheid: der Knopf sagt selbst, welcher Filter wirkt; Zustand ≠ Aktion, darum keine Primärfläche. |
 
 ## 6. Umbau-Etappen (ausgeführt)
 
