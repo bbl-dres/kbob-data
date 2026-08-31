@@ -115,8 +115,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, "text/html; charset=utf-8", html)
             return
 
-        # Statische Dateien aus css/ und js/
-        if path.startswith("/css/") or path.startswith("/js/"):
+        # Statische Dateien aus css/, js/ und assets/ (Fonts, Icons)
+        if path.startswith("/css/") or path.startswith("/js/") or path.startswith("/assets/"):
             self._statisch(path)
             return
 
@@ -139,16 +139,22 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, "text/plain; charset=utf-8", "Nicht gefunden")
 
     def _statisch(self, path):
-        """Liefert eine Datei aus css/ oder js/ neben diesem Skript."""
+        """Liefert eine Datei aus css/, js/ oder assets/ neben diesem Skript."""
         ziel = os.path.normpath(os.path.join(HERE, path.lstrip("/")))
-        # Nur genau diese beiden Ordner, damit ".." nicht heraus fuehrt
-        erlaubt = [os.path.join(HERE, "css") + os.sep, os.path.join(HERE, "js") + os.sep]
+        # Nur genau diese Ordner, damit ".." nicht heraus fuehrt
+        erlaubt = [os.path.join(HERE, o) + os.sep for o in ("css", "js", "assets")]
         if not any(ziel.startswith(o) for o in erlaubt) or not os.path.isfile(ziel):
             self._send(404, "text/plain; charset=utf-8", "Nicht gefunden")
             return
-        typ = "text/css" if ziel.endswith(".css") else "application/javascript"
+        typen = {".css": "text/css; charset=utf-8",
+                 ".js": "application/javascript; charset=utf-8",
+                 ".svg": "image/svg+xml",
+                 ".woff2": "font/woff2",
+                 ".png": "image/png"}
+        endung = os.path.splitext(ziel)[1]
+        typ = typen.get(endung, "application/octet-stream")
         with open(ziel, "rb") as fh:
-            self._send(200, typ + "; charset=utf-8", fh.read())
+            self._send(200, typ, fh.read())
 
     def do_POST(self):
         if urllib.parse.urlparse(self.path).path != "/query":

@@ -102,9 +102,10 @@ SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
     js/app.js         Navigation, Facetten, Blättern, Export
     lindas-proxy.py   lokaler Proxy, nur Standardbibliothek
     test/             Tests der reinen Helfer (node --test test/helfer.test.js)
-    DESIGN.md         Review, Entscheidungen und offene Fragen
-    REVIEW.md         Design-/UX-Durchsicht: Befunde und Umsetzungsstand
-    CODE-REVIEW.md    Code-Review: Performance, Komplexität, Robustheit
+    assets/           Schriften und Icons aus dem Oblique-Designsystem (MIT)
+    docs/DESIGN.md    Review, Entscheidungen und offene Fragen
+    docs/REVIEW.md    Design-/UX-Durchsicht: Befunde und Umsetzungsstand
+    docs/CODE-REVIEW.md  Code-Review: Performance, Komplexität, Robustheit
     LICENSE           MIT
 
 Endpunkt, Named Graph und die drei Abfragen sind zur Laufzeit über

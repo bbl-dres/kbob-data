@@ -71,7 +71,7 @@ Leitsätze:
 ## 3. Vorgehen
 
 Vier Prüfungen, je aus einer anderen Perspektive, gegen den Code und gegen
-gerenderte Bildschirmfotos aller Ansichten. Die Bilder in `.design-audit/`
+gerenderte Bildschirmfotos aller Ansichten. Die Bilder in `../.design-audit/`
 zeigen den **Stand vor dieser Überarbeitung** und sind die Belegkette zu den
 Befunden in Abschnitt 4:
 
