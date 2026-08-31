@@ -47,9 +47,12 @@ sich einzeln wegnehmen. Jede Ebene gibt es als **Liste**, **Galerie** und
 **Graph**; Liste und Galerie blättern zu 50, 100 oder 200 Einträgen, die
 Listenspalten sortieren per Klick auf den Spaltenkopf.
 
-Die Sprachwahl oben rechts (DE/FR/IT/EN) betrifft die **Katalogbeschriftungen**
-(Rückfall: gewählte Sprache → Deutsch → Englisch); die Oberfläche selbst
-bleibt vorerst deutsch.
+Die Sprachwahl oben rechts (DE/FR/IT/EN) schaltet **Oberfläche und
+Katalogbeschriftungen** gemeinsam um. Die Oberflächentexte kommen aus
+`data/i18n.json` (fehlt ein Schlüssel, erscheint sichtbar `MISSING …`);
+die Katalogbeschriftungen holt die SPARQL-Abfrage in der gewählten Sprache
+(Rückfall: gewählte Sprache → Deutsch → Englisch, mit `lang`-Auszeichnung).
+Die Erklärung zur Barrierefreiheit bleibt vorerst deutsch.
 
 Der Zustand steht in der URL — Ansichten sind teilbar, der Zurück-Knopf
 funktioniert:
@@ -110,7 +113,9 @@ SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
     js/data.js        Abfragen, Laden, Normalisieren, Palette
     js/views.js       Liste, Galerie, Netz- und Radialgrafik, Icons
     js/export.js      XLSX-Arbeitsmappe ohne Abhängigkeiten
+    js/i18n.js        Oberflächen-Übersetzungen (K.t, data/i18n.json)
     js/app.js         Navigation, Facetten, Blättern, Export
+    data/i18n.json    Frontend-Tokens DE/FR/IT/EN
     lindas-proxy.py   lokaler Proxy, nur Standardbibliothek
     test/             Tests der reinen Helfer (node --test test/helfer.test.js)
     assets/           Schriften, Icons und Logos aus dem Oblique-Designsystem (MIT)
@@ -118,6 +123,7 @@ SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
     docs/REVIEW.md    Design-/UX-Durchsicht: Befunde und Umsetzungsstand
     docs/CODE-REVIEW.md  Code-Review: Performance, Komplexität, Robustheit
     docs/OBLIQUE.md   Übernahme des Oblique-Designsystems: Quellen, Abweichungen
+    docs/CD-REVIEW.md CD-Abgleich mit Oblique: Befunde und Umsetzung
     LICENSE           MIT
 
 Endpunkt, Named Graph und die Abfragen sind zur Laufzeit über

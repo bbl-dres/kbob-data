@@ -108,12 +108,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return s;
   };
 
-  /* Beschriftung aus den Daten. Fällt sie auf Englisch zurück, wird das
-     ausgezeichnet (WCAG 3.1.2 Sprache von Teilen). */
+  /* Beschriftung aus den Daten. Weicht ihre Sprache von der OBERFLÄCHEN-
+     Sprache ab, wird das ausgezeichnet (WCAG 3.1.2 Sprache von Teilen) —
+     auch ein deutscher Rückfall in der französischen Oberfläche. */
   K.text = function (wert, sprache) {
     var s = document.createElement('span');
     s.textContent = wert;
-    if (sprache && sprache !== 'de') s.lang = sprache;
+    var ui = (K.state && K.state.sprache) || 'de';
+    if (sprache && sprache !== ui) s.lang = sprache;
     return s;
   };
 
@@ -122,17 +124,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
      Sichtbar steht die Ziffer, der volle Wert (LZPn) liegt als title auf
      jedem Feld; der Vorlesetext nennt die deklarierten Werte ausgeschrieben. */
   K.phasen = function (gesetzt, alle) {
-    if (!alle || !alle.length) return K.leer('ohne LOIN-Meilenstein');
+    if (!alle || !alle.length) return K.leer(K.t('empty.milestone'));
 
     var box = document.createElement('span');
     box.className = 'kbob-phase-track';
     box.setAttribute('role', 'img');
     box.setAttribute('aria-label', gesetzt.length
-      ? 'LOIN-Meilensteine: ' + gesetzt.join(', ')
-      : 'Ohne LOIN-Meilenstein');
+      ? K.t('phases.label', { liste: gesetzt.join(', ') })
+      : K.t('phases.none'));
     box.title = gesetzt.length
-      ? 'Deklariert: ' + gesetzt.join(', ')
-      : 'Kein Meilenstein deklariert';
+      ? K.t('phases.declared', { liste: gesetzt.join(', ') })
+      : K.t('phases.noneDeclared');
 
     /* Gemeinsames Vorsilbenkürzel (LZP) weglassen, sonst wird es zu breit —
        der title je Feld trägt den vollen Datenwert. */
@@ -144,7 +146,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var f = document.createElement('span');
       f.className = 'kbob-phase' + (an ? ' an' : '');
       f.setAttribute('aria-hidden', 'true');
-      f.title = p + (an ? ' — deklariert' : ' — nicht deklariert');
+      f.title = an ? K.t('phases.yes', { p: p }) : K.t('phases.no', { p: p });
       f.textContent = vorsilbe && p.indexOf(vorsilbe) === 0 ? p.slice(vorsilbe.length) : p;
       box.appendChild(f);
     });
@@ -228,7 +230,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var td0 = document.createElement('td');
       td0.colSpan = spec.spalten.length;
       td0.className = 'kbob-no-results';
-      var leerText = spec.leerText || 'Kein Treffer für diese Filter.';
+      var leerText = spec.leerText || K.t('common.noResults');
       if (spec.laedt) td0.appendChild(K.ladeInhalt(leerText));
       else td0.textContent = leerText;
       tr0.appendChild(td0);
@@ -284,7 +286,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     if (!spec.karten.length) {
       var p = K.e('p', 'kbob-no-results');
-      var text = spec.leerText || 'Kein Treffer für diese Filter.';
+      var text = spec.leerText || K.t('common.noResults');
       if (spec.laedt) p.appendChild(K.ladeInhalt(text));
       else p.textContent = text;
       ziel.appendChild(p);
@@ -392,7 +394,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     K.el['graph-hinweis'].textContent = hinweis || '';
 
     if (!knoten.length) {
-      K.el['graph-hinweis'].textContent = 'Kein Treffer für diese Filter.';
+      K.el['graph-hinweis'].textContent = K.t('common.noResults');
       return;
     }
 
@@ -464,7 +466,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     rahmen(minX, minY, maxX, maxY, 40);
 
     zeichneLegende(legende);
-    textFassung(textTitel || 'Inhalt der Grafik',
+    textFassung(textTitel || K.t('graph.contentTitle'),
       knoten.map(function (k) { return k.vorlesen || k.name; }));
   };
 
@@ -565,7 +567,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var wurzel = neuesNetz();
     K.el['graph-hinweis'].textContent = hinweis || '';
     if (!merkmale.length) {
-      K.el['graph-hinweis'].textContent = 'Kein Treffer für diese Filter.';
+      K.el['graph-hinweis'].textContent = K.t('common.noResults');
       return;
     }
 
@@ -628,8 +630,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     gruppen.forEach(function (gr) {
       gr.merkmale.forEach(function (m) {
-        var beschriftung = m.name + ', ' + (m.typ || 'ohne Typangabe') +
-                           (m.einheit ? ', ' + m.einheit : '') + ', Property Set ' + gr.pset;
+        var beschriftung = m.name + ', ' + (m.typ || K.t('empty.type')) +
+                           (m.einheit ? ', ' + m.einheit : '') +
+                           ', ' + K.t('unit.pset') + ' ' + gr.pset;
         var knoten = knotenGruppe('m:' + m.uri, beschriftung,
                                   function () { onMerkmal(m.uri); });
         knoten.setAttribute('data-pset', gr.pset);
@@ -725,14 +728,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
       class: 'g-center-sub', x: 0, y: (zeilen.length - 1) / 2 * 15 + 12,
       'text-anchor': 'middle', 'dominant-baseline': 'middle'
     });
-    sub.textContent = N + ' ' + K.plural(N, 'Merkmal', 'Merkmale');
+    sub.textContent = N + ' ' + K.plural(N, K.t('unit.attr'), K.t('unit.attrs'));
     zentrum.appendChild(sub);
     wurzel.appendChild(zentrum);
 
     radialLegende(gruppen);
     hervorhebung();
 
-    textFassung('Merkmale von ' + element.name, gruppen.map(function (gr) {
+    textFassung(K.t('graph.attrsOf', { name: element.name }), gruppen.map(function (gr) {
       return gr.pset + ': ' + gr.merkmale.map(function (m) { return m.name; }).join(', ');
     }));
   };
@@ -804,12 +807,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
     b.textContent = m.name;
     t.appendChild(b);
     tipZeile(t, element.name + ' · ' + m.pset);
-    var typ = m.typ || 'ohne Typangabe';
+    var typ = m.typ || K.t('empty.type');
     if (m.einheit) typ += ' · ' + m.einheit;
     if (m.ifcTyp) typ += ' · ' + m.ifcTyp;
     tipZeile(t, typ);
     if (m.liste && m.liste.anzahl) {
-      tipZeile(t, m.liste.anzahl + ' zulässige Werte: ' + K.kurzListe(m.liste.werte, 90));
+      tipZeile(t, K.t('values.count', { n: m.liste.anzahl, werte: K.kurzListe(m.liste.werte, 90) }));
     }
     if (m.beschreibung && m.beschreibung !== m.name) {
       tipZeile(t, K.gekuerzt(m.beschreibung, 130));

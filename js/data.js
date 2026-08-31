@@ -15,14 +15,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   var DD = 'https://lindas.admin.ch/fobl/kbob/dd-fm/vocab/';
 
-  /* Datentypen des Katalogs in Alltagssprache */
+  /* Datentypen des Katalogs in Alltagssprache — als i18n-Schlüssel,
+     aufgelöst zur Übernahmezeit (der Sprachwechsel leert die Caches) */
   K.TYPEN = {
-    AUSWAHL: 'Auswahl',
-    STRING:  'Text',
-    REAL:    'Zahl',
-    INTEGER: 'Ganzzahl',
-    BOOLEAN: 'Ja/Nein',
-    TIME:    'Datum/Zeit'
+    AUSWAHL: 'type.select',
+    STRING:  'type.text',
+    REAL:    'type.number',
+    INTEGER: 'type.integer',
+    BOOLEAN: 'type.boolean',
+    TIME:    'type.datetime'
   };
 
   /* QUDT-Einheiten auf gebraeuchliche Symbole */
@@ -53,11 +54,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* ---------- kleine Helfer ---------- */
 
-  K.zahl = function (n) { return n.toLocaleString('de-CH'); };
+  /* Schweizer Locale zur gewählten Oberflächensprache */
+  var LOCALES = { de: 'de-CH', fr: 'fr-CH', it: 'it-CH', en: 'en-CH' };
+  K.locale = function () {
+    return LOCALES[(K.state && K.state.sprache) || 'de'] || 'de-CH';
+  };
 
-  /* Deutsche Kollation an einer Stelle — sonst vergisst eine kuenftige
-     Sortierstelle das Locale und Umlaute wandern ans Ende. */
-  K.deCompare = function (a, b) { return String(a).localeCompare(String(b), 'de'); };
+  K.zahl = function (n) { return n.toLocaleString(K.locale()); };
+
+  /* Kollation an einer Stelle, im Locale der Oberfläche — sonst vergisst
+     eine kuenftige Sortierstelle das Locale und Umlaute wandern ans Ende. */
+  K.deCompare = function (a, b) { return String(a).localeCompare(String(b), K.locale()); };
   K.nachName = function (a, b) { return K.deCompare(a.name, b.name); };
 
   K.kurz = function (uri) {
@@ -83,7 +90,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
       laenge += teile[i].length + 3;
     }
     var rest = teile.length - behalten.length;
-    return behalten.join(' · ') + (rest > 0 ? ' … +' + rest + ' weitere' : '');
+    return behalten.join(' · ') +
+           (rest > 0 ? ' … ' + K.t('values.more', { n: rest }) : '');
   };
 
   K.plural = function (n, einzahl, mehrzahl) {
@@ -421,11 +429,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
       if (!e) {
         e = map[uri] = {
           uri: uri,
-          name: v(r, 'element') || K.kurz(uri),
+          /* Fehlt jede Beschriftung, steht das sichtbar als MISSING da —
+             der URI-Rest in der Klammer hält den Eintrag unterscheidbar. */
+          name: v(r, 'element') || K.t('common.missing') + ' (' + K.kurz(uri) + ')',
           sprache: v(r, 'sprache') || 'de',
           beschreibung: v(r, 'beschreibung'),
           status: v(r, 'status'),
-          quelle: v(r, 'quelle') || 'Ohne Katalogangabe',
+          quelle: v(r, 'quelle') || K.t('empty.catalog'),
           istDokument: v(r, 'istDokument') === 'true',
           anzahl: 0, psets: [], typen: [], phasen: [], farbe: {}
         };
@@ -433,10 +443,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
       var n = parseInt(v(r, 'anzahl'), 10) || 0;
       e.anzahl += n;
-      e.psets.push({ uri: v(r, 'gop'), name: v(r, 'pset') || 'Ohne Property Set', n: n });
+      e.psets.push({ uri: v(r, 'gop'), name: v(r, 'pset') || K.t('empty.psetName'), n: n });
 
       liste(r, 'typen').forEach(function (t) {
-        var klar = K.TYPEN[t] || t;
+        var klar = K.TYPEN[t] ? K.t(K.TYPEN[t]) : t;
         if (e.typen.indexOf(klar) === -1) e.typen.push(klar);
       });
       liste(r, 'phasen').forEach(function (p) {
@@ -510,17 +520,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
       return {
         uri: v(r, 'prop'),
-        name: v(r, 'merkmal') || K.kurz(v(r, 'prop')),
+        name: v(r, 'merkmal') ||
+              K.t('common.missing') + ' (' + K.kurz(v(r, 'prop')) + ')',
         sprache: v(r, 'sprache') || 'de',
         beschreibung: v(r, 'beschreibung'),
         typRaw: typRaw,
         /* Eine Werteliste macht nur aus einem Text eine Auswahl. BOOLEAN fuehrt
            ebenfalls eine Liste (true/false, Ja/Nein) — das bleibt Ja/Nein. */
         typ: (wl && wl.anzahl && typRaw === 'STRING')
-               ? 'Auswahl'
-               : (K.TYPEN[typRaw] || typRaw || ''),
+               ? K.t('type.select')
+               : (K.TYPEN[typRaw] ? K.t(K.TYPEN[typRaw]) : (typRaw || '')),
         psetUri: v(r, 'gop'),
-        pset: v(r, 'pset') || 'Ohne Property Set',
+        pset: v(r, 'pset') || K.t('empty.psetName'),
         ifcPset: K.kurz(v(r, 'ifcPset')),
         einheit: einheitSymbol(v(r, 'einheit')),
         ifcTyp: v(r, 'ifcTyp'),
@@ -548,12 +559,29 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var st = K.state;
     if (st.werteGeladen) return Promise.resolve(null);
     if (!werteVersprechen) {
+      /* Antwort einer älteren Generation (Sprach-/Endpunktwechsel während
+         des Flugs) als Fehler behandeln statt den frischen Cache zu füllen */
+      var gen = st.generation;
       werteVersprechen = K.run(v.endpoint, K.werteQuery(v.graph, v.sprache))
-        .then(function (r) { werteVersprechen = null; return r; },
-              function () { werteVersprechen = null; return { fehler: true }; });
+        .then(function (r) {
+          werteVersprechen = null;
+          return gen === st.generation ? r : { fehler: true };
+        }, function () {
+          werteVersprechen = null;
+          return { fehler: true };
+        });
     }
     return werteVersprechen;
   }
+
+  /* Laufende geteilte Versprechen verwerfen — ruft laden() nach jedem
+     Generationswechsel auf: ein noch fliegendes Versprechen der alten
+     Generation darf nicht in die neue hinein wiederverwendet werden. */
+  K.invalidiereLaufend = function () {
+    werteVersprechen = null;
+    alleVersprechen = null;
+    laufendDetail = {};
+  };
 
   /* Merkmale eines Objekttyps besorgen — aus dem Zwischenspeicher oder vom
      Endpunkt. v ist der beim Laden eingefrorene Verbindungsstand

@@ -158,3 +158,56 @@ fünf Kandidaten darüber hinaus:
 Der einzige echte Transfer-Befund war der **unkomprimierte Proxy** (Faktor
 ~32, behoben); der einzige echte Zeit-Hebel bleibt der sessionStorage-Cache
 (Abschnitt 4.1, Produktentscheid).
+
+
+---
+
+## Runde 2 — Bugs, Races und die i18n-Schicht (31.08.2026)
+
+Zweiter Durchgang nach Oblique-Umbau, XLSX-Export und i18n. Zwei
+unabhängige Prüfläufe (Bugs/Races über alle js-Dateien, index.html und den
+Proxy; i18n-Schicht mit Schlüssel-Kreuzprüfung gegen data/i18n.json) plus
+Verifikation im Browser. Alle als BUG/RACE eingestuften Befunde sind
+umgesetzt; «offen» ist begründet.
+
+### Umgesetzt
+
+| Befund | Fix |
+|---|---|
+| **RACE:** geteilte Versprechen (`werteVersprechen`, `laufendDetail`, `alleVersprechen`) überlebten den Generationswechsel — eine fliegende Antwort alter Sprache/Endpunkt konnte den frischen Cache vergiften (falsche Wertelisten, ewiger Spinner, Export mit leerem Merkmale-Blatt) | `K.invalidiereLaufend()` in data.js, aufgerufen von `laden()` nach jedem Generations-Bump; `holeWerte` prüft zusätzlich die eigene Generation |
+| **BUG:** die Proxy-Injektion (`<script>window.KBOB_PROXY…`) verstiess gegen die eigene CSP (`script-src 'self'`) — der Marker kam nie an | Proxy injiziert `<script src="js/proxy-config.js">` und liefert diese Mini-Datei selbst aus |
+| **BUG:** Kaltstart zeigte «MISSING loading.catalog» (laden() rendert vor Ankunft des Wörterbuchs); Export-Tooltip dauerhaft «MISSING export.tooltip»; Sofort-Netzfehler zeigte MISSING-Marken | Spinner/Statuszeile und der Fehlerpfad warten auf `K.i18nBereit`; Tooltip via `data-i18n-title` |
+| **i18n:** Datentyp-Anzeigenamen (`K.TYPEN`: Zahl, Ja/Nein …), «Ohne Katalogangabe», «Ohne Property Set», «+n weitere» blieben deutsch | i18n-Schlüssel (`type.*`, `empty.catalog`, `empty.psetName`, `values.more`), aufgelöst zur Übernahmezeit — der Sprachwechsel leert die Caches |
+| **i18n:** `lang`-Auszeichnung verglich fest gegen `de` — deutsche Rückfall-Labels blieben in der FR-Oberfläche unmarkiert (WCAG 3.1.2) | Vergleich gegen die aktuelle Oberflächensprache (`K.text`, `titel()`) |
+| **i18n:** Barrierefreiheits-Erklärung ohne `lang="de"` unter `html lang="fr"`, mit veralteter Selbstauskunft («Oberfläche deutsch») | `lang="de"` auf Titel und Inhalt, Text berichtigt |
+| **i18n:** Wörterbuch-Fehlschlag (file://) überschrieb die eingebackenen deutschen Statik-Texte mit MISSING | `uebersetzeStatisch` lässt die Statik in Ruhe, wenn kein Wörterbuch da ist |
+| **i18n:** `common.nOfTotal`-Hack mit leerem `{n}` (zerbrechlich bei Platzhalter-Umstellung) | eigener Schlüssel `common.ofTotal` |
+| Fehlende SPARQL-Beschriftung fiel still auf das URI-Segment zurück | «MISSING (segment)» gemäss Vorgabe — sichtbar, unterscheidbar, suchbar |
+| Locale fest auf de-CH (Zahlen, Kollation, Exportdatum) | `K.locale()` je Oberflächensprache (de-/fr-/it-/en-CH) |
+| `inUrl` schrieb `#`, las `''` → tote History-Einträge im Grundzustand | Vergleich gegen `location.hash \|\| '#'` |
+| Hash-Parsing über `location.hash` (dekodierende Browser zerlegen kodierte `&`/`=`) | Parsen aus `location.href` |
+| popstate bei Sprachwechsel zeichnete einmal mit gemischtem Stand | `ausUrl()` meldet den angestossenen Reload, popstate überspringt `zeichne()` |
+| Detail-Fehler erzwang die Liste, Ansicht-Umschalter blieb auf «Graph» gedrückt | Zustand + `aria-pressed` + URL ziehen mit |
+| Export auf Objekttyp-Ebene ohne geladenes Detail fiel still in den Gesamtkatalog-Zweig | Detail wird erst geholt, dann exportiert |
+| `utf8Bytes` kodierte einsame Surrogate als ungültiges UTF-8 (Excel kann die Datei abweisen) | Low-Surrogat-Prüfung, sonst U+FFFD ohne Zeichenverlust |
+| `blaettere` klemmte `s=999` ohne URL-Abgleich | `inUrl(true)` nach dem Klemmen |
+| `connect-src` ohne `'self'` | ergänzt |
+| Tote Schlüssel/Haken (`noscript.text`, `detail.noMilestone` ungenutzt, Punkt-Anhängsel) | bereinigt bzw. verwendet |
+
+### Offen (begründet)
+
+- **Gesamtexport wendet den Meilenstein-Filter nur auf die Objekttypen an,
+  nicht auf deren Merkmale** — Produktentscheid: der Katalog-Export ist eine
+  vollständige Übergabe je Objekttyp; die Merkmal-Filterung gilt innerhalb
+  eines Objekttyps (dort exportiert «sichtbare Auswahl» gefiltert).
+- **Beschreibungs-/Pset-Rückfälle sind clientseitig nicht erkennbar**
+  (kein `?sprache`-Bind je Feld) — MISSING-Markierung dort bräuchte
+  Query-Erweiterungen; notiert für die Datenpflege.
+- **`node --test test/`** findet unter Windows/Node 24 das Verzeichnis
+  nicht; der dokumentierte Aufruf bleibt `node --test test/helfer.test.js`.
+
+### Sauber befundet
+
+Facetten-Zeilenklick (kein Doppel-Toggle), Sprite-Nachladen, ID-Vollaudit,
+Listener-Hygiene, Blätter-Randfälle, Doppelklick-Schutz, popstate während
+des Erstladens, `inUrl`/`ausUrl`-Symmetrie, ZIP-Bytelayout, Proxy-Whitelist.

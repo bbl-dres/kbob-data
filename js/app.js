@@ -87,42 +87,46 @@ var KBOB = window.KBOB || (window.KBOB = {});
   var NETZFEHLER = /Failed to fetch|NetworkError|CORS/i;
   function fehlerText(err) {
     var m = String(err && err.message || err);
-    return NETZFEHLER.test(m)
-      ? 'Der Datenserver ist nicht erreichbar — Verbindung prüfen (VPN/Proxy).'
-      : m;
+    return NETZFEHLER.test(m) ? K.t('errors.networkShort') : m;
   }
 
   function laden() {
-    if (!endpunkt() || !graphUri()) { setStatus('Endpunkt und Graph ausfüllen.', true); return; }
+    if (!endpunkt() || !graphUri()) { setStatus(K.t('errors.fillConnection'), true); return; }
     if (dlgVerbindung.open) dlgVerbindung.close();
-
-    /* Sichtbarer Platzhalter (Erststart, erneuter Versuch nach Fehler):
-       eine Spinnerfläche — die einzige sichtbare Ladeanzeige. */
-    if (!el.platzhalter.hidden) {
-      meldung(el.platzhalter, { titel: 'Katalog wird geladen …', laedt: true });
-    }
 
     /* Verbindungsstand zur ANFRAGEzeit einfrieren und die Generation
        hochzählen: von zwei schnellen Neu-Laden gewinnt so immer das
-       zuletzt angestossene — nicht die zufällig letzte Antwort. */
+       zuletzt angestossene — nicht die zufällig letzte Antwort. Laufende
+       geteilte Versprechen der alten Generation werden verworfen. */
     var st = K.state;
     var anfrage = { endpoint: endpunkt(), graph: graphUri(), sprache: st.sprache };
     st.generation += 1;
+    K.invalidiereLaufend();
     var meineGen = st.generation;
 
     el.neuladen.disabled = true;
-    busy(true, 'Katalog wird geladen …');
 
-    K.run(anfrage.endpoint, K.uebersichtQuery(anfrage.graph, anfrage.sprache)).then(function (json) {
+    /* Sichtbarer Platzhalter (Erststart, erneuter Versuch nach Fehler) —
+       erst wenn das Wörterbuch da ist, sonst stünde MISSING im Spinner. */
+    K.i18nBereit.then(function () {
+      if (meineGen !== st.generation) return;
+      if (!el.platzhalter.hidden && !st.elemente.length) {
+        meldung(el.platzhalter, { titel: K.t('loading.catalog'), laedt: true });
+      }
+      busy(true, K.t('loading.catalog'));
+    });
+
+    Promise.all([
+      K.run(anfrage.endpoint, K.uebersichtQuery(anfrage.graph, anfrage.sprache)),
+      K.i18nBereit
+    ]).then(function (res) {
       if (meineGen !== st.generation) return;   // inzwischen neu geladen
-      var rows = json.results.bindings;
+      var rows = res[0].results.bindings;
       busy(false);
       el.neuladen.disabled = false;
 
       if (!rows.length) {
-        zeigeFehler('Der Graph ' + anfrage.graph + ' enthält keine Objekttypen. ' +
-                    'Den Namen des Graphen unter «Verbindung und Abfrage» prüfen — ' +
-                    'möglicherweise ist der Graph noch nicht befüllt.');
+        zeigeFehler(K.t('errors.emptyGraph', { graph: anfrage.graph }));
         return;
       }
 
@@ -147,21 +151,19 @@ var KBOB = window.KBOB || (window.KBOB = {});
       zeichne();
       setStatus('');
     }).catch(function (err) {
-      if (meineGen !== st.generation) return;
-      busy(false);
-      el.neuladen.disabled = false;
-      var msg = String(err && err.message || err);
-      var text = 'Die Anwendung erreicht den Datenserver nicht. Die Verbindung prüfen ' +
-                 'und «Erneut versuchen» wählen; im Firmennetz kann ein VPN oder ' +
-                 'Proxy die Abfrage blockieren.';
-      if (location.protocol === 'file:') {
-        text += ' Technischer Hintergrund: Direkt aus dem Dateisystem geöffnet ' +
-                'blockiert der Browser die Abfrage (CORS). Abhilfe: lindas-proxy.py ' +
-                'starten und http://localhost:8765 öffnen.';
-      }
-      zeigeFehler(NETZFEHLER.test(msg)
-        ? text
-        : 'Die Abfrage ist fehlgeschlagen: ' + msg);
+      /* Aufs Wörterbuch warten, sonst zeigt ein sofortiger Netzfehler
+         (CORS, offline) nur MISSING-Marken — i18nBereit erfüllt immer. */
+      K.i18nBereit.then(function () {
+        if (meineGen !== st.generation) return;
+        busy(false);
+        el.neuladen.disabled = false;
+        var msg = String(err && err.message || err);
+        var text = K.t('errors.network');
+        if (location.protocol === 'file:') text += ' ' + K.t('errors.file');
+        zeigeFehler(NETZFEHLER.test(msg)
+          ? text
+          : K.t('errors.queryFailed', { msg: msg }));
+      });
     });
   }
 
@@ -169,7 +171,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
   /* Der Ladehinweis darf nicht stehen bleiben, wenn das Laden scheitert —
      sonst widerspricht die Seite sich selbst. */
   function zeigeFehler(text) {
-    setStatus('Laden fehlgeschlagen.', true);
+    setStatus(K.t('errors.loadFailed'), true);
     el.titelblock.hidden = true;
     el.toolbar.hidden = true;
     el['aktive-filter'].hidden = true;
@@ -182,10 +184,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
     el.platzhalter.hidden = false;
     el.platzhalter.className = 'kbob-message';
     meldung(el.platzhalter, {
-      titel: 'Der Katalog konnte nicht geladen werden',
+      titel: K.t('errors.catalogTitle'),
       text: text,
       typ: 'error',
-      aktion: { text: 'Erneut versuchen', onClick: laden, fokus: true }
+      aktion: { text: K.t('common.retry'), onClick: laden, fokus: true }
     });
   }
 
@@ -224,7 +226,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     el.facetten.innerHTML = '';
 
-    gruppe('Katalog', 'katalog', st.kataloge.map(function (q) {
+    gruppe(K.t('facets.catalog'), 'katalog', st.kataloge.map(function (q) {
       return { wert: q.name, text: q.name, n: q.objekttypen };
     }));
 
@@ -232,7 +234,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     var statusListe = Object.keys(status).sort();
     if (statusListe.length > 1) {
-      gruppe('Reifegrad', 'status', statusListe.map(function (w) {
+      gruppe(K.t('facets.status'), 'status', statusListe.map(function (w) {
         return { wert: w, text: w, n: status[w] };
       }));
     }
@@ -243,7 +245,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
        (dd:loinMilestone) — «Projektphase» wäre mit SIA 112 verwechselbar. */
     var phasenListe = Object.keys(phasen).sort();
     if (phasenListe.length) {
-      gruppe('LOIN-Meilenstein', 'phase', phasenListe.map(function (p) {
+      gruppe(K.t('facets.milestone'), 'phase', phasenListe.map(function (p) {
         return { wert: p, text: p };
       }));
     }
@@ -296,7 +298,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var n = K.state.facetten[schluessel].length;
       wert.textContent = titel + (n ? ' (' + n + ')' : '');
       wert.className = 'kbob-facet-value' + (n ? ' aktiv' : '');
-      knopf.setAttribute('aria-label', titel + (n ? ', ' + n + ' gewählt' : ''));
+      knopf.setAttribute('aria-label', n ? K.t('facets.selectedCount', { titel: titel, n: n }) : titel);
       if (reset) reset.disabled = n === 0;
     }
 
@@ -318,6 +320,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
         neuAuswerten();
       });
 
+      /* Die ganze Zeile schaltet — ausdrücklich, statt sich auf die
+         Label-Weiterleitung zu verlassen (die je nach Klickziel und
+         Browser still ausbleiben kann). preventDefault unterbindet das
+         native Doppel-Toggle, wenn die Weiterleitung doch greift. */
+      l.addEventListener('click', function (ev) {
+        if (ev.target === cb) return;   // direkter Checkbox-Klick: nativer Weg
+        ev.preventDefault();
+        cb.checked = !cb.checked;
+        cb.dispatchEvent(new Event('change'));
+      });
+
       l.appendChild(cb);
       l.appendChild(document.createTextNode(e.text));
       menu.appendChild(l);
@@ -328,7 +341,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'ob-button ob-button-tertiary';
-    reset.textContent = 'Auswahl aufheben';
+    reset.textContent = K.t('facets.clear');
     reset.addEventListener('click', function () {
       K.state.facetten[schluessel] = [];
       Array.prototype.forEach.call(menu.querySelectorAll('input'), function (cb) {
@@ -364,7 +377,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* Was gerade eingrenzt, gehört sichtbar über die Liste — sonst sucht man
      den Grund für eine kurze Trefferliste in den zugeklappten Auswahlfeldern. */
-  var FACETTEN_TITEL = { katalog: 'Katalog', status: 'Reifegrad', phase: 'LOIN-Meilenstein' };
+  var FACETTEN_TITEL = { katalog: 'facets.catalog', status: 'facets.status', phase: 'facets.milestone' };
 
   function zeichneAktiveFilter() {
     var st = K.state;
@@ -380,11 +393,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var pillen = [];
     wirksam.forEach(function (schluessel) {
       (st.facetten[schluessel] || []).forEach(function (wert) {
-        pillen.push({ art: FACETTEN_TITEL[schluessel], wert: wert, schluessel: schluessel });
+        pillen.push({ art: K.t(FACETTEN_TITEL[schluessel]), wert: wert, schluessel: schluessel });
       });
     });
     if (el.filter.value.trim()) {
-      pillen.push({ art: 'Suche', wert: el.filter.value.trim(), schluessel: 'suche' });
+      pillen.push({ art: K.t('search.label'), wert: el.filter.value.trim(), schluessel: 'suche' });
     }
 
     box.hidden = !pillen.length;
@@ -394,7 +407,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'ob-chip';
-      b.setAttribute('aria-label', 'Filter entfernen: ' + p.art + ' ' + p.wert);
+      b.setAttribute('aria-label', K.t('chips.remove', { art: p.art, wert: p.wert }));
 
       var art = document.createElement('span');
       art.className = 'kbob-chip-kind';
@@ -422,7 +435,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'ob-button ob-button-tertiary';
-    reset.textContent = 'Alle Filter zurücksetzen';
+    reset.textContent = K.t('chips.reset');
     reset.addEventListener('click', function () {
       Object.keys(FACETTEN_TITEL).forEach(function (k) { st.facetten[k] = []; });
       el.filter.value = '';
@@ -576,7 +589,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (st.proSeite !== 50) p.push('n=' + st.proSeite);
 
     var neu = p.length ? '#' + p.join('&') : '#';
-    if (neu !== location.hash) {
+    /* location.hash liefert bei nacktem «#» einen Leerstring — ohne den
+       Ausgleich entstünden tote History-Einträge im Grundzustand. */
+    if (neu !== (location.hash || '#')) {
       if (ersetzen) history.replaceState(null, '', neu);
       else history.pushState(null, '', neu);
     }
@@ -589,9 +604,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
     try { return decodeURIComponent(s); } catch (e) { return s; }
   }
 
+  /* Gibt true zurück, wenn ein Neuladen angestossen wurde (Sprachwechsel
+     in der URL) — der Aufrufer soll dann nicht mit altem Stand zeichnen. */
   function ausUrl() {
     var st = K.state, p = {};
-    location.hash.replace(/^#/, '').split('&').forEach(function (teil) {
+    /* Aus href lesen, nicht aus location.hash: manche Browser dekodieren
+       hash beim Lesen und zerlegten kodierte &/= in Suchbegriffen. */
+    var roh = location.href.split('#')[1] || '';
+    roh.split('&').forEach(function (teil) {
       var i = teil.indexOf('=');
       if (i > 0) p[teil.slice(0, i)] = teil.slice(i + 1);
     });
@@ -626,10 +646,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
     st.stumm = false;
 
     /* Andere Sprache in der URL (Zurück-Knopf, geteilter Link):
-       der Katalog muss in dieser Sprache neu geladen werden. */
+       Oberfläche nachführen, Katalog in dieser Sprache neu laden. */
     if (st.verbindung && st.verbindung.sprache !== st.sprache) {
+      K.uebersetzeStatisch();
       laden();
-      return;
+      return true;
     }
 
     /* Ein geteilter Link kann auf einen Eintrag zeigen, den dieser Katalog
@@ -637,7 +658,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
        Datenankunft (popstate während des Erstladens) wird nicht geprüft,
        sonst würde ein gültiger Deep-Link fälschlich getilgt. */
     if (st.elemente.length && st.objekttyp && !objekttypVon(st.objekttyp)) {
-      setStatus('Der verlinkte Eintrag existiert in diesem Katalog nicht.', true);
+      setStatus(K.t('errors.unknownType'), true);
       st.objekttyp = null;
       st.merkmal = null;
       inUrl(true);
@@ -646,7 +667,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     /* Dieselbe Prüfung für das Merkmal, wenn das Detail schon im Cache
        liegt — sonst bliebe eine «…»-Krume für ein Phantom-Merkmal stehen. */
     if (st.merkmal && st.objekttyp && st.detail[st.objekttyp] && !merkmalVon()) {
-      setStatus('Das verlinkte Merkmal existiert bei diesem Objekttyp nicht.', true);
+      setStatus(K.t('errors.unknownAttr'), true);
       st.merkmal = null;
       inUrl(true);
     }
@@ -699,28 +720,25 @@ var KBOB = window.KBOB || (window.KBOB = {});
            { endpoint: endpunkt(), graph: graphUri(), sprache: K.state.sprache };
   }
 
-  var WERTE_WARNUNG = 'Die Wertelisten konnten nicht geladen werden — ' +
-                      'Auswahl-Merkmale erscheinen vorerst als «Text».';
-
   function ladeDetail(uri) {
     var e = objekttypVon(uri);
     var v = verbindung();
     var gen = K.state.generation;
     delete K.state.detailFehler[uri];
-    busy(true, 'Merkmale von ' + (e ? e.name : '…') + ' werden geladen …');
+    busy(true, K.t('loading.attrsOf', { name: e ? e.name : '…' }));
     K.holeDetail(v, uri).then(function () {
       busy(false);
       if (gen !== K.state.generation) return;   // inzwischen neu geladen
       if (K.state.objekttyp !== uri) return;
       /* Ein per Link angefordertes Merkmal kann sich als unbekannt erweisen */
       if (K.state.merkmal && !merkmalVon()) {
-        setStatus('Das verlinkte Merkmal existiert bei diesem Objekttyp nicht.', true);
+        setStatus(K.t('errors.unknownAttr'), true);
         K.state.merkmal = null;
         inUrl(true);
         zeichne();
         return;
       }
-      setStatus(K.state.detailOhneWerte[uri] ? WERTE_WARNUNG : '',
+      setStatus(K.state.detailOhneWerte[uri] ? K.t('values.warning') : '',
                 !!K.state.detailOhneWerte[uri]);
       /* Bei einem Deep-Link auf ein Merkmal erscheint die Zielansicht erst
          jetzt — der Fokus soll dorthin, sonst bleibt der Wechsel unbemerkt. */
@@ -729,7 +747,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       busy(false);
       if (gen !== K.state.generation) return;
       K.state.detailFehler[uri] = fehlerText(err);
-      setStatus('Merkmale konnten nicht geladen werden.', true);
+      setStatus(K.t('errors.attrsFailed'), true);
       if (K.state.objekttyp === uri) zeichne();
     });
   }
@@ -773,7 +791,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     el.krumen.parentNode.hidden = !st.objekttyp;
     if (!st.objekttyp) return;
 
-    el.krumen.appendChild(krume('Objekttypen', K.geheZuUebersicht, false));
+    el.krumen.appendChild(krume(K.t('overview.title'), K.geheZuUebersicht, false));
 
     if (st.objekttyp) {
       var e = objekttypVon(st.objekttyp);
@@ -793,7 +811,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   function titel(text, kennzahlen, beschreibung, sprache) {
     el.titel.textContent = text;
-    if (sprache && sprache !== 'de') el.titel.setAttribute('lang', sprache);
+    /* lang-Auszeichnung relativ zur OBERFLÄCHENsprache: auch ein deutsches
+       Datenlabel braucht sie, wenn die Oberfläche französisch spricht. */
+    if (sprache && sprache !== K.state.sprache) el.titel.setAttribute('lang', sprache);
     else el.titel.removeAttribute('lang');
     el.kennzahlen.textContent = kennzahlen || '';
     el['titel-text'].hidden = !beschreibung;
@@ -821,10 +841,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
     el.zurueck.hidden = !st.objekttyp;
     if (st.objekttyp) {
       var elternName = aufMerkmal
-        ? (objekttypVon(st.objekttyp) || {}).name || 'Objekttyp'
-        : 'Objekttypen';
-      el.zurueck.setAttribute('aria-label', 'Zurück zu ' + elternName);
-      el.zurueck.title = 'Zurück zu ' + elternName;
+        ? (objekttypVon(st.objekttyp) || {}).name || K.t('col.type')
+        : K.t('overview.title');
+      el.zurueck.setAttribute('aria-label', K.t('common.backTo', { name: elternName }));
+      el.zurueck.title = K.t('common.backTo', { name: elternName });
     }
 
     /* Auf der Merkmal-Ebene gibt es nichts zu suchen, zu filtern oder
@@ -852,7 +872,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function blaettere(gesamt) {
     var st = K.state;
     var seiten = Math.max(1, Math.ceil(gesamt / st.proSeite));
-    if (st.seite > seiten) st.seite = seiten;
+    if (st.seite > seiten) {
+      st.seite = seiten;
+      inUrl(true);   // die URL soll nicht auf einer Phantomseite stehen bleiben
+    }
 
     var von = (st.seite - 1) * st.proSeite;
     var bis = Math.min(von + st.proSeite, gesamt);
@@ -865,8 +888,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var bereich = document.createElement('span');
     bereich.className = 'kbob-paginator-range';
     bereich.textContent = gesamt <= st.proSeite
-      ? K.zahl(gesamt) + (gesamt === 1 ? ' Eintrag' : ' Einträge')
-      : K.zahl(von + 1) + '–' + K.zahl(bis) + ' von ' + K.zahl(gesamt);
+      ? K.zahl(gesamt) + ' ' + K.plural(gesamt, K.t('unit.entry'), K.t('unit.entries'))
+      : K.t('paginator.range', { von: K.zahl(von + 1), bis: K.zahl(bis), gesamt: K.zahl(gesamt) });
     el.blaettern.appendChild(bereich);
 
     /* Bei einer einzigen Seite gibt es nichts zu blättern — «Seite 1 von 1»
@@ -894,13 +917,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
         return b;
       };
 
-      nav.appendChild(knopf('kbob-page-first', 'chevron_left_double', 'Erste Seite', 1, st.seite <= 1));
-      nav.appendChild(knopf('kbob-page-prev', 'chevron_left', 'Vorherige Seite', st.seite - 1, st.seite <= 1));
+      nav.appendChild(knopf('kbob-page-first', 'chevron_left_double', K.t('paginator.first'), 1, st.seite <= 1));
+      nav.appendChild(knopf('kbob-page-prev', 'chevron_left', K.t('paginator.prev'), st.seite - 1, st.seite <= 1));
       var stand = document.createElement('span');
-      stand.textContent = 'Seite ' + st.seite + ' von ' + seiten;
+      stand.textContent = K.t('paginator.pageOf', { seite: st.seite, seiten: seiten });
       nav.appendChild(stand);
-      nav.appendChild(knopf('kbob-page-next', 'chevron_right', 'Nächste Seite', st.seite + 1, st.seite >= seiten));
-      nav.appendChild(knopf('kbob-page-last', 'chevron_right_double', 'Letzte Seite', seiten, st.seite >= seiten));
+      nav.appendChild(knopf('kbob-page-next', 'chevron_right', K.t('paginator.next'), st.seite + 1, st.seite >= seiten));
+      nav.appendChild(knopf('kbob-page-last', 'chevron_right_double', K.t('paginator.last'), seiten, st.seite >= seiten));
       el.blaettern.appendChild(nav);
     }
 
@@ -910,7 +933,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var lab = document.createElement('label');
       lab.className = 'kbob-field-label';
       lab.setAttribute('for', 'pro-seite');
-      lab.textContent = 'Einträge pro Seite';
+      lab.textContent = K.t('paginator.perPage');
       var sel = document.createElement('select');
       sel.id = 'pro-seite';
       sel.className = 'ob-select';
@@ -984,7 +1007,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function zeigeUebersicht() {
     var st = K.state;
     facettenSichtbar(['katalog', 'status', 'phase']);
-    el.filter.placeholder = 'Objekttyp oder Beschreibung';
+    el.filter.placeholder = K.t('search.phOverview');
 
     var liste = sortiert(sichtbareObjekttypen());
     var merkmale = liste.reduce(function (s, e) { return s + e.anzahl; }, 0);
@@ -996,17 +1019,16 @@ var KBOB = window.KBOB || (window.KBOB = {});
     liste.forEach(function (e) { quellen[e.quelle] = true; });
     var nQuellen = Object.keys(quellen).length;
 
-    titel('Objekttypen',
-      K.zahl(liste.length) + ' ' + K.plural(liste.length, 'Objekttyp', 'Objekttypen') +
-      ' · ' + K.zahl(merkmale) + ' ' + K.plural(merkmale, 'Merkmal', 'Merkmale') +
-      ' · ' + K.zahl(nQuellen) + ' ' + K.plural(nQuellen, 'Katalog', 'Kataloge'),
-      'Jeder Objekttyp führt die Merkmale, die der Katalog für ihn vorsieht — ' +
-      'mit Datentyp, Einheit beziehungsweise zulässigen Werten und Property Set.');
+    titel(K.t('overview.title'),
+      K.zahl(liste.length) + ' ' + K.plural(liste.length, K.t('unit.type'), K.t('unit.types')) +
+      ' · ' + K.zahl(merkmale) + ' ' + K.plural(merkmale, K.t('unit.attr'), K.t('unit.attrs')) +
+      ' · ' + K.zahl(nQuellen) + ' ' + K.plural(nQuellen, K.t('unit.catalog'), K.t('unit.catalogs')),
+      K.t('overview.lead'));
 
     /* Der Zähler trägt nur bei aktivem Filter etwas bei — ungefiltert stünde
        dieselbe Zahl bereits in den Kennzahlen. Die Live-Region bleibt. */
     el.treffer.textContent = istGefiltert()
-      ? K.zahl(liste.length) + ' von ' + K.zahl(st.elemente.length)
+      ? K.t('common.nOfTotal', { n: K.zahl(liste.length), total: K.zahl(st.elemente.length) })
       : '';
 
     var aus = blaettere(liste.length);
@@ -1016,16 +1038,16 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (st.ansicht === 'liste') {
       sichtbareAnsicht('liste');
       var spalten = [
-        { titel: 'Objekttyp', breite: '22%', sort: 'name' },
-        { titel: 'Beschreibung' },
-        { titel: 'Merkmale', breite: '90px', rechts: true, sort: 'anzahl', sortStart: -1 },
-        { titel: 'Reifegrad', breite: '100px', sort: 'status' }
+        { titel: K.t('col.type'), breite: '22%', sort: 'name' },
+        { titel: K.t('col.description') },
+        { titel: K.t('col.attrs'), breite: '90px', rechts: true, sort: 'anzahl', sortStart: -1 },
+        { titel: K.t('col.status'), breite: '100px', sort: 'status' }
       ];
-      if (mitPhase) spalten.push({ titel: 'LOIN-Meilenstein', breite: '130px' });
-      spalten.push({ titel: 'Katalog', breite: '18%', sort: 'quelle' });
+      if (mitPhase) spalten.push({ titel: K.t('col.milestone'), breite: '130px' });
+      spalten.push({ titel: K.t('col.catalog'), breite: '18%', sort: 'quelle' });
 
       K.zeichneListe({
-        titel: 'Objekttypen im Katalog',
+        titel: K.t('table.captionOverview'),
         spalten: spalten,
         sort: st.sort,
         onSort: sortiere,
@@ -1036,14 +1058,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
                 function () { K.geheZuObjekttyp(e.uri); });
             },
             function () {
-              if (!e.beschreibung) return K.leer('ohne Beschreibung');
+              if (!e.beschreibung) return K.leer(K.t('empty.description'));
               var s = document.createElement('span');
               s.className = 'kbob-desc-text';
               s.textContent = e.beschreibung;
               return s;
             },
             function () { return String(e.anzahl); },
-            function () { return statusText(e.status) || K.leer('ohne Reifegrad'); }
+            function () { return statusText(e.status) || K.leer(K.t('empty.status')); }
           ];
           if (mitPhase) zellen.push(function () { return K.phasen(e.phasen, st.allePhasen); });
           zellen.push(function () { return e.quelle; });
@@ -1058,7 +1080,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       K.zeichneGalerie({ karten: seite.map(function (e) {
         return {
           name: e.name, sprache: e.sprache,
-          zahl: e.anzahl, zahlText: 'Merkmale',
+          zahl: e.anzahl, zahlText: K.t('unit.attrs'),
           text: e.beschreibung,
           marken: e.status ? [{ name: e.status, title: statusErklaerung(e.status) }] : [],
           fuss: e.quelle,
@@ -1076,10 +1098,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
      Wer ausdrücklich nach ihnen filtert, bekommt sie trotzdem. */
   function uebersichtsGraph(liste) {
     if (!liste.length) {
-      graphMeldung('Kein Treffer für diese Filter',
-        'Die Auswahl enthält keine Objekttypen. Einen Filter entfernen oder ' +
-        'den Suchbegriff ändern — die Pillen über der Ansicht zeigen, was ' +
-        'gerade eingrenzt.');
+      graphMeldung(K.t('graph.emptyTitle'), K.t('graph.emptyTypes'));
       return;
     }
 
@@ -1088,11 +1107,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var ausgeblendet = liste.length - netzListe.length;
 
     if (netzListe.length > K.NETZ_MAX) {
-      graphMeldung('Zu viele Objekttypen für eine Netzdarstellung',
-        K.zahl(netzListe.length) + ' Objekttypen ergeben ein unlesbares Knäuel. ' +
-        'Die Auswahl über Katalog, Reifegrad oder die Suche auf höchstens ' +
-        K.NETZ_MAX + ' Objekttypen eingrenzen — dann erscheint das Netz. ' +
-        'Die Liste zeigt die volle Auswahl.');
+      graphMeldung(K.t('graph.tooManyTitle'), K.t('graph.tooMany', { n: K.zahl(netzListe.length), max: K.NETZ_MAX }));
       return;
     }
     graphMeldung(null);
@@ -1103,9 +1118,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
         id: 'o:' + e.uri, name: e.name, farbe: '#2379a4' /* ob interaction-state */, form: 'kreis',
         r: 4 + Math.sqrt(e.anzahl) * 1.5,
         vorlesen: e.name + ', ' + e.anzahl + ' ' +
-                  K.plural(e.anzahl, 'Merkmal', 'Merkmale') + ', ' + e.quelle,
+                  K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs')) + ', ' + e.quelle,
         zeilen: [e.quelle, e.anzahl + ' ' +
-                 K.plural(e.anzahl, 'Merkmal', 'Merkmale') + ' — öffnen'],
+                 K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs')) + ' — ' + K.t('graph.open')],
         onClick: function () { K.geheZuObjekttyp(e.uri); }
       };
       knoten.push(k);
@@ -1133,31 +1148,22 @@ var KBOB = window.KBOB || (window.KBOB = {});
     Object.keys(nachPset).forEach(function (n) {
       var pk = nachPset[n];
       pk.r = 5 + Math.sqrt(pk.objekttypen) * 2.2;
-      pk.vorlesen = 'Property Set ' + pk.name + ', in ' + pk.objekttypen +
-                    ' Objekttypen, ' + pk.merkmale + ' Merkmale';
-      pk.zeilen = ['Property Set',
-                   'in ' + pk.objekttypen + ' Objekttypen, ' + pk.merkmale + ' Merkmale',
-                   'hervorheben'];
+      pk.vorlesen = K.t('graph.psetVorlesen', { name: pk.name, t: pk.objekttypen, a: pk.merkmale });
+      pk.zeilen = [K.t('graph.legendPset'),
+                   K.t('graph.psetIn', { t: pk.objekttypen, a: pk.merkmale }),
+                   K.t('graph.highlight')];
     });
 
     K.zeichneNetz(knoten, kanten, [
-      { name: 'Objekttyp', n: netzListe.length, farbe: '#2379a4' },
-      { name: 'Property Set', n: Object.keys(nachPset).length, farbe: '#46596b', form: 'quadrat' },
-      { hinweis: K.state.hervor ? 'Hervorgehoben: ' + K.state.hervor
-                                : 'Punktgrösse: Anzahl Merkmale' }
-    ], 'Objekttypen und die Property Sets, die sie teilen. Ein Objekttyp öffnet seine ' +
-       'Merkmale, ein Property Set hebt seine Objekttypen hervor. ' +
-       (ausgeblendet
-         ? 'Die ' + K.zahl(ausgeblendet) + ' Dokumenttypen sind hier ausgeblendet ' +
-           '(einheitliches Merkmalschema) — über die Katalog-Facette lassen sie ' +
-           'sich gezielt zeigen. '
-         : '') + GRAFIK_BEDIENUNG,
-       'Objekttypen und Property Sets');
+      { name: K.t('graph.legendType'), n: netzListe.length, farbe: '#2379a4' },
+      { name: K.t('graph.legendPset'), n: Object.keys(nachPset).length, farbe: '#46596b', form: 'quadrat' },
+      { hinweis: K.state.hervor ? K.t('graph.highlighted', { name: K.state.hervor })
+                                : K.t('graph.dotSize') }
+    ], K.t('graph.overviewHint') + ' ' +
+       (ausgeblendet ? K.t('graph.docsHidden', { n: K.zahl(ausgeblendet) }) + ' ' : '') +
+       K.t('graph.controls'),
+       K.t('graph.contentTitle'));
   }
-
-  /* Einheitlicher Bedienhinweis beider Grafiken — er verspricht nur, was geht */
-  var GRAFIK_BEDIENUNG = 'Zoomen mit Ctrl + Mausrad oder +/−; Pfeiltasten ' +
-    'verschieben, 0 setzt zurück (fokussierte Grafik).';
 
   /* --- Ein Objekttyp und seine Merkmale --- */
 
@@ -1168,7 +1174,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     /* Katalog und Reifegrad wirken hier nicht — nur zeigen, was filtert */
     facettenSichtbar(['phase']);
-    el.filter.placeholder = 'Merkmal oder Property Set';
+    el.filter.placeholder = K.t('search.phType');
 
     var merkmale = sichtbareMerkmale(e.uri);
     if (merkmale) merkmale = sortiert(merkmale);
@@ -1185,12 +1191,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
       sichtbareAnsicht(st.ansicht);
       /* Der Ladezustand dreht dort, wo der Blick ist: im Inhaltsbereich */
       if (st.ansicht === 'liste') {
-        K.zeichneListe({ titel: e.name, spalten: [{ titel: 'Merkmal' }], zeilen: [],
-                         leerText: 'Merkmale werden geladen …', laedt: true });
+        K.zeichneListe({ titel: e.name, spalten: [{ titel: K.t('col.attr') }], zeilen: [],
+                         leerText: K.t('loading.attrs'), laedt: true });
       } else if (st.ansicht === 'galerie') {
-        K.zeichneGalerie({ karten: [], leerText: 'Merkmale werden geladen …', laedt: true });
+        K.zeichneGalerie({ karten: [], leerText: K.t('loading.attrs'), laedt: true });
       } else {
-        graphMeldung('Merkmale werden geladen …', '', true);
+        graphMeldung(K.t('loading.attrs'), '', true);
       }
       return;
     }
@@ -1201,13 +1207,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     titel(e.name,
       K.zahl(merkmale.length) +
-      (merkmale.length === e.anzahl ? '' : ' von ' + K.zahl(e.anzahl)) +
-      ' ' + K.plural(e.anzahl, 'Merkmal', 'Merkmale') + ' · ' +
-      nPsets + ' ' + K.plural(nPsets, 'Property Set', 'Property Sets') + ' · ' + e.quelle,
+      (merkmale.length === e.anzahl ? ''
+        : ' ' + K.t('common.ofTotal', { total: K.zahl(e.anzahl) })) +
+      ' ' + K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs')) + ' · ' +
+      nPsets + ' ' + K.plural(nPsets, K.t('unit.pset'), K.t('unit.psets')) + ' · ' + e.quelle,
       e.beschreibung, e.sprache);
 
     el.treffer.textContent = (suchbegriff() || st.facetten.phase.length)
-      ? K.zahl(merkmale.length) + ' von ' + K.zahl(e.anzahl)
+      ? K.t('common.nOfTotal', { n: K.zahl(merkmale.length), total: K.zahl(e.anzahl) })
       : '';
 
     var aus = blaettere(merkmale.length);
@@ -1219,17 +1226,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
       /* Beschreibung als eigene Spalte (wie in der Übersicht);
          Marken-Reihenfolge wie im Merkmaldetail: Property Set, Datentyp, Reifegrad */
       var spalten = [
-        { titel: 'Merkmal', breite: '18%', sort: 'name' },
-        { titel: 'Beschreibung' },
-        { titel: 'Property Set', breite: '16%', sort: 'pset' },
-        { titel: 'Datentyp', breite: '90px', sort: 'typ' },
-        { titel: 'Reifegrad', breite: '90px', sort: 'status' }
+        { titel: K.t('col.attr'), breite: '18%', sort: 'name' },
+        { titel: K.t('col.description') },
+        { titel: K.t('col.pset'), breite: '16%', sort: 'pset' },
+        { titel: K.t('col.datatype'), breite: '90px', sort: 'typ' },
+        { titel: K.t('col.status'), breite: '90px', sort: 'status' }
       ];
-      if (mitPhase) spalten.push({ titel: 'LOIN-Meilenstein', breite: '130px' });
-      spalten.push({ titel: 'Einheit / Zulässige Werte', breite: '18%' });
+      if (mitPhase) spalten.push({ titel: K.t('col.milestone'), breite: '130px' });
+      spalten.push({ titel: K.t('col.unitValues'), breite: '18%' });
 
       K.zeichneListe({
-        titel: 'Merkmale von ' + e.name,
+        titel: K.t('table.captionType', { name: e.name }),
         spalten: spalten,
         sort: st.sort,
         onSort: sortiere,
@@ -1241,7 +1248,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
             },
             function () {
               if (!m.beschreibung || m.beschreibung === m.name) {
-                return K.leer('ohne Beschreibung');
+                return K.leer(K.t('empty.description'));
               }
               var s = document.createElement('span');
               s.className = 'kbob-desc-text';
@@ -1249,8 +1256,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
               return s;
             },
             function () { return psetZelle(e, m); },
-            function () { return m.typ || K.leer('ohne Typangabe'); },
-            function () { return statusText(m.status) || K.leer('ohne Reifegrad'); }
+            function () { return m.typ || K.leer(K.t('empty.type')); },
+            function () { return statusText(m.status) || K.leer(K.t('empty.status')); }
           ];
           if (mitPhase) zellen.push(function () { return K.phasen(m.phasen, st.allePhasen); });
           zellen.push(function () { return werteZelle(m); });
@@ -1267,7 +1274,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
             .concat(m.typ ? [{ name: m.typ }] : [])
             .concat(m.status ? [{ name: m.status, title: statusErklaerung(m.status) }] : []),
           fuss: [m.einheit, m.ifcTyp,
-                 m.liste && m.liste.anzahl ? m.liste.anzahl + ' zulässige Werte' : '']
+                 m.liste && m.liste.anzahl ? m.liste.anzahl + ' ' + K.t('col.values') : '']
                  .filter(Boolean).join(' · '),
           onClick: function () { K.geheZuMerkmal(m.uri); }
         };
@@ -1275,15 +1282,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
     } else {
       sichtbareAnsicht('graph');
       if (!merkmale.length) {
-        graphMeldung('Kein Treffer für diese Filter',
-          'Die Auswahl enthält keine Merkmale. Einen Filter entfernen oder ' +
-          'den Suchbegriff ändern.');
+        graphMeldung(K.t('graph.emptyTitle'), K.t('graph.emptyAttrs'));
         return;
       }
       graphMeldung(null);
       K.zeichneRadial(e, merkmale,
-        'Die Merkmale von ' + e.name + ', gruppiert nach Property Set. Ein Merkmal ' +
-        'öffnet seine Angaben. ' + GRAFIK_BEDIENUNG,
+        K.t('graph.typeHint', { name: e.name }) + ' ' + K.t('graph.controls'),
         K.geheZuMerkmal);
     }
   }
@@ -1291,17 +1295,22 @@ var KBOB = window.KBOB || (window.KBOB = {});
   /* Scheitert die Detailabfrage, darf «wird geladen …» nicht stehen bleiben —
      dieselbe Regel wie beim Erstladen (Befund K1), eine Ebene tiefer. */
   function zeigeDetailFehler(e) {
-    titel(e.name, 'Die Merkmale konnten nicht geladen werden.', null, e.sprache);
+    titel(e.name, K.t('errors.attrsLoadFailedMeta'), null, e.sprache);
     el.blaettern.hidden = true;
+    /* Die Fehlerkachel steht im Listencontainer — Zustand und
+       aria-pressed der Umschalter ziehen mit, statt zu widersprechen. */
+    K.state.ansicht = 'liste';
+    ansichtKnoepfe('liste');
+    inUrl(true);
     sichtbareAnsicht('liste');
 
     el['view-liste'].innerHTML = '';
     var box = K.e('div', 'kbob-message');
     meldung(box, {
-      titel: 'Die Merkmale konnten nicht geladen werden',
+      titel: K.t('errors.attrsTitle'),
       text: K.state.detailFehler[e.uri],
       typ: 'error',
-      aktion: { text: 'Erneut versuchen', onClick: function () { ladeDetail(e.uri); } }
+      aktion: { text: K.t('common.retry'), onClick: function () { ladeDetail(e.uri); } }
     });
     el['view-liste'].appendChild(box);
   }
@@ -1315,18 +1324,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
      verabschiedet ist nichts. Das gehört an jeden Eintrag.
      Nur bekannte Werte werden erklärt: ein künftiger Status «Approved»
      dürfte nicht als «noch nicht verabschiedet» beschriftet werden. */
-  var STATUS_ERKLAERUNG = {
-    Candidate: 'Kandidat — vorgeschlagen, noch nicht verabschiedet',
-    Preview:   'Vorschau — noch in Erarbeitung'
-  };
-  function statusErklaerung(wert) { return STATUS_ERKLAERUNG[wert] || ''; }
+  var STATUS_ERKLAERUNG = { Candidate: 'status.candidate', Preview: 'status.preview' };
+  function statusErklaerung(wert) {
+    return STATUS_ERKLAERUNG[wert] ? K.t(STATUS_ERKLAERUNG[wert]) : '';
+  }
 
   function statusMarke(wert) {
     if (!wert) return null;
     var t = document.createElement('span');
     t.className = 'kbob-tag';
     t.appendChild(K.text(wert, 'en'));   // Datenwerte sind englisch
-    if (STATUS_ERKLAERUNG[wert]) t.title = STATUS_ERKLAERUNG[wert];
+    if (STATUS_ERKLAERUNG[wert]) t.title = statusErklaerung(wert);
     return t;
   }
 
@@ -1335,7 +1343,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function statusText(wert) {
     if (!wert) return null;
     var s = K.text(wert, 'en');
-    if (STATUS_ERKLAERUNG[wert]) s.title = STATUS_ERKLAERUNG[wert];
+    if (STATUS_ERKLAERUNG[wert]) s.title = statusErklaerung(wert);
     return s;
   }
 
@@ -1351,7 +1359,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
   }
 
   function typMarke(m) {
-    if (!m.typ) return K.leer('ohne Typangabe');
+    if (!m.typ) return K.leer(K.t('empty.type'));
     return K.e('span', 'kbob-tag', m.typ);
   }
 
@@ -1385,11 +1393,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (m.liste && m.liste.anzahl) {
       var w = document.createElement('span');
       w.className = 'kbob-values';
-      w.textContent = m.liste.anzahl + ' zulässige Werte: ' + K.kurzListe(m.liste.werte, 70);
+      w.textContent = K.t('values.count', { n: m.liste.anzahl, werte: K.kurzListe(m.liste.werte, 70) });
       box.appendChild(w);
       etwas = true;
     }
-    return etwas ? box : K.leer('ohne Einheit und ohne Werteliste');
+    return etwas ? box : K.leer(K.t('empty.unitValues'));
   }
 
   /* --- Ein Merkmal --- */
@@ -1404,21 +1412,21 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     titel(m.name, e.name + ' · ' + m.pset + ' · ' + e.quelle, null, m.sprache);
 
+    /* Abschnittsgliederung nach dem Muster der I14Y-Detailseiten:
+       H2-Abschnitte, darunter fette Beschriftung über schlichtem Wert. */
     var ziel = el['merkmal-detail'];
     ziel.innerHTML = '';
 
-    if (m.beschreibung && m.beschreibung !== m.name) {
-      var p = document.createElement('p');
-      p.textContent = m.beschreibung;
-      ziel.appendChild(p);
+    function abschnitt(name) {
+      var s = K.e('section', 'kbob-detail-section');
+      s.appendChild(K.e('h2', '', name));
+      ziel.appendChild(s);
+      return s;
     }
-
-    var dl = document.createElement('dl');
-    dl.className = 'kbob-data';
 
     /* Mit leerBedeutung erscheint die Zeile auch ohne Wert — als ehrliches
        «—» wie in der Tabelle. Ohne leerBedeutung entfällt sie ganz. */
-    function zeile(t, wert, leerBedeutung) {
+    function zeile(dl, t, wert, leerBedeutung) {
       if (!wert && !leerBedeutung) return;
       var dt = document.createElement('dt');
       dt.textContent = t;
@@ -1429,28 +1437,56 @@ var KBOB = window.KBOB || (window.KBOB = {});
       dl.appendChild(dt); dl.appendChild(dd);
     }
 
-    zeile('Objekttyp', K.text(e.name, e.sprache));
-    zeile('Katalog', e.quelle);
-    zeile('Property Set', psetZelle(e, m));
-    zeile('Datentyp', typMarke(m));
-    zeile('Reifegrad', statusMarke(m.status), 'ohne Reifegrad');
-    zeile('IFC-Datentyp', m.ifcTyp);
-    zeile('IFC-Property-Set', m.ifcPset);
-    zeile('Einheit', m.einheit, 'ohne Einheit');
-    zeile('Zulässige Werte' + (m.liste && m.liste.anzahl ? ' (' + m.liste.anzahl + ')' : ''),
-          m.liste && m.liste.anzahl ? m.liste.werte : null,
-          'ohne Werteliste');
-    if (K.state.allePhasen && K.state.allePhasen.length) {
-      zeile('LOIN-Meilensteine (LZP)',
-            m.phasen.length ? K.phasen(m.phasen, K.state.allePhasen) : null,
-            'kein Meilenstein deklariert');
-    }
-    var uri = document.createElement('span');
-    uri.className = 'kbob-mono';
-    uri.textContent = m.uri;
-    zeile('URI', uri);
+    var allg = abschnitt(K.t('detail.general'));
+    var dlA = K.e('dl', 'kbob-data');
+    allg.appendChild(dlA);
+    zeile(dlA, K.t('col.description'),
+          (m.beschreibung && m.beschreibung !== m.name) ? m.beschreibung : null,
+          K.t('empty.description'));
+    zeile(dlA, K.t('col.type'), K.text(e.name, e.sprache));
+    zeile(dlA, K.t('col.pset'), psetZelle(e, m));
+    zeile(dlA, K.t('col.catalog'), e.quelle);
+    zeile(dlA, K.t('col.status'), statusMarke(m.status), K.t('empty.status'));
 
-    ziel.appendChild(dl);
+    /* IRI mit Kopierknopf, wie das I14Y-Permalink-Feld */
+    var iri = K.e('span', 'kbob-copy');
+    iri.appendChild(K.e('span', 'kbob-mono', m.uri));
+    var kopier = K.knopf('ob-button ob-button-secondary ob-icon-button', null, function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(m.uri).then(
+          function () { setStatus(K.t('detail.copied')); },
+          function () { setStatus(K.t('detail.copyFailed'), true); });
+      } else {
+        setStatus(K.t('detail.copyFailed'), true);
+      }
+    });
+    kopier.setAttribute('aria-label', K.t('detail.copyAria'));
+    kopier.title = K.t('detail.copyTitle');
+    kopier.appendChild(K.icon('copy'));
+    iri.appendChild(kopier);
+    zeile(dlA, K.t('detail.iri'), iri);
+
+    var typ = abschnitt(K.t('detail.typeUnit'));
+    var dlT = K.e('dl', 'kbob-data');
+    typ.appendChild(dlT);
+    zeile(dlT, K.t('col.datatype'), typMarke(m));
+    zeile(dlT, K.t('col.unit'), m.einheit, K.t('empty.unit'));
+    zeile(dlT, K.t('col.ifcType'), m.ifcTyp);
+    zeile(dlT, K.t('col.ifcPset'), m.ifcPset);
+
+    var werte = abschnitt(K.t('col.values') +
+      (m.liste && m.liste.anzahl ? ' (' + m.liste.anzahl + ')' : ''));
+    if (m.liste && m.liste.anzahl) {
+      werte.appendChild(K.e('p', 'kbob-values-list', m.liste.werte));
+    } else {
+      werte.appendChild(K.e('p', '', K.t('detail.noValues')));
+    }
+
+    if (K.state.allePhasen && K.state.allePhasen.length) {
+      var loin = abschnitt(K.t('detail.milestones'));
+      if (m.phasen.length) loin.appendChild(K.phasen(m.phasen, K.state.allePhasen));
+      else loin.appendChild(K.e('p', '', K.t('detail.noMilestone')));
+    }
   }
 
   /* ---------- Ansicht ---------- */
@@ -1481,18 +1517,19 @@ var KBOB = window.KBOB || (window.KBOB = {});
      Ja/Nein …), «Datentyp (Katalog)» der Rohwert aus dem Graphen (STRING,
      REAL …) — ein Integrator braucht beide. Wertetrennzeichen der Spalte
      «Zulässige Werte» ist « · ». */
-  var OBJEKT_BLATT = {
-    kopf: ['Objekttyp', 'Beschreibung', 'Reifegrad', 'Katalog', 'Anzahl Merkmale',
-           'Property Sets', 'LOIN-Meilensteine', 'Objekttyp-URI'],
-    breiten: [32, 70, 12, 30, 16, 44, 22, 56]
-  };
+  function objektBlattKopf() {
+    return [K.t('col.type'), K.t('col.description'), K.t('col.status'), K.t('col.catalog'),
+            K.t('col.attrCount'), K.t('col.psets'), K.t('col.milestones'), K.t('col.typeUri')];
+  }
+  var OBJEKT_BREITEN = [32, 70, 12, 30, 16, 44, 22, 56];
 
-  var MERKMAL_BLATT = {
-    kopf: ['Objekttyp', 'Merkmal', 'Beschreibung', 'Property Set', 'Datentyp',
-           'Datentyp (Katalog)', 'Einheit', 'Zulässige Werte', 'Reifegrad',
-           'IFC-Property-Set', 'IFC-Datentyp', 'LOIN-Meilensteine', 'Merkmal-URI'],
-    breiten: [30, 30, 70, 24, 12, 17, 9, 56, 12, 24, 16, 22, 56]
-  };
+  function merkmalBlattKopf() {
+    return [K.t('col.type'), K.t('col.attr'), K.t('col.description'), K.t('col.pset'),
+            K.t('col.datatype'), K.t('col.datatypeRaw'), K.t('col.unit'), K.t('col.values'),
+            K.t('col.status'), K.t('col.ifcPset'), K.t('col.ifcType'), K.t('col.milestones'),
+            K.t('col.attrUri')];
+  }
+  var MERKMAL_BREITEN = [30, 30, 70, 24, 12, 17, 9, 56, 12, 24, 16, 22, 56];
 
   function objektZeile(e) {
     return [e.name, e.beschreibung, e.status, e.quelle, e.anzahl,
@@ -1510,20 +1547,21 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var st = K.state;
     var v = verbindung();
     var zeilen = [
-      ['Quelle', 'KBOB Data Dictionary über LINDAS'],
-      ['SPARQL-Endpunkt', v.endpoint],
-      ['Named Graph', v.graph],
-      ['Sprache der Beschriftungen', v.sprache.toUpperCase()],
-      ['Exportiert am', new Date().toLocaleDateString('de-CH')],
-      ['Objekttypen', nObjekte],
-      ['Merkmale', nMerkmale]
+      [K.t('export.source'), K.t('export.sourceValue')],
+      [K.t('connection.endpoint'), v.endpoint],
+      [K.t('connection.graph'), v.graph],
+      [K.t('export.language'), v.sprache.toUpperCase()],
+      [K.t('export.date'), new Date().toLocaleDateString(K.locale())],
+      [K.t('overview.title'), nObjekte],
+      [K.t('col.attrs'), nMerkmale]
     ];
-    if (el.filter.value.trim()) zeilen.push(['Filter: Suche', el.filter.value.trim()]);
-    if (st.facetten.katalog.length) zeilen.push(['Filter: Katalog', st.facetten.katalog.join(', ')]);
-    if (st.facetten.status.length) zeilen.push(['Filter: Reifegrad', st.facetten.status.join(', ')]);
-    if (st.facetten.phase.length) zeilen.push(['Filter: LOIN-Meilenstein', st.facetten.phase.join(', ')]);
-    zeilen.push(['Anwendung', 'https://github.com/bbl-dres/kbob-data']);
-    return { name: 'Info', kopf: ['Angabe', 'Wert'], zeilen: zeilen, breiten: [28, 70] };
+    if (el.filter.value.trim()) zeilen.push([K.t('export.filterSearch'), el.filter.value.trim()]);
+    if (st.facetten.katalog.length) zeilen.push([K.t('export.filterCatalog'), st.facetten.katalog.join(', ')]);
+    if (st.facetten.status.length) zeilen.push([K.t('export.filterStatus'), st.facetten.status.join(', ')]);
+    if (st.facetten.phase.length) zeilen.push([K.t('export.filterMilestone'), st.facetten.phase.join(', ')]);
+    zeilen.push([K.t('export.app'), 'https://github.com/bbl-dres/kbob-data']);
+    return { name: K.t('export.sheetInfo'), kopf: [K.t('export.key'), K.t('export.value')],
+             zeilen: zeilen, breiten: [28, 70] };
   }
 
   function speichereMappe(objekte, dateiname) {
@@ -1537,18 +1575,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
     });
 
     speichereBlob(K.xlsxBlob([
-      { name: 'Objekttypen', kopf: OBJEKT_BLATT.kopf, breiten: OBJEKT_BLATT.breiten,
+      { name: K.t('export.sheetTypes'), kopf: objektBlattKopf(), breiten: OBJEKT_BREITEN,
         zeilen: objekte.map(objektZeile) },
-      { name: 'Merkmale', kopf: MERKMAL_BLATT.kopf, breiten: MERKMAL_BLATT.breiten,
+      { name: K.t('export.sheetAttrs'), kopf: merkmalBlattKopf(), breiten: MERKMAL_BREITEN,
         zeilen: merkmalZeilen },
       infoBlatt(objekte.length, merkmalZeilen.length)
     ]), dateiname);
 
-    setStatus(K.zahl(objekte.length) + ' ' +
-              K.plural(objekte.length, 'Objekttyp', 'Objekttypen') + ' mit ' +
-              K.zahl(merkmalZeilen.length) + ' Merkmalen als Excel-Arbeitsmappe gespeichert.' +
-              (ohneWerte ? ' Die Wertelisten konnten nicht geladen werden — ' +
-                           'Auswahl-Merkmale stehen darin als «Text».' : ''),
+    setStatus(K.t('export.done', {
+                types: K.zahl(objekte.length) + ' ' +
+                       K.plural(objekte.length, K.t('unit.type'), K.t('unit.types')),
+                attrs: K.zahl(merkmalZeilen.length)
+              }) + (ohneWerte ? ' ' + K.t('export.doneNoValues') : ''),
               ohneWerte);
   }
 
@@ -1558,15 +1596,34 @@ var KBOB = window.KBOB || (window.KBOB = {});
   function exportiereExcel() {
     var st = K.state;
 
-    if (st.objekttyp && st.detail[st.objekttyp]) {
+    /* Auf der Objekttyp-Ebene wird genau dieser Objekttyp exportiert —
+       fehlt sein Detail noch, wird es erst geholt, statt still in den
+       Gesamtkatalog-Zweig zu fallen. */
+    if (st.objekttyp) {
       var e = objekttypVon(st.objekttyp);
-      speichereMappe([e], 'kbob-' + K.dateiname(e.name) + '.xlsx');
+      if (!e) return;
+      if (st.detail[e.uri]) {
+        speichereMappe([e], 'kbob-' + K.dateiname(e.name) + '.xlsx');
+        return;
+      }
+      el.csv.disabled = true;
+      busy(true, K.t('loading.attrsOf', { name: e.name }));
+      var genTyp = st.generation;
+      K.holeDetail(verbindung(), e.uri).then(function () {
+        el.csv.disabled = false;
+        if (genTyp !== st.generation) return;
+        speichereMappe([e], 'kbob-' + K.dateiname(e.name) + '.xlsx');
+      }).catch(function (err) {
+        el.csv.disabled = false;
+        if (genTyp !== st.generation) return;
+        setStatus(K.t('export.abort', { err: fehlerText(err) }), true);
+      });
       return;
     }
 
     var auswahl = sichtbareObjekttypen();
     if (!auswahl.length) {
-      setStatus('Die Auswahl ist leer — es gibt nichts zu speichern.', true);
+      setStatus(K.t('export.empty'), true);
       return;
     }
 
@@ -1577,20 +1634,20 @@ var KBOB = window.KBOB || (window.KBOB = {});
     }
 
     el.csv.disabled = true;
-    busy(true, 'Alle Merkmale werden für den Export geladen …');
+    busy(true, K.t('export.loading'));
     var gen = st.generation;
 
     K.holeAlleDetails(verbindung()).then(function () {
       el.csv.disabled = false;
       if (gen !== st.generation) {
-        setStatus('Export abgebrochen — der Katalog wurde inzwischen neu geladen.', true);
+        setStatus(K.t('export.abortReload'), true);
         return;
       }
       speichereMappe(auswahl, 'kbob-' + K.dateiname('data-dictionary') + '.xlsx');
     }).catch(function (err) {
       el.csv.disabled = false;
       if (gen !== st.generation) return;
-      setStatus('Export abgebrochen: ' + fehlerText(err), true);
+      setStatus(K.t('export.abort', { err: fehlerText(err) }), true);
     });
   }
 
@@ -1622,9 +1679,6 @@ var KBOB = window.KBOB || (window.KBOB = {});
        ein Byte-Replace auf dem value-Attribut (siehe lindas-proxy.py). */
     if (window.KBOB_PROXY) el.endpoint.value = window.KBOB_PROXY;
 
-    el.csv.title = 'Exportiert die sichtbare Auswahl als Excel-Arbeitsmappe (XLSX) — ' +
-                   'Objekttypen, Merkmale und Quellenangaben als Tabellenblätter';
-
     el.neuladen.addEventListener('click', laden);
 
     el.zurueck.addEventListener('click', function () {
@@ -1636,6 +1690,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
        neue Abfragen — der Katalog wird neu geladen. */
     el.sprache.addEventListener('change', function () {
       K.state.sprache = el.sprache.value;
+      K.uebersetzeStatisch();
       inUrl();
       laden();
     });
@@ -1658,12 +1713,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
     document.getElementById('copy-query').addEventListener('click', function () {
       var ta = document.getElementById('query-text');
       function ok() {
-        el['copy-status'].textContent = 'Abfrage kopiert.';
+        el['copy-status'].textContent = K.t('connection.copied');
         setTimeout(function () { el['copy-status'].textContent = ''; }, 4000);
       }
       function fehl() {
-        el['copy-status'].textContent =
-          'Kopieren nicht möglich — den Text markieren und mit Ctrl+C kopieren.';
+        el['copy-status'].textContent = K.t('connection.copyFailed');
       }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(ta.value).then(ok, fehl);
@@ -1719,7 +1773,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
       });
     });
 
-    window.addEventListener('popstate', function () { ausUrl(); zeichne(); });
+    window.addEventListener('popstate', function () {
+      if (!ausUrl()) zeichne();   // bei Sprachwechsel zeichnet laden() selbst
+    });
 
     /* Oblique-Layoutzustand: oberhalb 905px expanded (grosses Logo,
        Kopf einzeilig), darunter collapsed + mobile Token-Dichte —
@@ -1766,6 +1822,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
        sie bestimmt bereits die Übersichtsabfrage. */
     var l = /[#&]l=(de|fr|it|en)(&|$)/.exec(location.hash);
     if (l) { K.state.sprache = l[1]; el.sprache.value = l[1]; }
+
+    /* Statische Beschriftungen, sobald das Wörterbuch da ist */
+    K.i18nBereit.then(K.uebersetzeStatisch);
   }
 
   verdrahten();

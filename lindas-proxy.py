@@ -106,17 +106,28 @@ class Handler(BaseHTTPRequestHandler):
                 return
             with open(FRONTEND, "rb") as fh:
                 html = fh.read()
-            # Endpunkt per Marker mitgeben statt per Byte-Replace auf dem
-            # value-Attribut: das uebersteht jede Aenderung am Formular.
-            # app.js liest window.KBOB_PROXY in verdrahten().
+            # Endpunkt per Marker mitgeben. Als EXTERNES Skript, nicht
+            # inline: die CSP der Seite (script-src 'self') liesse ein
+            # Inline-Skript nicht ausfuehren. app.js liest
+            # window.KBOB_PROXY in verdrahten(); die Datei existiert nur
+            # virtuell in diesem Proxy (siehe unten).
             html = html.replace(
                 b"</head>",
-                b"<script>window.KBOB_PROXY='/query'</script></head>")
+                b'<script src="js/proxy-config.js"></script></head>')
             self._send(200, "text/html; charset=utf-8", html)
             return
 
+        # Virtuelle Konfigurationsdatei: nur der Proxy kennt sie. Ein
+        # statischer Server liefert sie nie aus, weil index.html den Tag
+        # nur in der Proxy-Fassung traegt.
+        if path == "/js/proxy-config.js":
+            self._send(200, "application/javascript; charset=utf-8",
+                       "window.KBOB_PROXY='/query';\n")
+            return
+
         # Statische Dateien aus css/, js/ und assets/ (Fonts, Icons)
-        if path.startswith("/css/") or path.startswith("/js/") or path.startswith("/assets/"):
+        if (path.startswith("/css/") or path.startswith("/js/")
+                or path.startswith("/assets/") or path.startswith("/data/")):
             self._statisch(path)
             return
 
@@ -142,7 +153,7 @@ class Handler(BaseHTTPRequestHandler):
         """Liefert eine Datei aus css/, js/ oder assets/ neben diesem Skript."""
         ziel = os.path.normpath(os.path.join(HERE, path.lstrip("/")))
         # Nur genau diese Ordner, damit ".." nicht heraus fuehrt
-        erlaubt = [os.path.join(HERE, o) + os.sep for o in ("css", "js", "assets")]
+        erlaubt = [os.path.join(HERE, o) + os.sep for o in ("css", "js", "assets", "data")]
         if not any(ziel.startswith(o) for o in erlaubt) or not os.path.isfile(ziel):
             self._send(404, "text/plain; charset=utf-8", "Nicht gefunden")
             return
@@ -150,7 +161,8 @@ class Handler(BaseHTTPRequestHandler):
                  ".js": "application/javascript; charset=utf-8",
                  ".svg": "image/svg+xml",
                  ".woff2": "font/woff2",
-                 ".png": "image/png"}
+                 ".png": "image/png",
+                 ".json": "application/json; charset=utf-8"}
         endung = os.path.splitext(ziel)[1]
         typ = typen.get(endung, "application/octet-stream")
         with open(ziel, "rb") as fh:

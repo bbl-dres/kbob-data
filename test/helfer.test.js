@@ -11,13 +11,43 @@ var test = require('node:test');
 var assert = require('node:assert');
 
 global.window = globalThis;
+/* i18n.js holt data/i18n.json per fetch — im Test kommt die echte Datei
+   über einen Stub, damit K.t gegen den realen Bestand prüfbar ist. */
+var fs = require('node:fs');
+var pfad = require('node:path');
+global.fetch = function () {
+  var json = JSON.parse(fs.readFileSync(pfad.join(__dirname, '..', 'data', 'i18n.json'), 'utf8'));
+  return Promise.resolve({ json: function () { return Promise.resolve(json); } });
+};
 require('../js/data.js');
 require('../js/export.js');
+require('../js/i18n.js');
 var K = globalThis.KBOB;
 
 /* uebernehmeDetail liest K.state — minimaler Zustand genügt */
 K.state = { werte: {}, werteGeladen: false, detail: {}, detailOhneWerte: {},
             elemente: [], generation: 1 };
+
+test('K.t: Sprachkette, Platzhalter, MISSING-Markierung', async function () {
+  await K.i18nBereit;
+  K.state.sprache = 'fr';
+  assert.strictEqual(K.t('common.close'), 'Fermer');
+  assert.strictEqual(K.t('paginator.pageOf', { seite: 2, seiten: 5 }), 'Page 2 sur 5');
+  K.state.sprache = 'de';
+  assert.strictEqual(K.t('common.close'), 'Schliessen');
+  assert.strictEqual(K.t('gibt.es.nicht'), 'MISSING gibt.es.nicht');
+});
+
+test('i18n.json: jeder Schlüssel führt alle vier Sprachen', function () {
+  var json = JSON.parse(require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'data', 'i18n.json'), 'utf8'));
+  Object.keys(json).forEach(function (schluessel) {
+    if (schluessel.charAt(0) === '_') return;
+    ['de', 'fr', 'it', 'en'].forEach(function (lang) {
+      assert.ok(json[schluessel][lang], schluessel + ' ohne ' + lang);
+    });
+  });
+});
 
 test('crc32: bekannter Prüfwert der ZIP-Spezifikation', function () {
   var bytes = Buffer.from('123456789', 'ascii');

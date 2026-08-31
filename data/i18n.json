@@ -1,0 +1,693 @@
+{
+  "_hinweis": "Frontend-Tokens der Oberfläche. Kette: gewählte Sprache → de; fehlt der Schlüssel ganz, erscheint MISSING. Katalog-Inhalte kommen aus SPARQL.",
+
+  "type.select": { "de": "Auswahl", "fr": "Choix", "it": "Scelta", "en": "Selection" },
+  "type.text": { "de": "Text", "fr": "Texte", "it": "Testo", "en": "Text" },
+  "type.number": { "de": "Zahl", "fr": "Nombre", "it": "Numero", "en": "Number" },
+  "type.integer": { "de": "Ganzzahl", "fr": "Nombre entier", "it": "Numero intero", "en": "Integer" },
+  "type.boolean": { "de": "Ja/Nein", "fr": "Oui/non", "it": "Sì/no", "en": "Yes/no" },
+  "type.datetime": { "de": "Datum/Zeit", "fr": "Date/heure", "it": "Data/ora", "en": "Date/time" },
+
+  "common.missing": { "de": "MISSING", "fr": "MISSING", "it": "MISSING", "en": "MISSING" },
+  "common.ofTotal": { "de": "von {total}", "fr": "sur {total}", "it": "di {total}", "en": "of {total}" },
+  "values.more": { "de": "+{n} weitere", "fr": "+{n} autres", "it": "+{n} altri", "en": "+{n} more" },
+  "empty.catalog": {
+    "de": "Ohne Katalogangabe", "fr": "Sans indication de catalogue",
+    "it": "Senza indicazione di catalogo", "en": "No catalogue given"
+  },
+  "empty.psetName": {
+    "de": "Ohne Property Set", "fr": "Sans property set",
+    "it": "Senza property set", "en": "No property set"
+  },
+  "footer.links": { "de": "Links", "fr": "Liens", "it": "Link", "en": "Links" },
+  "a11y.accessKeys": { "de": "Accesskeys", "fr": "Touches d'accès", "it": "Tasti di accesso", "en": "Access keys" },
+
+  "a11y.skip": {
+    "de": "Zum Hauptinhalt springen",
+    "fr": "Aller au contenu principal",
+    "it": "Vai al contenuto principale",
+    "en": "Skip to main content"
+  },
+  "a11y.serviceNav": {
+    "de": "Service-Navigation",
+    "fr": "Navigation de service",
+    "it": "Navigazione di servizio",
+    "en": "Service navigation"
+  },
+  "a11y.breadcrumb": {
+    "de": "Pfad",
+    "fr": "Fil d'Ariane",
+    "it": "Percorso",
+    "en": "Breadcrumb"
+  },
+  "a11y.toTop": {
+    "de": "Zum Seitenanfang",
+    "fr": "Haut de page",
+    "it": "Inizio pagina",
+    "en": "Back to top"
+  },
+  "a11y.logoAlt": {
+    "de": "Logo Schweizerische Eidgenossenschaft, zur Startseite der Applikation",
+    "fr": "Logo de la Confédération suisse, vers la page d'accueil de l'application",
+    "it": "Logo della Confederazione Svizzera, alla pagina iniziale dell'applicazione",
+    "en": "Logo of the Swiss Confederation, to the application start page"
+  },
+
+  "language.label": {
+    "de": "Sprache der Katalogbeschriftungen",
+    "fr": "Langue des libellés du catalogue",
+    "it": "Lingua delle etichette del catalogo",
+    "en": "Language of catalogue labels"
+  },
+
+  "connection.title": {
+    "de": "Verbindung und Abfrage",
+    "fr": "Connexion et requête",
+    "it": "Connessione e query",
+    "en": "Connection and query"
+  },
+  "connection.endpoint": {
+    "de": "SPARQL-Endpunkt",
+    "fr": "Point d'accès SPARQL",
+    "it": "Endpoint SPARQL",
+    "en": "SPARQL endpoint"
+  },
+  "connection.graph": {
+    "de": "Named Graph",
+    "fr": "Graphe nommé",
+    "it": "Named graph",
+    "en": "Named graph"
+  },
+  "connection.reload": {
+    "de": "Neu laden",
+    "fr": "Recharger",
+    "it": "Ricarica",
+    "en": "Reload"
+  },
+  "connection.queries": {
+    "de": "Abfragen",
+    "fr": "Requêtes",
+    "it": "Query",
+    "en": "Queries"
+  },
+  "connection.tabOverview": {
+    "de": "Übersicht",
+    "fr": "Vue d'ensemble",
+    "it": "Panoramica",
+    "en": "Overview"
+  },
+  "connection.tabDetail": {
+    "de": "Merkmale eines Objekttyps",
+    "fr": "Attributs d'un type d'objet",
+    "it": "Attributi di un tipo di oggetto",
+    "en": "Attributes of an object type"
+  },
+  "connection.tabValues": {
+    "de": "Zulässige Werte",
+    "fr": "Valeurs admises",
+    "it": "Valori ammessi",
+    "en": "Permitted values"
+  },
+  "connection.queryText": {
+    "de": "SPARQL-Abfrage",
+    "fr": "Requête SPARQL",
+    "it": "Query SPARQL",
+    "en": "SPARQL query"
+  },
+  "connection.copy": {
+    "de": "In die Zwischenablage kopieren",
+    "fr": "Copier dans le presse-papiers",
+    "it": "Copia negli appunti",
+    "en": "Copy to clipboard"
+  },
+  "connection.copied": {
+    "de": "Abfrage kopiert.",
+    "fr": "Requête copiée.",
+    "it": "Query copiata.",
+    "en": "Query copied."
+  },
+  "connection.copyFailed": {
+    "de": "Kopieren nicht möglich — den Text markieren und mit Ctrl+C kopieren.",
+    "fr": "Copie impossible — sélectionner le texte et copier avec Ctrl+C.",
+    "it": "Copia non riuscita — selezionare il testo e copiare con Ctrl+C.",
+    "en": "Copying failed — select the text and copy with Ctrl+C."
+  },
+  "common.close": {
+    "de": "Schliessen",
+    "fr": "Fermer",
+    "it": "Chiudi",
+    "en": "Close"
+  },
+  "common.back": {
+    "de": "Zurück",
+    "fr": "Retour",
+    "it": "Indietro",
+    "en": "Back"
+  },
+  "common.backTo": {
+    "de": "Zurück zu {name}",
+    "fr": "Retour à {name}",
+    "it": "Torna a {name}",
+    "en": "Back to {name}"
+  },
+  "common.retry": {
+    "de": "Erneut versuchen",
+    "fr": "Réessayer",
+    "it": "Riprova",
+    "en": "Try again"
+  },
+  "common.noResults": {
+    "de": "Kein Treffer für diese Filter.",
+    "fr": "Aucun résultat pour ces filtres.",
+    "it": "Nessun risultato per questi filtri.",
+    "en": "No results for these filters."
+  },
+  "common.nOfTotal": {
+    "de": "{n} von {total}",
+    "fr": "{n} sur {total}",
+    "it": "{n} di {total}",
+    "en": "{n} of {total}"
+  },
+
+  "export.button": {
+    "de": "Als Excel exportieren",
+    "fr": "Exporter vers Excel",
+    "it": "Esporta in Excel",
+    "en": "Export to Excel"
+  },
+  "export.tooltip": {
+    "de": "Exportiert die sichtbare Auswahl als Excel-Arbeitsmappe (XLSX) — Objekttypen, Merkmale und Quellenangaben als Tabellenblätter",
+    "fr": "Exporte la sélection visible en classeur Excel (XLSX) — types d'objets, attributs et informations sur la source en feuilles séparées",
+    "it": "Esporta la selezione visibile come cartella di lavoro Excel (XLSX) — tipi di oggetti, attributi e informazioni sulla fonte in fogli separati",
+    "en": "Exports the visible selection as an Excel workbook (XLSX) — object types, attributes and source information as separate sheets"
+  },
+  "export.sheetTypes": {
+    "de": "Objekttypen", "fr": "Types d'objets", "it": "Tipi di oggetti", "en": "Object types"
+  },
+  "export.sheetAttrs": {
+    "de": "Merkmale", "fr": "Attributs", "it": "Attributi", "en": "Attributes"
+  },
+  "export.sheetInfo": {
+    "de": "Info", "fr": "Info", "it": "Info", "en": "Info"
+  },
+  "export.key": { "de": "Angabe", "fr": "Élément", "it": "Voce", "en": "Item" },
+  "export.value": { "de": "Wert", "fr": "Valeur", "it": "Valore", "en": "Value" },
+  "export.source": {
+    "de": "Quelle", "fr": "Source", "it": "Fonte", "en": "Source"
+  },
+  "export.sourceValue": {
+    "de": "KBOB Data Dictionary über LINDAS",
+    "fr": "KBOB Data Dictionary via LINDAS",
+    "it": "KBOB Data Dictionary tramite LINDAS",
+    "en": "KBOB Data Dictionary via LINDAS"
+  },
+  "export.language": {
+    "de": "Sprache der Beschriftungen",
+    "fr": "Langue des libellés",
+    "it": "Lingua delle etichette",
+    "en": "Language of labels"
+  },
+  "export.date": {
+    "de": "Exportiert am", "fr": "Exporté le", "it": "Esportato il", "en": "Exported on"
+  },
+  "export.filterSearch": {
+    "de": "Filter: Suche", "fr": "Filtre : recherche", "it": "Filtro: ricerca", "en": "Filter: search"
+  },
+  "export.filterCatalog": {
+    "de": "Filter: Katalog", "fr": "Filtre : catalogue", "it": "Filtro: catalogo", "en": "Filter: catalogue"
+  },
+  "export.filterStatus": {
+    "de": "Filter: Reifegrad", "fr": "Filtre : maturité", "it": "Filtro: maturità", "en": "Filter: maturity"
+  },
+  "export.filterMilestone": {
+    "de": "Filter: LOIN-Meilenstein", "fr": "Filtre : jalon LOIN", "it": "Filtro: milestone LOIN", "en": "Filter: LOIN milestone"
+  },
+  "export.app": {
+    "de": "Anwendung", "fr": "Application", "it": "Applicazione", "en": "Application"
+  },
+  "export.done": {
+    "de": "{types} mit {attrs} Merkmalen als Excel-Arbeitsmappe gespeichert.",
+    "fr": "{types} avec {attrs} attributs enregistrés en classeur Excel.",
+    "it": "{types} con {attrs} attributi salvati come cartella Excel.",
+    "en": "{types} with {attrs} attributes saved as an Excel workbook."
+  },
+  "export.doneNoValues": {
+    "de": "Die Wertelisten konnten nicht geladen werden — Auswahl-Merkmale stehen darin als «Text».",
+    "fr": "Les listes de valeurs n'ont pas pu être chargées — les attributs à choix y figurent comme « texte ».",
+    "it": "Impossibile caricare gli elenchi di valori — gli attributi a scelta vi figurano come «testo».",
+    "en": "The value lists could not be loaded — selection attributes appear as “text”."
+  },
+  "export.empty": {
+    "de": "Die Auswahl ist leer — es gibt nichts zu speichern.",
+    "fr": "La sélection est vide — rien à enregistrer.",
+    "it": "La selezione è vuota — niente da salvare.",
+    "en": "The selection is empty — nothing to save."
+  },
+  "export.loading": {
+    "de": "Alle Merkmale werden für den Export geladen …",
+    "fr": "Chargement de tous les attributs pour l'export…",
+    "it": "Caricamento di tutti gli attributi per l'esportazione…",
+    "en": "Loading all attributes for the export…"
+  },
+  "export.abortReload": {
+    "de": "Export abgebrochen — der Katalog wurde inzwischen neu geladen.",
+    "fr": "Export interrompu — le catalogue a été rechargé entre-temps.",
+    "it": "Esportazione interrotta — il catalogo è stato ricaricato nel frattempo.",
+    "en": "Export cancelled — the catalogue was reloaded in the meantime."
+  },
+  "export.abort": {
+    "de": "Export abgebrochen: {err}",
+    "fr": "Export interrompu : {err}",
+    "it": "Esportazione interrotta: {err}",
+    "en": "Export cancelled: {err}"
+  },
+
+  "footer.accessibility": {
+    "de": "Barrierefreiheit", "fr": "Accessibilité", "it": "Accessibilità", "en": "Accessibility"
+  },
+  "footer.i14y": {
+    "de": "KBOB Data Dictionary auf I14Y",
+    "fr": "KBOB Data Dictionary sur I14Y",
+    "it": "KBOB Data Dictionary su I14Y",
+    "en": "KBOB Data Dictionary on I14Y"
+  },
+  "footer.github": {
+    "de": "KBOB auf GitHub", "fr": "KBOB sur GitHub", "it": "KBOB su GitHub", "en": "KBOB on GitHub"
+  },
+  "footer.cd": {
+    "de": "CD Design", "fr": "CD Design", "it": "CD Design", "en": "CD Design"
+  },
+  "footer.source": {
+    "de": "Quellcode dieser Anwendung",
+    "fr": "Code source de cette application",
+    "it": "Codice sorgente di questa applicazione",
+    "en": "Source code of this application"
+  },
+
+  "search.label": {
+    "de": "Suche", "fr": "Recherche", "it": "Ricerca", "en": "Search"
+  },
+  "search.clear": {
+    "de": "Suche löschen", "fr": "Effacer la recherche", "it": "Cancella la ricerca", "en": "Clear search"
+  },
+  "search.phOverview": {
+    "de": "Objekttyp oder Beschreibung",
+    "fr": "Type d'objet ou description",
+    "it": "Tipo di oggetto o descrizione",
+    "en": "Object type or description"
+  },
+  "search.phType": {
+    "de": "Merkmal oder Property Set",
+    "fr": "Attribut ou property set",
+    "it": "Attributo o property set",
+    "en": "Attribute or property set"
+  },
+
+  "facets.catalog": {
+    "de": "Katalog", "fr": "Catalogue", "it": "Catalogo", "en": "Catalogue"
+  },
+  "facets.status": {
+    "de": "Reifegrad", "fr": "Maturité", "it": "Maturità", "en": "Maturity"
+  },
+  "facets.milestone": {
+    "de": "LOIN-Meilenstein", "fr": "Jalon LOIN", "it": "Milestone LOIN", "en": "LOIN milestone"
+  },
+  "facets.selectedCount": {
+    "de": "{titel}, {n} gewählt",
+    "fr": "{titel}, {n} sélectionné(s)",
+    "it": "{titel}, {n} selezionati",
+    "en": "{titel}, {n} selected"
+  },
+  "facets.clear": {
+    "de": "Auswahl aufheben", "fr": "Effacer la sélection", "it": "Annulla la selezione", "en": "Clear selection"
+  },
+  "chips.remove": {
+    "de": "Filter entfernen: {art} {wert}",
+    "fr": "Retirer le filtre : {art} {wert}",
+    "it": "Rimuovi il filtro: {art} {wert}",
+    "en": "Remove filter: {art} {wert}"
+  },
+  "chips.reset": {
+    "de": "Alle Filter zurücksetzen",
+    "fr": "Réinitialiser tous les filtres",
+    "it": "Reimposta tutti i filtri",
+    "en": "Reset all filters"
+  },
+
+  "views.list": { "de": "Liste", "fr": "Liste", "it": "Elenco", "en": "List" },
+  "views.gallery": { "de": "Galerie", "fr": "Galerie", "it": "Galleria", "en": "Gallery" },
+  "views.graph": { "de": "Graph", "fr": "Graphe", "it": "Grafo", "en": "Graph" },
+  "views.group": { "de": "Ansicht", "fr": "Affichage", "it": "Vista", "en": "View" },
+
+  "overview.title": {
+    "de": "Objekttypen", "fr": "Types d'objets", "it": "Tipi di oggetti", "en": "Object types"
+  },
+  "overview.lead": {
+    "de": "Jeder Objekttyp führt die Merkmale, die der Katalog für ihn vorsieht — mit Datentyp, Einheit beziehungsweise zulässigen Werten und Property Set.",
+    "fr": "Chaque type d'objet répertorie les attributs prévus par le catalogue — avec type de données, unité ou valeurs admises et property set.",
+    "it": "Ogni tipo di oggetto elenca gli attributi previsti dal catalogo — con tipo di dati, unità o valori ammessi e property set.",
+    "en": "Each object type lists the attributes the catalogue defines for it — with data type, unit or permitted values, and property set."
+  },
+  "unit.type": { "de": "Objekttyp", "fr": "type d'objet", "it": "tipo di oggetto", "en": "object type" },
+  "unit.types": { "de": "Objekttypen", "fr": "types d'objets", "it": "tipi di oggetti", "en": "object types" },
+  "unit.attr": { "de": "Merkmal", "fr": "attribut", "it": "attributo", "en": "attribute" },
+  "unit.attrs": { "de": "Merkmale", "fr": "attributs", "it": "attributi", "en": "attributes" },
+  "unit.catalog": { "de": "Katalog", "fr": "catalogue", "it": "catalogo", "en": "catalogue" },
+  "unit.catalogs": { "de": "Kataloge", "fr": "catalogues", "it": "cataloghi", "en": "catalogues" },
+  "unit.pset": { "de": "Property Set", "fr": "property set", "it": "property set", "en": "property set" },
+  "unit.psets": { "de": "Property Sets", "fr": "property sets", "it": "property set", "en": "property sets" },
+  "unit.entry": { "de": "Eintrag", "fr": "entrée", "it": "voce", "en": "entry" },
+  "unit.entries": { "de": "Einträge", "fr": "entrées", "it": "voci", "en": "entries" },
+
+  "col.type": { "de": "Objekttyp", "fr": "Type d'objet", "it": "Tipo di oggetto", "en": "Object type" },
+  "col.description": { "de": "Beschreibung", "fr": "Description", "it": "Descrizione", "en": "Description" },
+  "col.attrs": { "de": "Merkmale", "fr": "Attributs", "it": "Attributi", "en": "Attributes" },
+  "col.attr": { "de": "Merkmal", "fr": "Attribut", "it": "Attributo", "en": "Attribute" },
+  "col.status": { "de": "Reifegrad", "fr": "Maturité", "it": "Maturità", "en": "Maturity" },
+  "col.milestone": { "de": "LOIN-Meilenstein", "fr": "Jalon LOIN", "it": "Milestone LOIN", "en": "LOIN milestone" },
+  "col.catalog": { "de": "Katalog", "fr": "Catalogue", "it": "Catalogo", "en": "Catalogue" },
+  "col.pset": { "de": "Property Set", "fr": "Property set", "it": "Property set", "en": "Property set" },
+  "col.datatype": { "de": "Datentyp", "fr": "Type de données", "it": "Tipo di dati", "en": "Data type" },
+  "col.datatypeRaw": { "de": "Datentyp (Katalog)", "fr": "Type de données (catalogue)", "it": "Tipo di dati (catalogo)", "en": "Data type (catalogue)" },
+  "col.unitValues": { "de": "Einheit / Zulässige Werte", "fr": "Unité / valeurs admises", "it": "Unità / valori ammessi", "en": "Unit / permitted values" },
+  "col.unit": { "de": "Einheit", "fr": "Unité", "it": "Unità", "en": "Unit" },
+  "col.values": { "de": "Zulässige Werte", "fr": "Valeurs admises", "it": "Valori ammessi", "en": "Permitted values" },
+  "col.attrCount": { "de": "Anzahl Merkmale", "fr": "Nombre d'attributs", "it": "Numero di attributi", "en": "Number of attributes" },
+  "col.psets": { "de": "Property Sets", "fr": "Property sets", "it": "Property set", "en": "Property sets" },
+  "col.milestones": { "de": "LOIN-Meilensteine", "fr": "Jalons LOIN", "it": "Milestone LOIN", "en": "LOIN milestones" },
+  "col.typeUri": { "de": "Objekttyp-URI", "fr": "URI du type d'objet", "it": "URI del tipo di oggetto", "en": "Object type URI" },
+  "col.attrUri": { "de": "Merkmal-URI", "fr": "URI de l'attribut", "it": "URI dell'attributo", "en": "Attribute URI" },
+  "col.ifcPset": { "de": "IFC-Property-Set", "fr": "Property set IFC", "it": "Property set IFC", "en": "IFC property set" },
+  "col.ifcType": { "de": "IFC-Datentyp", "fr": "Type de données IFC", "it": "Tipo di dati IFC", "en": "IFC data type" },
+
+  "table.captionOverview": {
+    "de": "Objekttypen im Katalog",
+    "fr": "Types d'objets du catalogue",
+    "it": "Tipi di oggetti del catalogo",
+    "en": "Object types in the catalogue"
+  },
+  "table.captionType": {
+    "de": "Merkmale von {name}",
+    "fr": "Attributs de {name}",
+    "it": "Attributi di {name}",
+    "en": "Attributes of {name}"
+  },
+  "table.region": {
+    "de": "Tabelle — auf schmalen Fenstern seitlich scrollbar",
+    "fr": "Tableau — défilement latéral sur fenêtres étroites",
+    "it": "Tabella — scorrimento laterale su finestre strette",
+    "en": "Table — scrolls sideways in narrow windows"
+  },
+
+  "paginator.label": { "de": "Blättern", "fr": "Pagination", "it": "Paginazione", "en": "Pagination" },
+  "paginator.pageOf": {
+    "de": "Seite {seite} von {seiten}",
+    "fr": "Page {seite} sur {seiten}",
+    "it": "Pagina {seite} di {seiten}",
+    "en": "Page {seite} of {seiten}"
+  },
+  "paginator.first": { "de": "Erste Seite", "fr": "Première page", "it": "Prima pagina", "en": "First page" },
+  "paginator.prev": { "de": "Vorherige Seite", "fr": "Page précédente", "it": "Pagina precedente", "en": "Previous page" },
+  "paginator.next": { "de": "Nächste Seite", "fr": "Page suivante", "it": "Pagina successiva", "en": "Next page" },
+  "paginator.last": { "de": "Letzte Seite", "fr": "Dernière page", "it": "Ultima pagina", "en": "Last page" },
+  "paginator.perPage": {
+    "de": "Einträge pro Seite", "fr": "Entrées par page", "it": "Voci per pagina", "en": "Entries per page"
+  },
+  "paginator.range": {
+    "de": "{von}–{bis} von {gesamt}",
+    "fr": "{von}–{bis} sur {gesamt}",
+    "it": "{von}–{bis} di {gesamt}",
+    "en": "{von}–{bis} of {gesamt}"
+  },
+
+  "status.candidate": {
+    "de": "Kandidat — vorgeschlagen, noch nicht verabschiedet",
+    "fr": "Candidat — proposé, pas encore adopté",
+    "it": "Candidato — proposto, non ancora adottato",
+    "en": "Candidate — proposed, not yet adopted"
+  },
+  "status.preview": {
+    "de": "Vorschau — noch in Erarbeitung",
+    "fr": "Aperçu — encore en cours d'élaboration",
+    "it": "Anteprima — ancora in elaborazione",
+    "en": "Preview — still being drafted"
+  },
+
+  "empty.description": { "de": "ohne Beschreibung", "fr": "sans description", "it": "senza descrizione", "en": "no description" },
+  "empty.status": { "de": "ohne Reifegrad", "fr": "sans maturité", "it": "senza maturità", "en": "no maturity" },
+  "empty.type": { "de": "ohne Typangabe", "fr": "sans type de données", "it": "senza tipo di dati", "en": "no data type" },
+  "empty.unit": { "de": "ohne Einheit", "fr": "sans unité", "it": "senza unità", "en": "no unit" },
+  "empty.unitValues": {
+    "de": "ohne Einheit und ohne Werteliste",
+    "fr": "sans unité ni liste de valeurs",
+    "it": "senza unità né elenco di valori",
+    "en": "no unit and no value list"
+  },
+  "empty.milestone": { "de": "ohne LOIN-Meilenstein", "fr": "sans jalon LOIN", "it": "senza milestone LOIN", "en": "no LOIN milestone" },
+
+  "phases.label": { "de": "LOIN-Meilensteine: {liste}", "fr": "Jalons LOIN : {liste}", "it": "Milestone LOIN: {liste}", "en": "LOIN milestones: {liste}" },
+  "phases.none": { "de": "Ohne LOIN-Meilenstein", "fr": "Sans jalon LOIN", "it": "Senza milestone LOIN", "en": "No LOIN milestone" },
+  "phases.declared": { "de": "Deklariert: {liste}", "fr": "Déclarés : {liste}", "it": "Dichiarati: {liste}", "en": "Declared: {liste}" },
+  "phases.noneDeclared": { "de": "Kein Meilenstein deklariert", "fr": "Aucun jalon déclaré", "it": "Nessun milestone dichiarato", "en": "No milestone declared" },
+  "phases.yes": { "de": "{p} — deklariert", "fr": "{p} — déclaré", "it": "{p} — dichiarato", "en": "{p} — declared" },
+  "phases.no": { "de": "{p} — nicht deklariert", "fr": "{p} — non déclaré", "it": "{p} — non dichiarato", "en": "{p} — not declared" },
+
+  "values.count": {
+    "de": "{n} zulässige Werte: {werte}",
+    "fr": "{n} valeurs admises : {werte}",
+    "it": "{n} valori ammessi: {werte}",
+    "en": "{n} permitted values: {werte}"
+  },
+  "values.warning": {
+    "de": "Die Wertelisten konnten nicht geladen werden — Auswahl-Merkmale erscheinen vorerst als «Text».",
+    "fr": "Les listes de valeurs n'ont pas pu être chargées — les attributs à choix apparaissent pour l'instant comme « texte ».",
+    "it": "Impossibile caricare gli elenchi di valori — gli attributi a scelta appaiono per ora come «testo».",
+    "en": "The value lists could not be loaded — selection attributes appear as “text” for now."
+  },
+
+  "detail.general": {
+    "de": "Allgemeine Informationen", "fr": "Informations générales", "it": "Informazioni generali", "en": "General information"
+  },
+  "detail.typeUnit": {
+    "de": "Datentyp und Einheit", "fr": "Type de données et unité", "it": "Tipo di dati e unità", "en": "Data type and unit"
+  },
+  "detail.milestones": {
+    "de": "LOIN-Meilensteine (LZP)", "fr": "Jalons LOIN (LZP)", "it": "Milestone LOIN (LZP)", "en": "LOIN milestones (LZP)"
+  },
+  "detail.iri": { "de": "IRI (Permalink)", "fr": "IRI (permalien)", "it": "IRI (permalink)", "en": "IRI (permalink)" },
+  "detail.copyAria": {
+    "de": "IRI in die Zwischenablage kopieren",
+    "fr": "Copier l'IRI dans le presse-papiers",
+    "it": "Copia l'IRI negli appunti",
+    "en": "Copy IRI to clipboard"
+  },
+  "detail.copyTitle": { "de": "IRI kopieren", "fr": "Copier l'IRI", "it": "Copia IRI", "en": "Copy IRI" },
+  "detail.copied": { "de": "IRI kopiert.", "fr": "IRI copié.", "it": "IRI copiato.", "en": "IRI copied." },
+  "detail.copyFailed": {
+    "de": "Kopieren nicht möglich — die IRI von Hand markieren.",
+    "fr": "Copie impossible — sélectionner l'IRI à la main.",
+    "it": "Copia non riuscita — selezionare l'IRI manualmente.",
+    "en": "Copying failed — select the IRI manually."
+  },
+  "detail.noValues": {
+    "de": "Dieses Merkmal führt keine Werteliste — zulässig ist jeder Wert des Datentyps.",
+    "fr": "Cet attribut n'a pas de liste de valeurs — toute valeur du type de données est admise.",
+    "it": "Questo attributo non ha un elenco di valori — è ammesso qualsiasi valore del tipo di dati.",
+    "en": "This attribute has no value list — any value of the data type is permitted."
+  },
+  "detail.noMilestone": {
+    "de": "Kein Meilenstein deklariert.",
+    "fr": "Aucun jalon déclaré.",
+    "it": "Nessun milestone dichiarato.",
+    "en": "No milestone declared."
+  },
+
+  "loading.catalog": {
+    "de": "Katalog wird geladen …",
+    "fr": "Chargement du catalogue…",
+    "it": "Caricamento del catalogo…",
+    "en": "Loading the catalogue…"
+  },
+  "loading.attrs": {
+    "de": "Merkmale werden geladen …",
+    "fr": "Chargement des attributs…",
+    "it": "Caricamento degli attributi…",
+    "en": "Loading attributes…"
+  },
+  "loading.attrsOf": {
+    "de": "Merkmale von {name} werden geladen …",
+    "fr": "Chargement des attributs de {name}…",
+    "it": "Caricamento degli attributi di {name}…",
+    "en": "Loading attributes of {name}…"
+  },
+
+  "errors.fillConnection": {
+    "de": "Endpunkt und Graph ausfüllen.",
+    "fr": "Renseigner le point d'accès et le graphe.",
+    "it": "Compilare endpoint e graph.",
+    "en": "Fill in endpoint and graph."
+  },
+  "errors.loadFailed": {
+    "de": "Laden fehlgeschlagen.",
+    "fr": "Échec du chargement.",
+    "it": "Caricamento non riuscito.",
+    "en": "Loading failed."
+  },
+  "errors.catalogTitle": {
+    "de": "Der Katalog konnte nicht geladen werden",
+    "fr": "Le catalogue n'a pas pu être chargé",
+    "it": "Impossibile caricare il catalogo",
+    "en": "The catalogue could not be loaded"
+  },
+  "errors.emptyGraph": {
+    "de": "Der Graph {graph} enthält keine Objekttypen. Den Namen des Graphen unter «Verbindung und Abfrage» prüfen — möglicherweise ist der Graph noch nicht befüllt.",
+    "fr": "Le graphe {graph} ne contient aucun type d'objet. Vérifier le nom du graphe sous « Connexion et requête » — il n'est peut-être pas encore alimenté.",
+    "it": "Il graph {graph} non contiene tipi di oggetti. Verificare il nome del graph in «Connessione e query» — forse non è ancora popolato.",
+    "en": "Graph {graph} contains no object types. Check the graph name under “Connection and query” — it may not be populated yet."
+  },
+  "errors.network": {
+    "de": "Die Anwendung erreicht den Datenserver nicht. Die Verbindung prüfen und «Erneut versuchen» wählen; im Firmennetz kann ein VPN oder Proxy die Abfrage blockieren.",
+    "fr": "L'application n'atteint pas le serveur de données. Vérifier la connexion et choisir « Réessayer » ; sur un réseau d'entreprise, un VPN ou un proxy peut bloquer la requête.",
+    "it": "L'applicazione non raggiunge il server dei dati. Verificare la connessione e scegliere «Riprova»; in una rete aziendale un VPN o un proxy può bloccare la query.",
+    "en": "The application cannot reach the data server. Check the connection and choose “Try again”; on a corporate network a VPN or proxy may block the query."
+  },
+  "errors.file": {
+    "de": "Technischer Hintergrund: Direkt aus dem Dateisystem geöffnet blockiert der Browser die Abfrage (CORS). Abhilfe: lindas-proxy.py starten und http://localhost:8765 öffnen.",
+    "fr": "Contexte technique : ouvert directement depuis le système de fichiers, le navigateur bloque la requête (CORS). Solution : lancer lindas-proxy.py et ouvrir http://localhost:8765.",
+    "it": "Contesto tecnico: aperto direttamente dal file system, il browser blocca la query (CORS). Rimedio: avviare lindas-proxy.py e aprire http://localhost:8765.",
+    "en": "Technical background: opened directly from the file system, the browser blocks the query (CORS). Remedy: start lindas-proxy.py and open http://localhost:8765."
+  },
+  "errors.queryFailed": {
+    "de": "Die Abfrage ist fehlgeschlagen: {msg}",
+    "fr": "La requête a échoué : {msg}",
+    "it": "La query non è riuscita: {msg}",
+    "en": "The query failed: {msg}"
+  },
+  "errors.networkShort": {
+    "de": "Der Datenserver ist nicht erreichbar — Verbindung prüfen (VPN/Proxy).",
+    "fr": "Le serveur de données est inaccessible — vérifier la connexion (VPN/proxy).",
+    "it": "Il server dei dati non è raggiungibile — verificare la connessione (VPN/proxy).",
+    "en": "The data server is unreachable — check the connection (VPN/proxy)."
+  },
+  "errors.unknownType": {
+    "de": "Der verlinkte Eintrag existiert in diesem Katalog nicht.",
+    "fr": "L'entrée liée n'existe pas dans ce catalogue.",
+    "it": "La voce collegata non esiste in questo catalogo.",
+    "en": "The linked entry does not exist in this catalogue."
+  },
+  "errors.unknownAttr": {
+    "de": "Das verlinkte Merkmal existiert bei diesem Objekttyp nicht.",
+    "fr": "L'attribut lié n'existe pas pour ce type d'objet.",
+    "it": "L'attributo collegato non esiste per questo tipo di oggetto.",
+    "en": "The linked attribute does not exist for this object type."
+  },
+  "errors.attrsTitle": {
+    "de": "Die Merkmale konnten nicht geladen werden",
+    "fr": "Les attributs n'ont pas pu être chargés",
+    "it": "Impossibile caricare gli attributi",
+    "en": "The attributes could not be loaded"
+  },
+  "errors.attrsFailed": {
+    "de": "Merkmale konnten nicht geladen werden.",
+    "fr": "Les attributs n'ont pas pu être chargés.",
+    "it": "Impossibile caricare gli attributi.",
+    "en": "The attributes could not be loaded."
+  },
+  "errors.attrsLoadFailedMeta": {
+    "de": "Die Merkmale konnten nicht geladen werden.",
+    "fr": "Les attributs n'ont pas pu être chargés.",
+    "it": "Impossibile caricare gli attributi.",
+    "en": "The attributes could not be loaded."
+  },
+
+  "graph.zoomIn": { "de": "Vergrössern", "fr": "Agrandir", "it": "Ingrandisci", "en": "Zoom in" },
+  "graph.zoomOut": { "de": "Verkleinern", "fr": "Réduire", "it": "Riduci", "en": "Zoom out" },
+  "graph.reset": {
+    "de": "Ausschnitt zurücksetzen", "fr": "Réinitialiser la vue", "it": "Reimposta la vista", "en": "Reset view"
+  },
+  "graph.controls": {
+    "de": "Zoomen mit Ctrl + Mausrad oder +/−; Pfeiltasten verschieben, 0 setzt zurück (fokussierte Grafik).",
+    "fr": "Zoom avec Ctrl + molette ou +/− ; les flèches déplacent, 0 réinitialise (graphique focalisé).",
+    "it": "Zoom con Ctrl + rotellina o +/−; le frecce spostano, 0 reimposta (grafico focalizzato).",
+    "en": "Zoom with Ctrl + wheel or +/−; arrow keys pan, 0 resets (graph focused)."
+  },
+  "graph.emptyTitle": {
+    "de": "Kein Treffer für diese Filter",
+    "fr": "Aucun résultat pour ces filtres",
+    "it": "Nessun risultato per questi filtri",
+    "en": "No results for these filters"
+  },
+  "graph.emptyTypes": {
+    "de": "Die Auswahl enthält keine Objekttypen. Einen Filter entfernen oder den Suchbegriff ändern — die Chips über der Ansicht zeigen, was gerade eingrenzt.",
+    "fr": "La sélection ne contient aucun type d'objet. Retirer un filtre ou modifier la recherche — les chips au-dessus de la vue montrent ce qui restreint.",
+    "it": "La selezione non contiene tipi di oggetti. Rimuovere un filtro o modificare la ricerca — i chip sopra la vista mostrano cosa restringe.",
+    "en": "The selection contains no object types. Remove a filter or change the search — the chips above the view show what is narrowing it."
+  },
+  "graph.emptyAttrs": {
+    "de": "Die Auswahl enthält keine Merkmale. Einen Filter entfernen oder den Suchbegriff ändern.",
+    "fr": "La sélection ne contient aucun attribut. Retirer un filtre ou modifier la recherche.",
+    "it": "La selezione non contiene attributi. Rimuovere un filtro o modificare la ricerca.",
+    "en": "The selection contains no attributes. Remove a filter or change the search."
+  },
+  "graph.tooManyTitle": {
+    "de": "Zu viele Objekttypen für eine Netzdarstellung",
+    "fr": "Trop de types d'objets pour une vue en réseau",
+    "it": "Troppi tipi di oggetti per una vista a rete",
+    "en": "Too many object types for a network view"
+  },
+  "graph.tooMany": {
+    "de": "{n} Objekttypen ergeben ein unlesbares Knäuel. Die Auswahl über Katalog, Reifegrad oder die Suche auf höchstens {max} Objekttypen eingrenzen — dann erscheint das Netz. Die Liste zeigt die volle Auswahl.",
+    "fr": "{n} types d'objets forment un enchevêtrement illisible. Restreindre la sélection à {max} types au plus via catalogue, maturité ou recherche — le réseau apparaîtra. La liste montre la sélection complète.",
+    "it": "{n} tipi di oggetti formano un groviglio illeggibile. Restringere la selezione a al massimo {max} tipi tramite catalogo, maturità o ricerca — apparirà la rete. L'elenco mostra la selezione completa.",
+    "en": "{n} object types make an unreadable tangle. Narrow the selection to at most {max} types via catalogue, maturity or search — the network will appear. The list shows the full selection."
+  },
+  "graph.legendType": { "de": "Objekttyp", "fr": "Type d'objet", "it": "Tipo di oggetto", "en": "Object type" },
+  "graph.legendPset": { "de": "Property Set", "fr": "Property set", "it": "Property set", "en": "Property set" },
+  "graph.dotSize": {
+    "de": "Punktgrösse: Anzahl Merkmale",
+    "fr": "Taille du point : nombre d'attributs",
+    "it": "Dimensione del punto: numero di attributi",
+    "en": "Dot size: number of attributes"
+  },
+  "graph.highlighted": {
+    "de": "Hervorgehoben: {name}", "fr": "En évidence : {name}", "it": "In evidenza: {name}", "en": "Highlighted: {name}"
+  },
+  "graph.overviewHint": {
+    "de": "Objekttypen und die Property Sets, die sie teilen. Ein Objekttyp öffnet seine Merkmale, ein Property Set hebt seine Objekttypen hervor.",
+    "fr": "Types d'objets et property sets partagés. Un type d'objet ouvre ses attributs, un property set met ses types en évidence.",
+    "it": "Tipi di oggetti e property set condivisi. Un tipo di oggetto apre i suoi attributi, un property set evidenzia i suoi tipi.",
+    "en": "Object types and the property sets they share. An object type opens its attributes, a property set highlights its types."
+  },
+  "graph.docsHidden": {
+    "de": "Die {n} Dokumenttypen sind hier ausgeblendet (einheitliches Merkmalschema) — über die Katalog-Facette lassen sie sich gezielt zeigen.",
+    "fr": "Les {n} types de documents sont masqués ici (schéma d'attributs uniforme) — la facette catalogue permet de les afficher.",
+    "it": "I {n} tipi di documenti sono nascosti qui (schema di attributi uniforme) — la faccetta catalogo permette di mostrarli.",
+    "en": "The {n} document types are hidden here (uniform attribute schema) — the catalogue facet can show them."
+  },
+  "graph.typeHint": {
+    "de": "Die Merkmale von {name}, gruppiert nach Property Set. Ein Merkmal öffnet seine Angaben.",
+    "fr": "Les attributs de {name}, groupés par property set. Un attribut ouvre ses détails.",
+    "it": "Gli attributi di {name}, raggruppati per property set. Un attributo apre i suoi dettagli.",
+    "en": "The attributes of {name}, grouped by property set. An attribute opens its details."
+  },
+  "graph.contentTitle": {
+    "de": "Inhalt der Grafik", "fr": "Contenu du graphique", "it": "Contenuto del grafico", "en": "Content of the graph"
+  },
+  "graph.attrsOf": {
+    "de": "Merkmale von {name}", "fr": "Attributs de {name}", "it": "Attributi di {name}", "en": "Attributes of {name}"
+  },
+  "graph.open": { "de": "öffnen", "fr": "ouvrir", "it": "apri", "en": "open" },
+  "graph.highlight": { "de": "hervorheben", "fr": "mettre en évidence", "it": "evidenzia", "en": "highlight" },
+  "graph.psetIn": {
+    "de": "in {t} Objekttypen, {a} Merkmale",
+    "fr": "dans {t} types d'objets, {a} attributs",
+    "it": "in {t} tipi di oggetti, {a} attributi",
+    "en": "in {t} object types, {a} attributes"
+  },
+  "graph.psetVorlesen": {
+    "de": "Property Set {name}, in {t} Objekttypen, {a} Merkmale",
+    "fr": "Property set {name}, dans {t} types d'objets, {a} attributs",
+    "it": "Property set {name}, in {t} tipi di oggetti, {a} attributi",
+    "en": "Property set {name}, in {t} object types, {a} attributes"
+  }
+}

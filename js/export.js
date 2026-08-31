@@ -130,11 +130,21 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var c = s.charCodeAt(i);
       if (c < 0x80) out.push(c);
       else if (c < 0x800) out.push(0xC0 | (c >> 6), 0x80 | (c & 63));
-      else if (c >= 0xD800 && c <= 0xDBFF && i + 1 < s.length) {
-        var lo = s.charCodeAt(++i);
-        var cp = 0x10000 + ((c - 0xD800) << 10) + (lo - 0xDC00);
-        out.push(0xF0 | (cp >> 18), 0x80 | ((cp >> 12) & 63),
-                 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+      else if (c >= 0xD800 && c <= 0xDBFF) {
+        /* Nur ein GÜLTIGES Paar als 4-Byte-Zeichen; ein einsames Surrogat
+           würde ungültiges UTF-8 ergeben (Excel kann die Datei abweisen) —
+           es wird zu U+FFFD, ohne das Folgezeichen zu verschlucken. */
+        var lo = i + 1 < s.length ? s.charCodeAt(i + 1) : 0;
+        if (lo >= 0xDC00 && lo <= 0xDFFF) {
+          i++;
+          var cp = 0x10000 + ((c - 0xD800) << 10) + (lo - 0xDC00);
+          out.push(0xF0 | (cp >> 18), 0x80 | ((cp >> 12) & 63),
+                   0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+        } else {
+          out.push(0xEF, 0xBF, 0xBD);
+        }
+      } else if (c >= 0xDC00 && c <= 0xDFFF) {
+        out.push(0xEF, 0xBF, 0xBD);   // einsames Low-Surrogat
       } else {
         out.push(0xE0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
       }

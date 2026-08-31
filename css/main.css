@@ -476,20 +476,21 @@ input::placeholder { color: var(--ob-s3-color-neutral-fg-contrast_high-inversity
 input[type="search"] {
   padding-left: 44px; padding-right: 40px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232f4356' d='M21.53,20.46981l-7.89716-7.89819c.99512-1.23242,1.53778-2.75488,1.53778-4.36157,0-1.8584-.72363-3.60645-2.03809-4.9209s-3.0625-2.03906-4.92188-2.03906-3.60742.72461-4.92188,2.03906-2.03906,3.0625-2.03906,4.9209c0,1.85938.72461,3.60742,2.03906,4.92188s3.0625,2.03906,4.92188,2.03906c1.60681,0,3.12903-.54346,4.36163-1.53882l7.89716,7.89819,1.06055-1.06055ZM4.34933,12.07137c-1.03125-1.03125-1.59961-2.40234-1.59961-3.86133,0-1.45801.56836-2.8291,1.59961-3.86035s2.40234-1.59961,3.86133-1.59961c1.45801,0,2.83008.56836,3.86133,1.59961,2.12891,2.12891,2.12891,5.59277,0,7.72168-1.03125,1.03125-2.40332,1.59961-3.86133,1.59961-1.45898,0-2.83008-.56836-3.86133-1.59961Z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat; background-position: left 12px center;
-  background-size: var(--ob-h-link-icon-size);
+  background-repeat: no-repeat; background-position: left 10px center;
+  /* gleiche Icongroesse wie die Knopf-Icons daneben (1.5rem) */
+  background-size: var(--ob-h-button-icon-size);
 }
 input[type="search"]:hover, input[type="search"]:focus { padding-left: 43px; padding-right: 39px; }
 input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 .kbob-search-clear {
-  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-  width: 28px; height: 28px; padding: 0; border: 0; background: none;
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px; padding: 0; border: 0; background: none;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
   border-radius: var(--ob-s-border_radius-rounded); cursor: pointer;
 }
 .kbob-search-clear:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.kbob-search-clear .ob-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); }
+.kbob-search-clear .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
 
 
 /* Select in Oblique-Optik (Blaettern-Groesse, Facetten-Trigger nutzt Knopfrolle) */
@@ -922,7 +923,8 @@ dialog textarea {
 /* Facetten (Checkbox-Dropdown, Abweichung C9) */
 .kbob-facets { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 .kbob-facet { position: relative; }   /* Feld-Gerippe kommt von .kbob-field */
-.kbob-facet-toggle { min-width: 150px; justify-content: flex-start; font-weight: 400; gap: 8px; }
+/* 40px hoch wie das Suchfeld daneben — eine Zeilenhoehe in der Werkzeugleiste */
+.kbob-facet-toggle { min-width: 150px; min-height: 40px; justify-content: flex-start; font-weight: 400; gap: 8px; }
 .kbob-facet-toggle .kbob-facet-value { margin-right: auto; }
 .kbob-facet-toggle .kbob-facet-value.aktiv { font-weight: 700; }
 .kbob-facet-menu {
@@ -948,24 +950,16 @@ dialog textarea {
 .kbob-facet-option input { cursor: pointer; }
 .kbob-facet-footer { border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal); margin-top: 4px; padding-top: 8px; }
 
-/* Merkmal-Detail */
+/* Merkmal-Detail: Abschnitte im I14Y-Muster — H2, darunter fette
+   Beschriftung ueber schlichtem Wert, kein Kartenrahmen, keine Linien */
 .kbob-detail { max-width: 78ch; }
-dl.kbob-data { display: grid; grid-template-columns: 190px minmax(0, 1fr); margin: 0; }
-dl.kbob-data dt {
-  padding: 8px 12px 8px 0;
-  border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
-  font-size: 0.875rem; font-weight: 400;
-  color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
-}
-dl.kbob-data dd {
-  margin: 0; padding: 8px 0;
-  border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
-  word-break: break-word;
-}
-@media (max-width: 600px) {
-  dl.kbob-data { grid-template-columns: 1fr; }
-  dl.kbob-data dd { border-top: 0; padding-top: 0; }
-}
+.kbob-detail-section h2 { margin: 32px 0 8px; font-size: 1.4375rem; }
+.kbob-detail-section:first-child h2 { margin-top: 8px; }
+dl.kbob-data { margin: 0; }
+dl.kbob-data dt { font-weight: 700; padding: 12px 0 2px; }
+dl.kbob-data dd { margin: 0; word-break: break-word; }
+.kbob-copy { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kbob-values-list { max-width: 78ch; }
 
 /* ========== 18 Graph (Fachvisualisierung, kbob + interner g-Namensraum) ========== */
 
