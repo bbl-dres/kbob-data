@@ -11,11 +11,12 @@ Nur Standardbibliothek, keine Installation noetig.
     python3 lindas-proxy.py                 # startet auf http://localhost:8765
     python3 lindas-proxy.py --check         # Erreichbarkeit testen, ohne Server
     python3 lindas-proxy.py --endpoint https://lindas.admin.ch/query
-    python3 lindas-proxy.py --user me --password geheim
+    python3 lindas-proxy.py --user me       # Passwort wird abgefragt
 """
 
 import argparse
 import base64
+import getpass
 import json
 import os
 import socket
@@ -40,7 +41,7 @@ def upstream(query, accept="application/sparql-results+json"):
     req = urllib.request.Request(CFG["endpoint"], data=body, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
     req.add_header("Accept", accept)
-    req.add_header("User-Agent", "kbob-dd-explorer/2.0")
+    req.add_header("User-Agent", "kbob-data/1.0.0")
     if CFG["auth"]:
         req.add_header("Authorization", "Basic " + CFG["auth"])
 
@@ -57,22 +58,22 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         sys.stderr.write("  %s\n" % (fmt % args))
 
+    # Bewusst KEINE Access-Control-Allow-Origin-Header: der Proxy liefert das
+    # Frontend selbst aus, alles ist same-origin. Ein "*" wuerde jeder im
+    # Browser offenen Website erlauben, ueber localhost mit den hinterlegten
+    # Zugangsdaten Abfragen an den Endpunkt zu schicken.
     def _send(self, status, ctype, payload):
         if isinstance(payload, str):
             payload = payload.encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Accept")
         self.end_headers()
         self.wfile.write(payload)
 
     def do_OPTIONS(self):
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Accept")
+        self.send_header("Allow", "POST, GET, OPTIONS")
         self.send_header("Content-Length", "0")
         self.end_headers()
 
@@ -149,9 +150,11 @@ class Handler(BaseHTTPRequestHandler):
         except (urllib.error.URLError, socket.timeout) as e:
             reason = getattr(e, "reason", e)
             self._send(502, "text/plain; charset=utf-8",
-                       "Der Endpunkt ist von diesem Rechner aus nicht erreichbar.\n"
-                       "%s: %s\n\nDas ist kein CORS-Problem. Pruefe VPN, Proxy oder "
-                       "ob INT ueberhaupt von aussen freigegeben ist." % (type(e).__name__, reason))
+                       "Der Endpunkt ist von diesem Rechner aus nicht erreichbar. "
+                       "Moegliche Ursachen: VPN, Firmen-Proxy oder ein Endpunkt, der "
+                       "nicht oeffentlich zugaenglich ist (die Integrationsumgebung "
+                       "von LINDAS kann Anmeldung verlangen).\n"
+                       "Technischer Hintergrund: %s: %s" % (type(e).__name__, reason))
             return
 
         self._send(status, ctype, body)
@@ -174,7 +177,8 @@ def check():
     except (urllib.error.URLError, socket.timeout) as e:
         print("Verbindung fehlgeschlagen: %s" % getattr(e, "reason", e))
         print("\nDer Endpunkt ist von hier aus nicht erreichbar. Ein lokaler Proxy")
-        print("aendert daran nichts — das Problem liegt im Netzwerkpfad.")
+        print("aendert daran nichts — das Problem liegt im Netzwerkpfad (VPN,")
+        print("Firmen-Proxy oder ein nicht oeffentlich zugaenglicher Endpunkt).")
         return 1
 
     print("Status:   HTTP %d in %.2fs" % (status, time.time() - started))
@@ -182,11 +186,12 @@ def check():
 
     if status == 200:
         print("\nDer Endpunkt antwortet. Wenn der Browser trotzdem scheitert, war es CORS —")
-        print("dann loest der Proxy dein Problem. Starte ohne --check.")
+        print("dann loest der Proxy das Problem. Ohne --check erneut starten.")
         return 0
     if status in (401, 403):
-        print("\nDer Endpunkt verlangt eine Anmeldung. Mit --user und --password erneut")
-        print("versuchen; INT ist haeufig nicht offen zugaenglich.")
+        print("\nDer Endpunkt verlangt eine Anmeldung. Mit --user erneut versuchen")
+        print("(das Passwort wird abgefragt); die Integrationsumgebung ist haeufig")
+        print("nicht offen zugaenglich.")
         return 1
     print("\nUnerwarteter Status. Der Antworttext oben sagt meist, woran es liegt.")
     return 1
@@ -198,14 +203,19 @@ def main():
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--timeout", type=int, default=300, help="Sekunden bis Abbruch")
     ap.add_argument("--user")
-    ap.add_argument("--password")
+    ap.add_argument("--password",
+                    help="besser weglassen: ohne Angabe wird das Passwort abgefragt "
+                         "und landet nicht im Prozesslisting und in der Shell-History")
     ap.add_argument("--check", action="store_true", help="nur Erreichbarkeit testen")
     args = ap.parse_args()
 
     CFG["endpoint"] = args.endpoint
     CFG["timeout"] = args.timeout
     if args.user:
-        token = "%s:%s" % (args.user, args.password or "")
+        passwort = args.password
+        if passwort is None:
+            passwort = getpass.getpass("Passwort fuer %s: " % args.user)
+        token = "%s:%s" % (args.user, passwort)
         CFG["auth"] = base64.b64encode(token.encode("utf-8")).decode("ascii")
 
     if args.check:

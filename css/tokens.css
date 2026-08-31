@@ -9,6 +9,7 @@
   --paper:    #FBFBF9;   /* Grundfläche der Seite */
   --surface:  #FFFFFF;   /* erhobene Fläche: Karten, Felder, Graph */
   --sunken:   #F4F6F4;   /* vertiefte Fläche: Zeilenhervorhebung */
+  --kopf-flaeche: #EDF0EE;  /* Kopfzeile: eine Stufe dunkler als das Pfadband */
 
   /* ---- Text ---- */
   --ink:      #16202A;   /* 14.9:1 auf Papier */
@@ -16,40 +17,49 @@
   --faint:    #7C8A94;   /* 3.4:1 — nur für Zeichen ohne Textfunktion */
 
   /* ---- Linien ---- */
-  --rule:      #8A9591;  /* 3.1:1 auf Weiss — Umrandung von Bedienelementen */
+  --rule:      #848F8B;  /* 3.2:1 auf Papier — Umrandung von Bedienelementen */
   --rule-soft: #E2E6E4;  /* reine Trennlinie ohne Bedienfunktion */
 
   /* ---- Interaktion ---- */
   --pine:     #0F5C4E;
   --pine-dark:#0B4539;
   --pine-bg:  #EAF2EF;
+  --pine-linie:    #A9C4BC;  /* Unterstreichung ruhender Links */
+  --pine-rand:     #C5DBD3;  /* Rand der Filter-Pillen */
+  --pine-bg-hover: #DDEBE6;  /* Pillen beim Überfahren */
 
   /* ---- Fehler ---- */
   --rust:     #A33F19;
-  --rust-bg:  #FBEFEA;
 
-  /* ---- Kategoriale Palette ----
-     Gilt nur innerhalb eines Objekttyps, nie katalogweit. Die Reihenfolge ist
-     geprüft: benachbarte Paare sind unterscheidbar, auch bei Farbsehschwäche.
-     Drei Töne liegen unter 3:1 gegen Weiss — die Marken bekommen deshalb
-     einen dunklen Rand (--marke-rand) und durchgehend eine Beschriftung. */
-  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100;
-  --c5: #e87ba4; --c6: #008300; --c7: #4a3aa7; --c8: #e34948;
-  --marke-rand: #3A4750;   /* 9.6:1 auf Weiss — Rand statt Fläche trägt den Kontrast */
+  /* ---- Graph ----
+     Die kategoriale 8er-Palette der Property Sets steht in js/data.js
+     (K.FARBEN) — sie füllt SVG-Knoten und Swatches direkt und wäre als
+     CSS-Token nur eine zweite, driftende Kopie. */
+  --kante:      #7D8B87;  /* Graph-Kanten, 3.1:1 auf Weiss */
+  --graph-pset: #6B5B4A;  /* Property-Set-Knoten im Netz */
+  --marke-rand: #3A4750;  /* 9.6:1 auf Weiss — Rand trägt den Kontrast der Swatches */
+  --hell-auf-dunkel: #C7D0D6;  /* Nebenzeilen auf Tinte (Tooltip, Graph-Zentrum) */
 
   /* ---- Abstände ---- */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
   --s5: 24px; --s6: 32px; --s7: 48px;
 
   /* ---- Schrift ----
-     Noto Sans liefert das Design System des Bundes (Oblique) aus. */
+     Noto Sans liefert das Design System des Bundes (Oblique, Angular-Lib R14)
+     aus. Bezug derzeit über das Google-CDN; vor einer Publikation lokal
+     einbetten (Datenschutz, abgeschottete Netze) — siehe REVIEW.md. */
   --schrift: 'Noto Sans', Arial, system-ui, -apple-system, sans-serif;
   --schrift-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   /* ---- Form ---- */
   --radius:   4px;
   --radius-s: 3px;
-  --fokus:    #8655f6;   /* Fokusring aus Oblique, bewusst brandfremd */
+  --fokus:    #8655f6;   /* Fokusring aus Oblique (R14), bewusst brandfremd */
+
+  /* ---- Schatten (aus --ink abgeleitet) ---- */
+  --schatten-menu: 0 6px 18px rgba(22,32,42,.14);
+  --schatten-tip:  0 4px 14px rgba(22,32,42,.22);
+  --schleier:      rgba(22,32,42,.4);
 
   /* ---- Masse ---- */
   --breite:      1180px;  /* Lesebreite für Tabellen und Karten */

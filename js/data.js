@@ -55,6 +55,25 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return text.length > n ? text.slice(0, n) + ' …' : text;
   };
 
+  /* Kürzt eine mit « · » verkettete Werteliste an einer Wertgrenze —
+     halbe Werte sähen aus wie echte Katalogwerte. */
+  K.kurzListe = function (werte, n) {
+    if (!werte || werte.length <= n) return werte || '';
+    var teile = werte.split(' · ');
+    var behalten = [], laenge = 0;
+    for (var i = 0; i < teile.length; i++) {
+      if (laenge + teile[i].length > n && behalten.length) break;
+      behalten.push(teile[i]);
+      laenge += teile[i].length + 3;
+    }
+    var rest = teile.length - behalten.length;
+    return behalten.join(' · ') + (rest > 0 ? ' … +' + rest + ' weitere' : '');
+  };
+
+  K.plural = function (n, einzahl, mehrzahl) {
+    return n === 1 ? einzahl : mehrzahl;
+  };
+
   K.anker = function (uri) {
     return 'e-' + uri.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   };
@@ -86,6 +105,70 @@ var KBOB = window.KBOB || (window.KBOB = {});
     });
   }
 
+  /* ---------- Sprachketten ----------
+
+     Beschriftungen folgen der Kette: gewählte Sprache, dann Deutsch (auch
+     ungetaggte Literale), dann Englisch. Für 'de' ist das die bisherige
+     zweistufige Kette; 'en' bevorzugt Englisch vor Deutsch. Der Umschalter
+     betrifft die Katalogdaten — die Oberfläche selbst bleibt deutsch. */
+
+  K.SPRACHEN = ['de', 'fr', 'it', 'en'];
+
+  function sprachStufen(lang) {
+    var stufen = [];
+    if (lang && lang !== 'de' && K.SPRACHEN.indexOf(lang) !== -1) stufen.push(lang);
+    stufen.push('de');
+    if (lang !== 'en') stufen.push('en');
+    return stufen;
+  }
+
+  function stufenFilter(v, stufe) {
+    return stufe === 'de'
+      ? 'lang(' + v + ') = "de" || lang(' + v + ') = ""'
+      : 'lang(' + v + ') = "' + stufe + '"';
+  }
+
+  /* OPTIONAL-Zeilen für ein Prädikat über alle Stufen */
+  function kette(subjekt, praedikat, basis, stufen) {
+    var zeilen = [], vars = [];
+    stufen.forEach(function (stufe, i) {
+      var v = '?' + basis + i;
+      vars.push(v);
+      zeilen.push('  OPTIONAL { ' + subjekt + ' ' + praedikat + ' ' + v +
+                  ' FILTER(' + stufenFilter(v, stufe) + ') }');
+    });
+    return { zeilen: zeilen, vars: vars };
+  }
+
+  function coalesce(vars, ziel) {
+    return '  BIND(COALESCE(' + vars.join(', ') + ') AS ' + ziel + ')';
+  }
+
+  /* Welche Stufe hat getroffen? gruppen: je Stufe die Variablen dieser Stufe. */
+  function sprachBind(gruppen, stufen, ziel) {
+    var ausdruck = '"' + stufen[stufen.length - 1] + '"';
+    for (var i = stufen.length - 2; i >= 0; i--) {
+      var bedingung = gruppen[i].map(function (v) { return 'BOUND(' + v + ')'; }).join(' || ');
+      ausdruck = 'IF(' + bedingung + ', "' + stufen[i] + '", ' + ausdruck + ')';
+    }
+    return '  BIND(' + ausdruck + ' AS ' + ziel + ')';
+  }
+
+  /* Beschreibung: skos:definition je Stufe, rdfs:comment als deutscher
+     Zusatz-Rückfall direkt nach der deutschen Definition. */
+  function beschreibungKette(subjekt, basis, stufen) {
+    var def = kette(subjekt, 'skos:definition', basis, stufen);
+    var zeilen = def.zeilen.slice();
+    zeilen.push('  OPTIONAL { ' + subjekt + ' rdfs:comment ?' + basis +
+                'k FILTER(lang(?' + basis + 'k) = "de" || lang(?' + basis + 'k) = "") }');
+    var reihenfolge = [];
+    stufen.forEach(function (stufe, i) {
+      reihenfolge.push(def.vars[i]);
+      if (stufe === 'de') reihenfolge.push('?' + basis + 'k');
+    });
+    return { zeilen: zeilen, vars: reihenfolge };
+  }
+
   /* ---------- Abfragen ---------- */
 
   var PREFIXE = [
@@ -97,12 +180,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
     ''
   ];
 
-  /* L1: je Objekttyp und Property Set eine Zeile — ohne die Attribute selbst */
-  K.uebersichtQuery = function (graph) {
+  /* L1: je Objekttyp und Property Set eine Zeile — ohne die Merkmale selbst */
+  K.uebersichtQuery = function (graph, lang) {
+    var stufen = sprachStufen(lang);
+    var kl = kette('?klasse', 'rdfs:label', 'k', stufen);
+    var be = beschreibungKette('?klasse', 'b', stufen);
+    var gp = kette('?gop', 'rdfs:label', 'g', stufen);
+    var qu = kette('?q', 'rdfs:label', 'q', stufen);
     return PREFIXE.concat([
-      '# Übersicht: Objekttypen mit ihren Property Sets, Anzahl Attribute,',
-      '# vorkommenden Datentypen und Phasen. Die Attribute selbst holt erst',
-      '# die Detailabfrage — das haelt den Start klein.',
+      '# Übersicht: Objekttypen mit ihren Property Sets, Anzahl Merkmale,',
+      '# vorkommenden Datentypen und LOIN-Meilensteinen. Die Merkmale selbst',
+      '# holt erst die Detailabfrage — das hält den Start klein.',
+      '# Beschriftungssprache: ' + stufen.join(' → ') + '.',
       'SELECT ?klasse ?gop ?istDokument',
       '       (SAMPLE(?elementL)      AS ?element)',
       '       (SAMPLE(?beschreibungL) AS ?beschreibung)',
@@ -136,29 +225,24 @@ var KBOB = window.KBOB || (window.KBOB = {});
       '  BIND(IF((BOUND(?enumPr) || BOUND(?enumProp)) && ?tRoh = "STRING",',
       '          "AUSWAHL", ?tRoh) AS ?typWert)',
       '',
-      '  OPTIONAL { ?klasse rdfs:label ?k1 FILTER(lang(?k1) = "de" || lang(?k1) = "") }',
-      '  OPTIONAL { ?klasse rdfs:label ?k2 FILTER(lang(?k2) = "en") }',
-      '  BIND(COALESCE(?k1, ?k2) AS ?elementL)',
-      '  BIND(IF(BOUND(?k1), "de", "en") AS ?nameSprache)',
+    ]).concat(kl.zeilen, [
+      coalesce(kl.vars, '?elementL'),
+      sprachBind(kl.vars.map(function (v) { return [v]; }), stufen, '?nameSprache'),
       '',
       '  # Reifegrad: im Katalog steht bisher alles auf Candidate oder Preview',
       '  OPTIONAL { ?klasse dd:status ?statusRaw }',
       '',
-      '  # Jeder Objekttyp im Graphen fuehrt eine Definition in Prosa',
-      '  OPTIONAL { ?klasse skos:definition ?b1 FILTER(lang(?b1) = "de" || lang(?b1) = "") }',
-      '  OPTIONAL { ?klasse rdfs:comment    ?b2 FILTER(lang(?b2) = "de" || lang(?b2) = "") }',
-      '  OPTIONAL { ?klasse skos:definition ?b3 FILTER(lang(?b3) = "en") }',
-      '  BIND(COALESCE(?b1, ?b2, ?b3) AS ?beschreibungL)',
-      '',
-      '  OPTIONAL { ?gop rdfs:label ?g1 FILTER(lang(?g1) = "de" || lang(?g1) = "") }',
-      '  OPTIONAL { ?gop rdfs:label ?g2 FILTER(lang(?g2) = "en") }',
-      '  BIND(COALESCE(?g1, ?g2) AS ?psetL)',
+      '  # Jeder Objekttyp im Graphen führt eine Definition in Prosa'
+    ], be.zeilen, [
+      coalesce(be.vars, '?beschreibungL'),
+      ''
+    ], gp.zeilen, [
+      coalesce(gp.vars, '?psetL'),
       '',
       '  OPTIONAL {',
-      '    ?tpl dct:source ?q .',
-      '    OPTIONAL { ?q rdfs:label ?q1 FILTER(lang(?q1) = "de" || lang(?q1) = "") }',
-      '    OPTIONAL { ?q rdfs:label ?q2 FILTER(lang(?q2) = "en") }',
-      '    BIND(COALESCE(?q1, ?q2) AS ?quelleL)',
+      '    ?tpl dct:source ?q .'
+    ], qu.zeilen.map(function (z) { return '  ' + z; }), [
+      '  ' + coalesce(qu.vars, '?quelleL'),
       '  }',
       '}',
       'GROUP BY ?klasse ?gop ?istDokument'
@@ -166,11 +250,23 @@ var KBOB = window.KBOB || (window.KBOB = {});
   };
 
   /* L2: die Merkmale eines Objekttyps */
-  K.detailQuery = function (graph, klasse) {
+  K.detailQuery = function (graph, klasse, lang) {
+    var stufen = sprachStufen(lang);
+    var pr = kette('?prop', 'rdfs:label', 'pr', stufen);
+    var ps = kette('?prop', 'skos:prefLabel', 'ps', stufen);
+    var be = beschreibungKette('?prop', 'd', stufen);
+    var gp = kette('?gop', 'rdfs:label', 'g', stufen);
+    /* je Stufe: rdfs:label vor skos:prefLabel */
+    var nameVars = [], nameGruppen = [];
+    stufen.forEach(function (s, i) {
+      nameVars.push(pr.vars[i], ps.vars[i]);
+      nameGruppen.push([pr.vars[i], ps.vars[i]]);
+    });
     return PREFIXE.concat([
       '# Detail: alle Merkmale eines Objekttyps.',
+      '# Beschriftungssprache: ' + stufen.join(' → ') + '.',
       'SELECT ?prop ?gop',
-      '       (SAMPLE(?attributL)     AS ?attribut)',
+      '       (SAMPLE(?merkmalL)      AS ?merkmal)',
       '       (SAMPLE(?beschreibungL) AS ?beschreibung)',
       '       (SAMPLE(?typRaw)        AS ?typ)',
       '       (SAMPLE(?psetL)         AS ?pset)',
@@ -179,6 +275,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       '       (SAMPLE(?ifcRaw)        AS ?ifcTyp)',
       '       (SAMPLE(?statusRaw)     AS ?status)',
       '       (SAMPLE(?schemaRaw)     AS ?werteSchema)',
+      '       (SAMPLE(?nameSprache)   AS ?sprache)',
       '       (GROUP_CONCAT(DISTINCT ?phaseRaw; separator=" ") AS ?phasen)',
       'FROM <' + graph + '>',
       'WHERE {',
@@ -205,36 +302,34 @@ var KBOB = window.KBOB || (window.KBOB = {});
       '  OPTIONAL { ?prop dd:ifcDatatype        ?ifcRaw }',
       '  OPTIONAL { ?prop dd:alignedWithIfcPset ?ifcPsetRaw }',
       '',
-      '  OPTIONAL { ?prop rdfs:label     ?p1 FILTER(lang(?p1) = "de" || lang(?p1) = "") }',
-      '  OPTIONAL { ?prop skos:prefLabel ?p3 FILTER(lang(?p3) = "de" || lang(?p3) = "") }',
-      '  OPTIONAL { ?prop rdfs:label     ?p2 FILTER(lang(?p2) = "en") }',
-      '  BIND(COALESCE(?p1, ?p3, ?p2) AS ?attributL)',
-      '',
-      '  OPTIONAL { ?prop skos:definition ?d1 FILTER(lang(?d1) = "de" || lang(?d1) = "") }',
-      '  OPTIONAL { ?prop rdfs:comment    ?d2 FILTER(lang(?d2) = "de" || lang(?d2) = "") }',
-      '  OPTIONAL { ?prop skos:definition ?d3 FILTER(lang(?d3) = "en") }',
-      '  BIND(COALESCE(?d1, ?d2, ?d3) AS ?beschreibungL)',
-      '',
-      '  OPTIONAL { ?gop rdfs:label ?g1 FILTER(lang(?g1) = "de" || lang(?g1) = "") }',
-      '  OPTIONAL { ?gop rdfs:label ?g2 FILTER(lang(?g2) = "en") }',
-      '  BIND(COALESCE(?g1, ?g2) AS ?psetL)',
+    ]).concat(pr.zeilen, ps.zeilen, [
+      coalesce(nameVars, '?merkmalL'),
+      sprachBind(nameGruppen, stufen, '?nameSprache'),
+      ''
+    ], be.zeilen, [
+      coalesce(be.vars, '?beschreibungL'),
+      ''
+    ], gp.zeilen, [
+      coalesce(gp.vars, '?psetL'),
       '}',
       'GROUP BY ?prop ?gop'
     ]).join('\n');
   };
 
-  K.werteQuery = function (graph) {
+  K.werteQuery = function (graph, lang) {
+    var stufen = sprachStufen(lang);
+    var wl = kette('?ev', 'skos:prefLabel', 'w', stufen);
     return PREFIXE.concat([
-      '# Zulaessige Werte je Werteliste',
+      '# Zulässige Werte je Werteliste',
+      '# Beschriftungssprache: ' + stufen.join(' → ') + '.',
       'SELECT ?schema (COUNT(DISTINCT ?ev) AS ?anzahl)',
       '       (GROUP_CONCAT(DISTINCT ?wert; separator=" · ") AS ?werte)',
       'FROM <' + graph + '>',
       'WHERE {',
-      '  ?schema dd:hasEnumerationValue ?ev .',
-      '  OPTIONAL { ?ev skos:prefLabel ?w1 FILTER(lang(?w1) = "de" || lang(?w1) = "") }',
-      '  OPTIONAL { ?ev skos:prefLabel ?w2 FILTER(lang(?w2) = "en") }',
-      '  OPTIONAL { ?ev skos:notation  ?w3 }',
-      '  BIND(COALESCE(?w1, ?w2, ?w3) AS ?wert)',
+      '  ?schema dd:hasEnumerationValue ?ev .'
+    ]).concat(wl.zeilen, [
+      '  OPTIONAL { ?ev skos:notation ?wn }',
+      coalesce(wl.vars.concat(['?wn']), '?wert'),
       '}',
       'GROUP BY ?schema'
     ]).join('\n');
@@ -282,7 +377,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
           sprache: v(r, 'sprache') || 'de',
           beschreibung: v(r, 'beschreibung'),
           status: v(r, 'status'),
-          quelle: v(r, 'quelle') || 'Ohne Quellenangabe',
+          quelle: v(r, 'quelle') || 'Ohne Katalogangabe',
           istDokument: v(r, 'istDokument') === 'true',
           anzahl: 0, psets: [], typen: [], phasen: [], farbe: {}
         };
@@ -357,7 +452,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
       return {
         uri: v(r, 'prop'),
-        name: v(r, 'attribut') || K.kurz(v(r, 'prop')),
+        name: v(r, 'merkmal') || K.kurz(v(r, 'prop')),
+        sprache: v(r, 'sprache') || 'de',
         beschreibung: v(r, 'beschreibung'),
         typRaw: typRaw,
         /* Eine Werteliste macht nur aus einem Text eine Auswahl. BOOLEAN fuehrt
@@ -387,18 +483,34 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* Merkmale eines Objekttyps besorgen — aus dem Zwischenspeicher oder vom Endpunkt.
      Die Wertelisten kommen einmalig beim ersten Detail mit. */
-  K.holeDetail = function (endpoint, graph, uri) {
+  K.holeDetail = function (endpoint, graph, uri, lang) {
     var st = K.state;
     if (st.detail[uri]) return Promise.resolve(st.detail[uri]);
 
-    var noetig = [K.run(endpoint, K.detailQuery(graph, uri))];
+    var noetig = [K.run(endpoint, K.detailQuery(graph, uri, lang))];
     if (!st.werteGeladen) {
-      noetig.push(K.run(endpoint, K.werteQuery(graph)).catch(function () { return null; }));
+      noetig.push(K.run(endpoint, K.werteQuery(graph, lang))
+        .catch(function () { return { fehler: true }; }));
     }
 
     return Promise.all(noetig).then(function (res) {
-      if (res[1]) K.uebernehmeWerte(res[1].results.bindings);
-      return K.uebernehmeDetail(uri, res[0].results.bindings);
+      var werteFehler = false;
+      if (res[1]) {
+        if (res[1].fehler) werteFehler = true;
+        else K.uebernehmeWerte(res[1].results.bindings);
+      }
+      var attrs = K.uebernehmeDetail(uri, res[0].results.bindings);
+      if (werteFehler) {
+        /* Ohne Wertelisten würde jedes Auswahl-Merkmal still zu «Text».
+           Nicht zwischenspeichern (nächstes Öffnen versucht es erneut)
+           und den Umstand sagen, statt ihn zu verschweigen. */
+        delete st.detail[uri];
+        if (K.setStatus) {
+          K.setStatus('Die Wertelisten konnten nicht geladen werden — ' +
+                      'Auswahl-Merkmale erscheinen vorerst als «Text».', true);
+        }
+      }
+      return attrs;
     });
   };
 })(KBOB);

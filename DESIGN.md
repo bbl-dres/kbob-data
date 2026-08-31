@@ -71,7 +71,9 @@ Leitsätze:
 ## 3. Vorgehen
 
 Vier Prüfungen, je aus einer anderen Perspektive, gegen den Code und gegen
-gerenderte Bildschirmfotos aller Ansichten (`.design-audit/`):
+gerenderte Bildschirmfotos aller Ansichten. Die Bilder in `.design-audit/`
+zeigen den **Stand vor dieser Überarbeitung** und sind die Belegkette zu den
+Befunden in Abschnitt 4:
 
 - Barrierefreiheit gegen WCAG 2.2 AA
 - Nutzungsforschung entlang vier Rollen (BIM-Manager, FM-Datenverantwortliche,
@@ -274,14 +276,16 @@ im Merkmaldetail und im Export. Im ganzen Katalog steht nichts auf
 «verabschiedet» — 677 Objekttypen sind *Candidate*, 42 *Preview*. Wer daraus
 ein Pflichtenheft macht, muss das sehen können.
 
-**Projektphasen** erscheinen als kompaktes Feld aus neun Kästchen (dunkel =
-deklariert). Neun Werte passen anders in keine Tabellenspalte; die
-Vorlesefassung nennt die deklarierten Phasen ausgeschrieben. Die Spalte
-erscheint nur, wenn in der Auswahl überhaupt Phasen vorkommen.
+**LOIN-Meilensteine** erscheinen als kompaktes Feld aus neun Kästchen (dunkel =
+deklariert; jedes Kästchen trägt den vollen Wert «LZPn» als Tooltip). Neun
+Werte passen anders in keine Tabellenspalte; die Vorlesefassung nennt die
+deklarierten Werte ausgeschrieben. Die Spalte erscheint, wenn ein
+Meilenstein-Filter aktiv ist oder mindestens ein Drittel der sichtbaren
+Zeilen Meilensteine deklariert — darunter wäre sie fast nur Leerfläche.
 
 ### E7b — Blättern statt endloser Listen
 
-100 · 200 · 500 Einträge je Seite, 100 als Vorgabe; Seitenwahl mittig,
+50 · 100 · 200 Einträge je Seite, 50 als Vorgabe; Seitenwahl mittig,
 Seitengrösse rechts. Ohne das rendert die Übersicht 719 Karten auf einmal —
 bei jedem Tastendruck neu.
 
@@ -295,10 +299,15 @@ Einleitung der Übersicht — dort, wo er einmal gelesen wird.
 ### E8a — Fachsprache nach dem nationalen Glossar
 
 Das *Nationale Glossar zur Digitalisierung in der Bau- und Immobilien­wirtschaft*
-(bSCH/CRB/SIA) und SIA 2051 §1.4.13 führen **Merkmal** als Oberbegriff für
-Attribute und Eigenschaften. **Attribut** bezeichnet dort ausschliesslich die
-festen IFC-Felder — für das, was dieser Katalog beschreibt, ist es fachlich
-falsch. *Eigenschaft* gilt im Glossar inzwischen als «normativ inkorrekt».
+(bSCH/CRB/SIA) führt **Merkmal** als Oberbegriff für Attribute und
+Eigenschaften, mit Quelle SIA 2051:2017 §1.4.13; die stärkste normative
+Stütze ist SN EN ISO 23386:2020, 3.17 (Merkmale in vernetzten Datenkatalogen).
+Im IFC-Kontext unterscheidet das Glossar zwischen Attributen (feste
+IFC-Felder) und Eigenschaften — für das, was dieser Katalog beschreibt, ist
+«Attribut» darum die falsche Vokabel. *(Präzisiert in der zweiten Durchsicht:
+eine frühere Fassung behauptete, «Eigenschaft» gelte im Glossar als «normativ
+inkorrekt» und «Attribut» bezeichne ausschliesslich IFC-Felder — beides ist
+in der Quelle so nicht belegt; siehe REVIEW.md §10.)*
 
 Umbenennung: **Attribut → Merkmal**. Beibehalten, weil bereits korrekt:
 *Objekttyp*, *Datentyp*, *Zulässige Werte*, *Einheit*, *Property Set* (dort,
@@ -306,9 +315,15 @@ wo es tatsächlich an ein IFC-`Pset_` gebunden ist — so hält es auch der SBB-
 Fachdatenkatalog). Für LOIN ist der normierte Begriff
 **Informationsbedarfstiefe** (SN EN 17412-1:2020).
 
-Nicht übernommen: **«LZP»** taucht in keiner Primärquelle auf. Die Werte
-`LZP1`–`LZP9` stehen aber so im Graphen; sie werden deshalb unverändert als
-Datenwerte gezeigt, das Bedienelement heisst neutral **Projektphase**.
+**Zweite Durchsicht, korrigiert:** Das Bedienelement hiess zunächst neutral
+«Projektphase». Das Feld heisst im KBOB-Schema aber `dd:loinMilestone` mit
+dem Label **«LOIN-Meilenstein»** — und «Projektphase» mit den Werten 1–9
+liest ein Schweizer BIM-Publikum zwanglos als SIA-112-Phasen, die es nicht
+sind. Facette und Spalte heissen darum jetzt **LOIN-Meilenstein**; die Werte
+`LZP1`–`LZP9` bleiben unveränderte Datenwerte (in den Kästchen als Ziffer,
+der volle Wert im Tooltip). Ob «Lebenszyklusphase (LZP)» die bessere
+Publikumsbezeichnung wäre, ist als Frage an die Datenherausgeber offen
+(Abschnitt 8).
 
 ### E8b — Oblique als Bezugssystem, nicht als Abhängigkeit
 
@@ -331,6 +346,13 @@ nur zu **2,7 % auf Französisch** und **0,3 % auf Italienisch**. Ein
 Sprachumschalter DE/FR/IT wäre ein Versprechen, das die Daten nicht halten.
 Die Oberfläche bleibt deutsch, greift auf Englisch zurück und **kennzeichnet
 zurückgefallene Beschriftungen mit `lang="en"`** (WCAG 3.1.2).
+
+**Nachtrag:** Die Kopfzeile führt inzwischen eine Sprachwahl **DE/FR/IT/EN für
+die Katalogbeschriftungen** (Rückfallkette gewählte Sprache → Deutsch →
+Englisch, Zustand in der URL als `l=`). Sie ist ausdrücklich als Datensprache
+beschriftet — die Bedienoberfläche bleibt deutsch, bis die UI-Texte in ein
+übersetzbares Wörterbuch überführt sind (REVIEW.md §9). Damit hält der
+Umschalter nur, was die Daten hergeben, statt eine Übersetzung zu behaupten.
 
 ### E8d — Verbindlicher Standard
 
@@ -377,10 +399,23 @@ sagt das in der Fusszeile, damit niemand sie für den publizierten Stand hält.
 1. Ist `requirementLevel` dauerhaft `included`, oder ist eine Muss/Kann-
    Unterscheidung vorgesehen? Ohne sie kann das Werkzeug die häufigste Frage
    der BIM-Manager nicht beantworten.
-2. Sollen die Phasen (LZP) flächendeckend gepflegt werden? Aktuell tragen
-   sie 2,8 % der Attribute.
-3. Die Beschreibungen der Property Sets sind uneinheitlich: teils Prosa
+2. Sollen die LOIN-Meilensteine (LZP) flächendeckend gepflegt werden? Aktuell
+   tragen sie 2,8 % der Merkmale — alle aus dem AG-ATB-iDSK-Pilot.
+3. Was ist die autoritative Definition der Werte `LZP1`–`LZP9` (neunstufiges
+   Lebenszyklusmodell?), und wie sollen sie dem Publikum gegenüber heissen —
+   «LOIN-Meilenstein» (Schema-Label) oder «Lebenszyklusphase (LZP)»?
+4. Die Beschreibungen der Property Sets sind uneinheitlich: teils Prosa
    («Informations- und Verwaltungsmerkmale aus dem Aargau iDSK»), teils
    Platzhalter («PropertySetName  KBOB_Identification»).
-4. Die Quellen (`dd:DataDictionary`) führen keine Beschreibung, nur
-   `owl:versionInfo`. Ein Kurztext je Katalog würde die Einstiegsebene tragen.
+5. Die Quellen (`dd:DataDictionary`) führen keine Beschreibung, nur
+   `owl:versionInfo`. Ein Kurztext je Katalog würde die Einstiegsebene tragen —
+   für den iDSK liefert das «Strategiepapier BIM 2025» der Abteilung Tiefbau
+   des Kantons Aargau inzwischen eine zitierfähige Auflösung («integraler
+   Daten- und Strukturkatalog»).
+
+## 9. Zweite Durchsicht
+
+Am 31.08.2026 wurde die überarbeitete Anwendung ein zweites Mal geprüft —
+empirisch im Browser und aus sechs Fachperspektiven mit adversarialer
+Gegenprüfung. Befunde, Umsetzungsstand und die daraus folgenden Korrekturen
+an diesem Dokument stehen in **REVIEW.md**.

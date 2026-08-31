@@ -5,7 +5,7 @@ Browser-Explorer für das **KBOB Data Dictionary** aus dem LINDAS-Graphen
 
 Die Rohdaten sind für Datenmodellierer geschrieben: `PropertyRequirement`,
 `GroupOfProperties`, `contextualDatatype`. Diese App übersetzt das in die
-Sicht einer BIM-Managerin: **welches Objekttyp braucht welche Attribute, in
+Sicht einer BIM-Managerin: **welcher Objekttyp welche Merkmale braucht, in
 welchem Format, aus welchem Property Set.**
 
 ## Starten
@@ -20,9 +20,9 @@ python -m http.server 8000      # http://localhost:8000
 Wer den Endpunkt wechseln oder eine Anmeldung braucht, nimmt den Proxy:
 
 ```bash
-python lindas-proxy.py                          # http://localhost:8765
-python lindas-proxy.py --check                  # nur Erreichbarkeit testen
-python lindas-proxy.py --user me --password xy  # Endpunkt mit Anmeldung
+python lindas-proxy.py                # http://localhost:8765
+python lindas-proxy.py --check        # nur Erreichbarkeit testen
+python lindas-proxy.py --user me      # Endpunkt mit Anmeldung; Passwort wird abgefragt
 ```
 
 Der Proxy liefert das Frontend aus und leitet SPARQL weiter; Frontend und
@@ -32,30 +32,53 @@ die Abfrage dagegen an CORS.
 
 ## Navigation
 
-Drei Stufen, über die Brotkrumen jederzeit umschaltbar:
+Eine flache, facettierte Liste aller Objekttypen — darunter die Merkmale
+eines Objekttyps, darunter ein einzelnes Merkmal:
 
-    Katalog  ›  Quelle  ›  Objekttyp  ›  Attribut
+    Übersicht  ›  Objekttyp  ›  Merkmal
 
-Jede Stufe gibt es als **Liste**, **Galerie** (eine Karte je Eintrag) und
-**Graph** (Netz beziehungsweise radiale Darstellung eines Objekttyps).
-Dazu Filter nach Phase und Datentyp sowie eine Volltextsuche; die jeweils
-sichtbare Auswahl lässt sich als CSV speichern.
+Der Katalog ist eine Facette, keine Navigationsstufe: 666 der 719 Objekttypen
+stammen aus einer einzigen Quelle, dem Dokumenttypenkatalog.
 
-Objekttypen führen im Graphen durchgehend eine Definition in Prosa — die
-Listen und Karten zeigen darum die Beschreibung statt der technischen
-Property-Set-Namen. Quellen haben keine Beschreibung, dort stehen weiterhin
-die Property Sets.
+Facetten (Mehrfachauswahl): **Katalog**, **Reifegrad**, **LOIN-Meilenstein**,
+dazu eine Volltextsuche. Auf tieferen Ebenen erscheinen nur die Facetten, die
+dort auch wirken. Aktive Filter stehen als Pillen über der Liste und lassen
+sich einzeln wegnehmen. Jede Ebene gibt es als **Liste**, **Galerie** und
+**Graph**; Liste und Galerie blättern zu 50, 100 oder 200 Einträgen, die
+Listenspalten sortieren per Klick auf den Spaltenkopf.
+
+Die Sprachwahl oben rechts (DE/FR/IT/EN) betrifft die **Katalogbeschriftungen**
+(Rückfall: gewählte Sprache → Deutsch → Englisch); die Oberfläche selbst
+bleibt vorerst deutsch.
+
+Der Zustand steht in der URL — Ansichten sind teilbar, der Zurück-Knopf
+funktioniert:
+
+    #k=KBOB%20Data%20Dictionary%20FM&r=Candidate&q=raum
+    #o=https%3A%2F%2Flindas.admin.ch%2F...%2Fclasses%2Froom&v=graph
+
+## Was die Oberfläche ungefragt sagt
+
+- **Reifegrad** je Objekttyp und Merkmal: im ganzen Katalog steht nichts auf
+  «verabschiedet» — 677 Objekttypen sind *Candidate*, 42 *Preview*.
+- **Keine Pflicht-/Kann-Unterscheidung**: alle 3 292 Merkmale sind
+  gleichrangig vorgesehen (`requirementLevel` ist durchgehend `included`).
+- **LOIN-Meilensteine** (LZP1–LZP9) sind dünn belegt und werden nur dort als
+  Spalte gezeigt, wo sie etwas unterscheiden. Sie sind keine
+  SIA-112-Projektphasen.
+- Der ausgewertete Graph liegt auf der **Integrationsumgebung** und ist kein
+  publizierter Stand.
 
 ## Zwei Abfragestufen
 
 | Stufe | Abfrage | Umfang |
 |---|---|---|
 | Übersicht | eine Zeile je Objekttyp und Property Set | ~800 Zeilen, beim Start |
-| Detail | die Attribute eines Objekttyps | erst beim Öffnen des Objekttyps |
+| Detail | die Merkmale eines Objekttyps | erst beim Öffnen des Objekttyps |
 | Werte | zulässige Werte je Werteliste | einmalig beim ersten Detail |
 
-Die Abfragen sind in der App unter «Verbindung und Abfrage» →
-«Abfragen ansehen» einsehbar und kopierbar.
+Die Abfragen sind in der App unter «Verbindung und Abfrage» in der Fusszeile
+einsehbar und kopierbar.
 
 ## Was der Graph enthält
 
@@ -72,12 +95,15 @@ SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
 ## Dateien
 
     index.html        Gerüst
-    css/tokens.css    Farben, Abstände, Palette
+    css/tokens.css    Farben, Typografie, Abstände
     css/main.css      alles Übrige
-    js/data.js        Abfragen, Laden, Normalisieren
+    js/data.js        Abfragen, Laden, Normalisieren, Palette
     js/views.js       Liste, Galerie, Netz- und Radialgrafik
-    js/app.js         Navigation, Filter, Start
+    js/app.js         Navigation, Facetten, Blättern, Export
     lindas-proxy.py   lokaler Proxy, nur Standardbibliothek
+    DESIGN.md         Review, Entscheidungen und offene Fragen
+    REVIEW.md         zweite Durchsicht: Befunde und Umsetzungsstand
+    LICENSE           MIT
 
 Endpunkt, Named Graph und die drei Abfragen sind zur Laufzeit über
 «Verbindung und Abfrage» in der Fusszeile einsehbar.

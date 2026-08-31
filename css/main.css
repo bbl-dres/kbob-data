@@ -43,6 +43,23 @@ a:hover { text-decoration-thickness: 2px; }
   clip-path: inset(50%); overflow: hidden; white-space: nowrap;
 }
 
+/* Skip-Link: unsichtbar wie .sr-only, aber bei Tastaturfokus sichtbar —
+   sonst ist der erste Tab-Stopp der Seite ein unsichtbares Element. */
+.skip {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  clip-path: inset(50%); overflow: hidden; white-space: nowrap;
+}
+.skip:focus-visible {
+  position: fixed; top: var(--s2); left: var(--s2); z-index: 50;
+  width: auto; height: auto; margin: 0;
+  clip-path: none; overflow: visible; white-space: normal;
+  padding: var(--s2) var(--s3);
+  background: var(--surface); color: var(--pine);
+  border: 1px solid var(--rule); border-radius: var(--radius-s);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+
 /* Beschriftungen: 11px, Versalien — die einzige Stelle mit Sperrung */
 .label {
   font-size: 11px; font-weight: 600; line-height: 1.2;
@@ -67,7 +84,7 @@ a:hover { text-decoration-thickness: 2px; }
 
 header {
   position: sticky; top: 0; z-index: 20;
-  background: var(--paper);
+  background: var(--kopf-flaeche);
   border-bottom: 1px solid var(--rule-soft);
   padding: var(--s3) 0;
 }
@@ -81,8 +98,9 @@ header {
   font-size: 13px; font-weight: 600; color: var(--ink);
   letter-spacing: -0.01em; margin: 0;
 }
-.marke-zusatz { font-size: 12px; color: var(--muted); }
 .kopf-rechts { margin-left: auto; flex: none; }
+/* Sprachwahl der Katalogdaten — kompakt neben dem Export */
+select.sprache { width: auto; min-width: 64px; font-weight: 500; }
 
 /* Eigenes Band unter der Kopfzeile: der Pfad gehört zum Inhalt,
    nicht zur Marke. */
@@ -104,11 +122,11 @@ header {
 .krume {
   font-family: inherit; font-size: 12px; font-weight: 400;
   background: none; border: 0; border-radius: var(--radius-s);
-  padding: 3px 6px; margin: 0;
+  padding: 5px 6px; margin: 0;
   color: var(--pine); cursor: pointer;
-  text-decoration: underline; text-decoration-color: #A9C4BC;
+  text-decoration: underline; text-decoration-color: var(--pine-linie);
 }
-.krume:hover { background: var(--pine-bg); text-decoration-color: currentColor; }
+button.krume:hover { background: var(--pine-bg); text-decoration-color: currentColor; }
 .krume[aria-current] {
   color: var(--muted); cursor: default;
   text-decoration: none; background: none;
@@ -125,6 +143,9 @@ header {
   color: var(--ink);
 }
 .titelblock h1:focus-visible { outline-offset: 4px; }
+/* Fokus nach Ebenenwechsel: die Überschrift darf nicht unter der
+   klebenden Kopfzeile verschwinden. */
+.titelblock h1 { scroll-margin-top: calc(var(--kopf-gesamt) + var(--s2)); }
 .kennzahlen {
   margin: 0; font-size: 13px; color: var(--muted);
   max-width: 74ch;
@@ -170,25 +191,31 @@ header {
 }
 .dd-knopf:hover { background: var(--sunken); border-color: var(--muted); }
 .dd-knopf[aria-expanded="true"] { border-color: var(--pine); }
-.dd-knopf .pfeil { color: var(--muted); font-size: 10px; }
+.dd-knopf .pfeil { color: var(--muted); font-size: 11px; }
 .dd-knopf .dd-wert { color: var(--muted); }
 .dd-knopf .dd-wert.aktiv { color: var(--pine); font-weight: 600; }
 
 .dd-menu {
   position: absolute; top: calc(100% + 4px); left: 0; z-index: 40;
-  min-width: 100%; max-width: 460px; max-height: 320px; overflow-y: auto;
+  min-width: 100%; max-width: min(460px, calc(100vw - 32px));
+  max-height: 320px; overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--rule); border-radius: var(--radius);
-  box-shadow: 0 6px 18px rgba(22,32,42,.14);
+  box-shadow: var(--schatten-menu);
   padding: var(--s2);
   display: flex; flex-direction: column; gap: 2px;
 }
-.dd-menu .opt { white-space: nowrap; padding: 5px var(--s2); border-radius: var(--radius-s); }
+/* Die ganze Zeile ist Klickfläche (das label umschliesst die Checkbox);
+   keine Textauswahl beim schnellen Mehrfach-Ankreuzen. */
+.dd-menu .opt {
+  white-space: normal; padding: 6px var(--s2); border-radius: var(--radius-s);
+  -webkit-user-select: none; user-select: none;
+}
 .dd-menu .opt:hover { background: var(--sunken); }
 .dd-fuss { border-top: 1px solid var(--rule-soft); margin-top: var(--s1); padding-top: var(--s2); }
 
 .opt {
-  display: inline-flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   font-size: 13px; color: var(--ink); cursor: pointer; min-height: 24px;
 }
 .opt input { width: 15px; height: 15px; accent-color: var(--pine); margin: 0; cursor: pointer; flex: none; }
@@ -203,7 +230,6 @@ select, input[type="search"], input[type="text"], input[type="url"] {
 }
 input[type="search"] { width: 260px; }
 select { max-width: 260px; }
-select:disabled { color: var(--faint); background: var(--sunken); }
 
 .werkzeuge-rechts {
   margin-left: auto;
@@ -217,14 +243,14 @@ select:disabled { color: var(--faint); background: var(--sunken); }
 
 button {
   font-family: inherit; font-size: 13px; font-weight: 500;
-  height: 34px; padding: 0 14px;
+  height: 34px; padding: 0 var(--s4);
   border-radius: var(--radius-s);
   border: 1px solid var(--pine);
   background: var(--pine); color: #fff;
   cursor: pointer;
 }
 button:hover { background: var(--pine-dark); border-color: var(--pine-dark); }
-button:disabled { opacity: .45; cursor: default; }
+button:disabled { opacity: .6; cursor: default; }
 button:disabled:hover { background: var(--pine); border-color: var(--pine); }
 
 button.ghost { background: var(--surface); color: var(--ink); border-color: var(--rule); }
@@ -235,9 +261,10 @@ button.link {
   background: none; border: 0; height: auto; padding: 0;
   font-size: 12px; font-weight: 400; color: var(--pine);
   text-decoration: underline; text-underline-offset: 3px;
-  text-decoration-color: #A9C4BC;
+  text-decoration-color: var(--pine-linie);
 }
 button.link:hover { background: none; text-decoration-color: currentColor; }
+button.link:disabled { color: var(--muted); text-decoration: none; cursor: default; }
 
 /* Segmentierter Umschalter */
 .views { display: inline-flex; flex: none; border-radius: var(--radius-s); }
@@ -265,11 +292,11 @@ button.link:hover { background: none; text-decoration-color: currentColor; }
   height: 28px; padding: 0 var(--s2) 0 var(--s3);
   font-size: 12px; font-weight: 400;
   background: var(--pine-bg); color: var(--pine);
-  border: 1px solid #C5DBD3; border-radius: 14px;
+  border: 1px solid var(--pine-rand); border-radius: 14px;
 }
-.pille:hover { background: #DDEBE6; border-color: var(--pine); }
+.pille:hover { background: var(--pine-bg-hover); border-color: var(--pine); }
 .pille .art { color: var(--muted); }
-.pille .x { font-size: 14px; line-height: 1; opacity: .7; }
+.pille .x { font-size: 15px; line-height: 1; opacity: .7; }
 .pille:hover .x { opacity: 1; }
 .filter-reset { margin-left: var(--s2); }
 
@@ -285,9 +312,22 @@ thead th {
   font-size: 11px; font-weight: 600; letter-spacing: .06em;
   text-transform: uppercase; color: var(--muted);
   padding: 0 var(--s4) var(--s2) 0;
-  border-bottom: 1px solid var(--ink);
+  /* Grundlinie als Schatten statt border-bottom: bei border-collapse
+     bleibt ein Zellrahmen beim Sticky-Scrollen an der alten Position. */
+  box-shadow: inset 0 -1px 0 var(--ink);
   white-space: nowrap;
 }
+/* Sortier-Knopf im Spaltenkopf: erbt die Kopf-Typografie, zeigt
+   Interaktivität erst beim Überfahren — die Tabelle bleibt ruhig. */
+.sortier-knopf {
+  background: none; border: 0; padding: 0; height: auto;
+  font: inherit; letter-spacing: inherit; text-transform: inherit;
+  color: inherit; cursor: pointer; text-align: inherit; white-space: inherit;
+}
+.sortier-knopf:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+th[aria-sort] .sortier-knopf { color: var(--ink); }
+.sortier-pfeil { font-size: 11px; }
+
 tbody td {
   padding: 10px var(--s4) 10px 0;
   border-bottom: 1px solid var(--rule-soft);
@@ -296,6 +336,8 @@ tbody td {
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover td { background: var(--sunken); }
 tbody tr { scroll-margin-top: calc(var(--kopf-gesamt) + 16px); }
+/* Zeilen mit Klickfunktion sagen es auch dem Zeiger */
+tbody tr.klick { cursor: pointer; }
 
 th.rechts, td.rechts { text-align: right; font-variant-numeric: tabular-nums; }
 
@@ -308,10 +350,8 @@ th.rechts, td.rechts { text-align: right; font-variant-numeric: tabular-nums; }
   text-underline-offset: 3px;
 }
 .zeilen-knopf:hover { background: none; color: var(--pine); text-decoration-color: currentColor; }
-tr:hover .zeilen-knopf { text-decoration-color: #A9C4BC; }
+tr:hover .zeilen-knopf { text-decoration-color: var(--pine-linie); }
 
-.element-name { font-size: 15px; font-weight: 500; color: var(--ink); }
-.merkmal-name { font-size: 15px; font-weight: 500; color: var(--ink); }
 .beschreibung { display: block; font-size: 13px; color: var(--ink); max-width: 62ch; }
 .merkmal-desc { display: block; font-size: 12px; color: var(--muted); margin-top: 3px; max-width: 62ch; }
 .zell-muted { font-size: 12px; color: var(--muted); }
@@ -325,17 +365,30 @@ tr:hover .zeilen-knopf { text-decoration-color: #A9C4BC; }
   gap: var(--s4);
 }
 .karte {
+  position: relative;
   display: flex; flex-direction: column; align-items: stretch; gap: var(--s2);
   text-align: left; font-family: inherit; font-size: 13px;
   height: auto; padding: var(--s4);
   background: var(--surface); color: var(--ink);
   border: 1px solid var(--rule-soft); border-radius: var(--radius);
 }
-button.karte { cursor: pointer; }
-button.karte:hover { border-color: var(--pine); background: var(--surface); }
-button.karte:hover .karte-name { color: var(--pine); text-decoration: underline; text-underline-offset: 3px; }
+/* Der Name ist der Knopf; seine Klickfläche deckt die ganze Karte.
+   So bleibt der Karteninhalt für Screenreader normal erkundbar, statt
+   als ein einziger langer Knopfname zu verschmelzen. */
+.karte-knopf {
+  background: none; border: 0; padding: 0; height: auto;
+  font-family: inherit; font-size: 15px; font-weight: 600;
+  line-height: 1.25; letter-spacing: -0.01em;
+  color: var(--ink); text-align: left; cursor: pointer;
+}
+.karte-knopf::after { content: ''; position: absolute; inset: 0; border-radius: var(--radius); }
+.karte:hover:has(.karte-knopf) { border-color: var(--pine); }
+.karte:hover .karte-knopf { color: var(--pine); text-decoration: underline; text-underline-offset: 3px; }
+.karte-knopf:focus-visible { outline: none; }
+.karte:has(.karte-knopf:focus-visible) { outline: 3px solid var(--fokus); outline-offset: 2px; }
 
 .karte-kopf { display: flex; align-items: baseline; gap: var(--s2); }
+.karte-kopf .token--zahl { margin-left: auto; }
 .karte-name {
   font-size: 15px; font-weight: 600; line-height: 1.25;
   letter-spacing: -0.01em; color: var(--ink);
@@ -362,7 +415,8 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
   padding: 1px 7px; border-radius: var(--radius-s);
   white-space: nowrap;
 }
-.token--fill { background: var(--pine-bg); color: var(--pine); }        /* Datentyp */
+/* Datentyp: neutral — Grün ist der Interaktion vorbehalten (E3) */
+.token--fill { background: var(--sunken); color: var(--ink); border: 1px solid var(--rule-soft); }
 .token--outline { border: 1px solid var(--rule-soft); color: var(--ink); font-weight: 400; }
 .token--status {
   border: 1px solid var(--rule-soft); color: var(--muted);
@@ -373,7 +427,11 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
   font-variant-numeric: tabular-nums;
 }
 
-.swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+/* Der dunkle Rand trägt den Kontrast der hellen Palettentöne (tokens.css) */
+.swatch {
+  width: 9px; height: 9px; border-radius: 2px; flex: none;
+  box-shadow: inset 0 0 0 1px var(--marke-rand);
+}
 
 .pset { display: flex; align-items: flex-start; gap: 6px; }
 .pset .swatch { margin-top: 5px; }
@@ -384,13 +442,14 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
 .werte { display: block; font-size: 12px; color: var(--muted); max-width: 38ch; }
 .werte-n { color: var(--ink); font-weight: 500; }
 
-/* Projektphasen: neun Felder, dunkel wenn deklariert. Bei neun Werten ist
-   das die einzige Form, die in eine Tabellenspalte passt. */
+/* LOIN-Meilensteine: neun Felder, dunkel wenn deklariert. Bei neun Werten
+   ist das die einzige Form, die in eine Tabellenspalte passt. Jedes Feld
+   trägt den vollen Wert (LZPn) als title. */
 .phasen { display: inline-flex; gap: 2px; }
 .ph {
-  min-width: 15px; height: 17px; padding: 0 3px;
+  min-width: 16px; height: 18px; padding: 0 3px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 10px; font-weight: 500; font-variant-numeric: tabular-nums;
+  font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums;
   border-radius: 2px;
   background: var(--sunken); color: var(--muted);
 }
@@ -408,7 +467,12 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
   /* feste Höhe: der Titelblock über dem Graph ist unterschiedlich hoch,
      eine Rechnung gegen 100vh schöbe die Grafik mal über, mal unter den Rand */
   height: 62vh; min-height: 440px; max-height: 720px;
-  cursor: grab; touch-action: none;
+  /* pan-y: senkrechtes Touch-Scrollen der Seite bleibt möglich */
+  cursor: grab; touch-action: pan-y;
+}
+/* Kleine Laptophöhen: Legende und Hinweis sollen ohne Scrollen sichtbar bleiben */
+@media (max-height: 760px) {
+  #netz { min-height: 340px; height: 56vh; }
 }
 #netz.dragging { cursor: grabbing; }
 
@@ -416,9 +480,11 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
   display: flex; gap: var(--s2); align-items: center;
   margin: 0 0 var(--s3);
 }
-.graph-steuerung button { height: 30px; padding: 0 10px; font-size: 12px; }
+.graph-steuerung button { height: 30px; padding: 0 var(--s3); font-size: 12px; }
 
-.g-link { fill: none; stroke: #A9B4B1; stroke-width: 1.2; }
+.g-link { fill: none; stroke: var(--kante); stroke-width: 1.2; }
+/* Kanten des überfahrenen/fokussierten Knotens */
+.g-link.an { stroke: var(--pine); stroke-width: 2; }
 .g-dot { stroke: var(--marke-rand); stroke-width: 1; }
 .g-center-circle { fill: var(--ink); }
 .g-label {
@@ -430,8 +496,11 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
   paint-order: stroke; stroke: #fff; stroke-width: 4px; stroke-linejoin: round;
 }
 .g-center-label { font-family: var(--schrift); font-size: 13px; font-weight: 600; fill: #fff; }
-.g-center-sub { font-family: var(--schrift); font-size: 11px; fill: #C7D0D6; }
+.g-center-sub { font-family: var(--schrift); font-size: 11px; fill: var(--hell-auf-dunkel); }
 .g-fade { opacity: .13; }
+/* Ein gefadeter Knoten bleibt fokussierbar — bei Fokus wird er wieder sichtbar,
+   sonst wandert ein unsichtbarer Fokus durch den Graphen. */
+.g-fade:focus-visible, .g-fade:focus-within { opacity: 1; }
 .g-hit { fill: transparent; stroke: none; cursor: pointer; }
 .g-knoten:focus-visible { outline: none; }
 .g-knoten:focus-visible .g-dot,
@@ -443,13 +512,17 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
   border-top: 1px solid var(--rule-soft);
   font-size: 12px;
 }
-.legend button {
+.legend button, .legend .eintrag {
   display: flex; align-items: center; gap: 6px;
-  background: none; border: 0; height: auto; padding: 2px 4px;
+  background: none; border: 0; height: auto; min-height: 24px; padding: 2px 4px;
   font-size: 12px; font-weight: 400; color: var(--ink); cursor: pointer;
 }
+.legend .eintrag { cursor: default; }
 .legend button:hover { background: var(--sunken); }
-.legend button[aria-pressed="false"] { opacity: .45; }
+/* Abgewählt heisst nicht unlesbar: nur der Swatch wird gedimmt,
+   der Text bleibt über der 4.5:1-Grenze (vorher: opacity .45 gesamt). */
+.legend button[aria-pressed="false"] { color: var(--muted); }
+.legend button[aria-pressed="false"] .swatch { opacity: .35; }
 .legend .swatch.rund { border-radius: 50%; }
 .legende-hinweis { margin-left: auto; color: var(--muted); align-self: center; }
 
@@ -458,12 +531,12 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
   background: var(--ink); color: #fff;
   border-radius: var(--radius); padding: 8px 10px;
   font-size: 12px; line-height: 1.45; max-width: 320px;
-  box-shadow: 0 4px 14px rgba(22,32,42,.22);
+  box-shadow: var(--schatten-tip);
   opacity: 0; transition: opacity 90ms ease;
 }
 .tip.on { opacity: 1; }
 .tip b { font-weight: 600; }
-.tip .z { display: block; color: #C7D0D6; font-size: 12px; margin-top: 3px; }
+.tip .z { display: block; color: var(--hell-auf-dunkel); font-size: 12px; margin-top: 3px; }
 
 .graph-hint { margin: var(--s2) 0 0; font-size: 12px; color: var(--muted); max-width: 78ch; }
 
@@ -482,7 +555,7 @@ button.karte:hover .karte-name { color: var(--pine); text-decoration: underline;
   margin-left: auto; flex: none;
 }
 .blaettern .feld .label { padding: 0; }
-.blaettern button { height: 30px; padding: 0 11px; font-size: 12px; }
+.blaettern button { height: 30px; padding: 0 var(--s3); font-size: 12px; }
 .blaettern select { height: 30px; font-size: 12px; width: auto; min-width: 72px; }
 
 /* ---------- 10 Merkmaldetail ---------- */
@@ -530,7 +603,7 @@ dialog {
   padding: var(--s5); max-width: 880px; width: min(92vw, 880px);
   background: var(--paper); color: var(--ink);
 }
-dialog::backdrop { background: rgba(22,32,42,.4); }
+dialog::backdrop { background: var(--schleier); }
 dialog h2 { margin: 0 0 var(--s4); font-size: 20px; font-weight: 600; }
 dialog h3 { margin: var(--s5) 0 var(--s2); font-size: 11px; font-weight: 600;
             letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
@@ -544,23 +617,28 @@ dialog textarea {
   resize: vertical;
 }
 dialog .tabs { display: flex; gap: var(--s2); flex-wrap: wrap; }
-dialog .tabs button { font-size: 12px; height: 30px; padding: 0 11px; }
-dialog .row { display: flex; gap: var(--s2); justify-content: flex-end; margin-top: var(--s4); }
+dialog .tabs button { font-size: 12px; height: 30px; padding: 0 var(--s3); }
+dialog .row { display: flex; gap: var(--s2); justify-content: flex-end; margin-top: var(--s4); align-items: center; }
+dialog .dlg-status { margin-right: auto; font-size: 12px; color: var(--muted); }
 
 /* ---------- 13 Zustände ---------- */
 
 .status { margin: 0; font-size: 12px; color: var(--muted); }
 .status.error { color: var(--rust); font-weight: 500; }
 
-.spinner { display: flex; align-items: center; gap: var(--s2); font-size: 12px; color: var(--muted); }
-.spinner .ring {
+.ring {
   width: 13px; height: 13px; flex: none;
   border: 2px solid var(--rule-soft); border-top-color: var(--pine);
   border-radius: 50%; animation: dreh .7s linear infinite;
 }
 @keyframes dreh { to { transform: rotate(360deg); } }
 
+/* Ladezustand dort, wo der Blick ist: im Inhaltsbereich, nicht nur im Kopf */
+.lade-inhalt { display: inline-flex; align-items: center; gap: var(--s2); color: var(--muted); }
+.meldung .ring { width: 16px; height: 16px; }
+
 .laden-platzhalter {
+  display: flex; align-items: center; gap: var(--s2);
   border: 1px dashed var(--rule); border-radius: var(--radius);
   padding: var(--s6); color: var(--muted); font-size: 13px;
 }
@@ -574,16 +652,28 @@ dialog .row { display: flex; gap: var(--s2); justify-content: flex-end; margin-t
 .meldung p { margin: 0 0 var(--s4); font-size: 13px; line-height: 1.5; }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner .ring { animation-duration: 2.4s; }
+  .ring { animation-duration: 2.4s; }
   .tip { transition: none; }
 }
 
 /* ---------- Haltepunkte (Oblique: 600 · 905 · 1240 · 1440) ---------- */
 
+/* Unterhalb der Lesebreite scrollt die Tabelle in ihrem eigenen Behälter
+   statt die ganze Seite horizontal zu schieben (SC 1.4.10 Reflow).
+   Der Preis: der klebende Tabellenkopf wirkt nur oberhalb dieser Grenze —
+   dort, wo die Tabelle ohnehin ganz sichtbar ist. */
+@media (max-width: 1100px) {
+  #view-liste { overflow-x: auto; }
+  #view-liste table { min-width: 860px; }
+  /* Im Scrollbehälter würde sticky am Behälter statt an der Seite haften
+     und mitten in der Tabelle schweben — dann lieber gar nicht kleben. */
+  #view-liste thead th { position: static; }
+}
+
 @media (max-width: 905px) {
   .shell { padding: var(--s4) var(--s4) var(--s6); }
   .kopf-innen, .krumen, .fuss-innen { padding: 0 var(--s4); }
-  .titelblock h1 { font-size: 22px; }
+  .titelblock h1 { font-size: 20px; }
   .treffer { margin-left: 0; }
   input[type="search"] { width: 100%; }
   .feld { flex: 1 1 180px; }
@@ -594,4 +684,33 @@ dialog .row { display: flex; gap: var(--s2); justify-content: flex-end; margin-t
   dl.daten dd { border-top: 0; padding-top: 0; }
   thead th { white-space: normal; }
   #netz { height: 60vh; }
+}
+
+/* ---------- Druck: das Blatt zeigt den Inhalt, nicht die Bedienung ---------- */
+
+@media print {
+  header, .subkopf, .toolbar, .aktive-filter, .blaettern,
+  .graph-steuerung, .legend button, footer button { display: none !important; }
+  body { background: #fff; color: #000; }
+  .shell { max-width: none; padding: 0; }
+  a { color: inherit; }
+  .fuss-innen a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 10px; }
+  .karte-text { display: block; -webkit-line-clamp: unset; overflow: visible; }
+  thead { display: table-header-group; }
+  thead th { position: static; box-shadow: none; border-bottom: 1px solid #000; }
+  tbody tr { break-inside: avoid; }
+  .merkmal-detail { border: 0; padding: 0; max-width: none; }
+  #view-liste { overflow: visible; }
+  #view-liste table { min-width: 0; }
+}
+
+/* ---------- Kontrastmodus: Zustand nicht nur über Füllfarbe ---------- */
+
+@media (forced-colors: active) {
+  /* deklarierte Meilensteine und Farbswatches behalten ihre Füllung */
+  .ph.an, .swatch { forced-color-adjust: none; }
+  .ph { border: 1px solid CanvasText; }
+  /* aktive Ansicht zusätzlich über die Unterstreichung erkennbar */
+  .views button[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; }
+  .legend button[aria-pressed="false"] { text-decoration: line-through; }
 }

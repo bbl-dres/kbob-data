@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Übersicht, KBOB Data Dictionary</title>
+<title>KBOB Data Dictionary</title>
+<meta name="description" content="Nachschlagewerk zum KBOB Data Dictionary: 719 Objekttypen mit ihren Merkmalen, Datentypen, Einheiten, zulässigen Werten und Property Sets aus LINDAS.">
+<meta name="theme-color" content="#FBFBF9">
+<meta property="og:title" content="KBOB Data Dictionary">
+<meta property="og:description" content="Objekttypen und Merkmale des KBOB Data Dictionary — mit Datentyp, Einheit, zulässigen Werten und Property Set.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230F5C4E'/%3E%3Ctext x='16' y='22' font-family='Arial,sans-serif' font-size='13' font-weight='700' fill='white' text-anchor='middle'%3EDD%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -12,15 +18,29 @@
 </head>
 <body>
 
-<a class="sr-only" href="#inhalt">Springe zum Hauptteil</a>
+<a class="skip" href="#inhalt">Zum Hauptinhalt springen</a>
+
+<noscript>
+  <p style="max-width:74ch;margin:24px auto;padding:0 24px;font-family:Arial,sans-serif">
+    Diese Anwendung benötigt JavaScript: Sie lädt den Katalog zur Laufzeit über
+    eine SPARQL-Abfrage von LINDAS. Ohne JavaScript bleibt die Seite leer.
+  </p>
+</noscript>
 
 <header>
   <div class="kopf-innen">
     <p class="marke">KBOB Data Dictionary</p>
     <p class="status" id="status" role="status" aria-live="polite">Katalog wird geladen …</p>
-    <p class="spinner" id="spinner" hidden><span class="ring"></span>Wird geladen …</p>
-    <button id="csv" class="ghost kopf-rechts" disabled
-            title="Speichert eine CSV-Datei, die Excel direkt öffnet">Für Excel speichern</button>
+    <label class="sr-only" for="sprache">Sprache der Katalogbeschriftungen</label>
+    <select id="sprache" class="kopf-rechts sprache"
+            title="Sprache der Katalogbeschriftungen — fehlt eine Übersetzung, erscheint Deutsch oder Englisch. Die Oberfläche bleibt vorerst deutsch.">
+      <option value="de" selected>DE</option>
+      <option value="fr">FR</option>
+      <option value="it">IT</option>
+      <option value="en">EN</option>
+    </select>
+    <button id="csv" class="ghost" disabled
+            title="Speichert eine CSV-Datei, die Excel direkt öffnet — die sichtbare Auswahl, höchstens 60 Objekttypen">Für Excel speichern</button>
   </div>
 </header>
 
@@ -56,7 +76,7 @@
 
     <div class="aktive-filter" id="aktive-filter" hidden></div>
 
-    <div id="platzhalter" class="laden-platzhalter">Katalog wird geladen …</div>
+    <div id="platzhalter" class="laden-platzhalter"><span class="ring" aria-hidden="true"></span>Katalog wird geladen …</div>
 
     <div id="view-liste" hidden></div>
 
@@ -68,11 +88,11 @@
       <div class="graph-steuerung" id="graph-steuerung">
         <button class="ghost" id="zoom-plus" aria-label="Vergrössern">+</button>
         <button class="ghost" id="zoom-minus" aria-label="Verkleinern">−</button>
-        <button class="ghost" id="zoom-reset">Ansicht zurücksetzen</button>
+        <button class="ghost" id="zoom-reset">Ausschnitt zurücksetzen</button>
       </div>
       <div class="meldung" id="graph-meldung" hidden></div>
       <div class="graph-wrap weit" id="graph-wrap">
-        <svg id="netz" aria-labelledby="graph-hinweis"></svg>
+        <svg id="netz" tabindex="0" aria-labelledby="graph-hinweis"></svg>
         <div class="tip" id="tip" aria-hidden="true"></div>
         <div class="legend" id="legende"></div>
       </div>
@@ -98,16 +118,16 @@
        target="_blank" rel="noopener">KBOB auf GitHub ↗</a>
     <a class="rechts" href="https://github.com/bbl-dres/kbob-data"
        target="_blank" rel="noopener">Quellcode dieser Anwendung ↗</a>
-    <p class="fuss-herkunft">
-      Daten: KBOB Data Dictionary (FM) über LINDAS. Der ausgewertete Graph liegt auf der
+    <p class="fuss-herkunft" id="fuss-herkunft">
+      <span id="hinweis-int">Daten: KBOB Data Dictionary (FM) über LINDAS. Der ausgewertete Graph liegt auf der
       Integrationsumgebung und ist <b>kein publizierter Stand</b>; die Veröffentlichung
-      ist über I14Y vorgesehen.
+      ist über I14Y vorgesehen.</span> <span id="datenstand"></span>
     </p>
   </div>
 </footer>
 
 <dialog id="dlg-verbindung" aria-labelledby="dlg-verbindung-titel">
-  <h2 id="dlg-verbindung-titel">Verbindung und Abfrage</h2>
+  <h2 id="dlg-verbindung-titel" tabindex="-1" autofocus>Verbindung und Abfrage</h2>
 
   <div class="controls">
     <div class="feld">
@@ -130,29 +150,42 @@
   <textarea id="query-text" readonly spellcheck="false" aria-label="SPARQL-Abfrage"></textarea>
 
   <div class="row">
-    <button class="ghost" id="copy-query">In Zwischenablage kopieren</button>
+    <span class="dlg-status" id="copy-status" role="status"></span>
+    <button class="ghost" id="copy-query">In die Zwischenablage kopieren</button>
     <button id="close-verbindung">Schliessen</button>
   </div>
 </dialog>
 
 <dialog id="dlg-a11y" aria-labelledby="dlg-a11y-titel">
-  <h2 id="dlg-a11y-titel">Erklärung zur Barrierefreiheit</h2>
-  <p>Diese Anwendung ist so gebaut, dass sie die Kriterien der
-     <b>WCAG 2.1 Stufe AA</b> erfüllt, wie sie der Standard <b>eCH-0059 v3.0</b>
-     für Dienste des Bundes verbindlich vorgibt.</p>
+  <h2 id="dlg-a11y-titel" tabindex="-1" autofocus>Erklärung zur Barrierefreiheit</h2>
+  <p>Diese Anwendung richtet sich nach den Kriterien der <b>WCAG 2.1 Stufe AA</b>,
+     wie sie der Standard <b>eCH-0059 v3.0</b> für Dienste des Bundes verbindlich
+     vorgibt. Sie ist mit diesen Anforderungen <b>teilweise vereinbar</b>; die
+     bekannten Abweichungen stehen unten.</p>
   <h3>Bekannte Einschränkungen</h3>
   <ul>
-    <li>Die Graph-Ansicht ist mit der Tastatur bedienbar und hat eine Textfassung;
-        bei sehr vielen Knoten bleibt sie dennoch schwer erfassbar. Dieselben
-        Angaben stehen vollständig in der Listenansicht.</li>
-    <li>Die Beschriftungen stammen aus den Quelldaten. Fehlt eine deutsche
-        Fassung, wird die englische gezeigt und als <code>lang="en"</code>
-        ausgezeichnet.</li>
+    <li>Die Graph-Ansicht hat eine vollständige Textfassung und ist mit der
+        Tastatur bedienbar (Knoten per Tab, Zoomen und Verschieben über die
+        Knöpfe beziehungsweise +/−, Pfeiltasten und 0 bei fokussierter Grafik);
+        bei vielen Knoten sind es jedoch entsprechend viele Tab-Schritte.
+        Dieselben Angaben stehen vollständig in der Listenansicht.</li>
+    <li>Die Beschriftungen stammen aus den Quelldaten und folgen der oben
+        rechts gewählten Sprache (DE/FR/IT/EN). Fehlt eine Fassung, erscheint
+        die deutsche oder englische; Namen von Objekttypen und Merkmalen
+        werden dabei mit ihrer Sprache ausgezeichnet (<code>lang</code>),
+        Beschreibungstexte noch nicht durchgehend. Die Bedienoberfläche
+        selbst ist vorerst deutsch.</li>
+    <li>Unterhalb von rund 1100 Pixeln Fensterbreite scrollt die Tabelle in
+        einem eigenen Bereich horizontal; der Tabellenkopf bleibt dort beim
+        Scrollen nicht stehen.</li>
   </ul>
   <h3>Rückmeldung</h3>
-  <p>Hinweise auf Hürden nimmt die Stelle entgegen, die diese Anwendung betreibt —
-     über das
-     <a href="https://github.com/bbl-dres/kbob-data/issues" target="_blank" rel="noopener">Fehlerverzeichnis auf GitHub ↗</a>.</p>
+  <p>Hürden und Verbesserungsvorschläge nimmt die betreibende Stelle über eine
+     <a href="https://github.com/bbl-dres/kbob-data/issues" target="_blank" rel="noopener">Meldung auf GitHub ↗</a>
+     entgegen (GitHub-Konto erforderlich). Antworten erfolgen in der Regel
+     innert 14 Tagen. Für die vorgesehene Publikation wird ein Kontaktweg ohne
+     Konto (E-Mail) ergänzt.</p>
+  <p>Erklärung erstellt und zuletzt überprüft am 31.08.2026.</p>
   <div class="row">
     <button id="close-a11y">Schliessen</button>
   </div>

@@ -21,6 +21,19 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return n;
   }
 
+  /* Ladehinweis mit drehendem Ring — für Leerflächen, deren Inhalt gerade
+     unterwegs ist. Der Ring ist dekorativ; der Text trägt die Aussage. */
+  K.ladeInhalt = function (text) {
+    var box = document.createElement('span');
+    box.className = 'lade-inhalt';
+    var ring = document.createElement('span');
+    ring.className = 'ring';
+    ring.setAttribute('aria-hidden', 'true');
+    box.appendChild(ring);
+    box.appendChild(document.createTextNode(text));
+    return box;
+  };
+
   K.leer = function (bedeutung) {
     var s = document.createElement('span');
     s.className = 'leer';
@@ -43,20 +56,25 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return s;
   };
 
-  /* Projektphasen kompakt: alle bekannten Phasen als Felder, die deklarierten
-     dunkel. Neun Werte passen sonst in keine Tabellenspalte. Der Vorlesetext
-     nennt die deklarierten Phasen ausgeschrieben. */
+  /* LOIN-Meilensteine kompakt: alle bekannten Werte als Felder, die
+     deklarierten dunkel. Neun Werte passen sonst in keine Tabellenspalte.
+     Sichtbar steht die Ziffer, der volle Wert (LZPn) liegt als title auf
+     jedem Feld; der Vorlesetext nennt die deklarierten Werte ausgeschrieben. */
   K.phasen = function (gesetzt, alle) {
-    if (!alle || !alle.length) return K.leer('ohne Phasenangabe');
+    if (!alle || !alle.length) return K.leer('ohne LOIN-Meilenstein');
 
     var box = document.createElement('span');
     box.className = 'phasen';
     box.setAttribute('role', 'img');
     box.setAttribute('aria-label', gesetzt.length
-      ? 'Projektphasen: ' + gesetzt.join(', ')
-      : 'Keine Projektphase hinterlegt');
+      ? 'LOIN-Meilensteine: ' + gesetzt.join(', ')
+      : 'Ohne LOIN-Meilenstein');
+    box.title = gesetzt.length
+      ? 'Deklariert: ' + gesetzt.join(', ')
+      : 'Kein Meilenstein deklariert';
 
-    /* Gemeinsames Vorsilbenkürzel weglassen, sonst wird es zu breit */
+    /* Gemeinsames Vorsilbenkürzel (LZP) weglassen, sonst wird es zu breit —
+       der title je Feld trägt den vollen Datenwert. */
     var vorsilbe = /^[A-Za-z]+/.exec(alle[0]);
     vorsilbe = vorsilbe ? vorsilbe[0] : '';
 
@@ -65,6 +83,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var f = document.createElement('span');
       f.className = 'ph' + (an ? ' an' : '');
       f.setAttribute('aria-hidden', 'true');
+      f.title = p + (an ? ' — deklariert' : ' — nicht deklariert');
       f.textContent = vorsilbe && p.indexOf(vorsilbe) === 0 ? p.slice(vorsilbe.length) : p;
       box.appendChild(f);
     });
@@ -77,6 +96,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     eintraege.forEach(function (m) {
       var t = document.createElement('span');
       t.className = 'token token--' + (m.art || 'outline');
+      if (m.title) t.title = m.title;
       if (m.farbe) {
         var sw = document.createElement('span');
         sw.className = 'swatch';
@@ -117,9 +137,30 @@ var KBOB = window.KBOB || (window.KBOB = {});
     spec.spalten.forEach(function (s) {
       var th = document.createElement('th');
       th.scope = 'col';
-      th.textContent = s.titel;
       if (s.breite) th.style.width = s.breite;
       if (s.rechts) th.className = 'rechts';
+
+      /* Sortierbare Spalten tragen einen Knopf im Kopf; die aktive Spalte
+         sagt Richtung und Zustand über aria-sort und einen Pfeil. */
+      if (s.sort && spec.onSort) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'sortier-knopf';
+        b.textContent = s.titel;
+        var aktiv = spec.sort && spec.sort.feld === s.sort;
+        if (aktiv) {
+          th.setAttribute('aria-sort', spec.sort.richtung > 0 ? 'ascending' : 'descending');
+          var pfeil = document.createElement('span');
+          pfeil.className = 'sortier-pfeil';
+          pfeil.setAttribute('aria-hidden', 'true');
+          pfeil.textContent = spec.sort.richtung > 0 ? ' ▲' : ' ▼';
+          b.appendChild(pfeil);
+        }
+        b.addEventListener('click', function () { spec.onSort(s.sort, s.sortStart); });
+        th.appendChild(b);
+      } else {
+        th.textContent = s.titel;
+      }
       trh.appendChild(th);
     });
     thead.appendChild(trh);
@@ -132,7 +173,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var td0 = document.createElement('td');
       td0.colSpan = spec.spalten.length;
       td0.className = 'kein-treffer';
-      td0.textContent = spec.leerText || 'Kein Treffer für diese Filter.';
+      var leerText = spec.leerText || 'Kein Treffer für diese Filter.';
+      if (spec.laedt) td0.appendChild(K.ladeInhalt(leerText));
+      else td0.textContent = leerText;
       tr0.appendChild(td0);
       tbody.appendChild(tr0);
     }
@@ -140,6 +183,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     spec.zeilen.forEach(function (z) {
       var tr = document.createElement('tr');
       if (z.id) tr.id = z.id;
+      if (z.onClick) tr.className = 'klick';
 
       z.zellen.forEach(function (bau, i) {
         var td = document.createElement('td');
@@ -153,10 +197,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
       });
 
       /* Klick auf die Zeile bleibt als Bequemlichkeit für die Maus — er trägt
-         keine Semantik, der Knopf in der ersten Zelle tut das. */
+         keine Semantik, der Knopf in der ersten Zelle tut das. Eine aktive
+         Textauswahl gewinnt: wer zitiert, wird nicht wegnavigiert. */
       if (z.onClick) {
         tr.addEventListener('click', function (ev) {
           if (ev.target.closest('button, a')) return;
+          if (window.getSelection && String(window.getSelection())) return;
           z.onClick();
         });
       }
@@ -180,34 +226,45 @@ var KBOB = window.KBOB || (window.KBOB = {});
      Galerie
      ========================================================= */
 
-  K.zeichneGalerie = function (karten, leerText) {
+  K.zeichneGalerie = function (karten, leerText, laedt) {
     var ziel = K.el.galerie;
     ziel.innerHTML = '';
 
     if (!karten.length) {
       var p = document.createElement('p');
       p.className = 'kein-treffer';
-      p.textContent = leerText || 'Kein Treffer für diese Filter.';
+      var text = leerText || 'Kein Treffer für diese Filter.';
+      if (laedt) p.appendChild(K.ladeInhalt(text));
+      else p.textContent = text;
       ziel.appendChild(p);
       return;
     }
 
     karten.forEach(function (k) {
-      var karte = document.createElement(k.onClick ? 'button' : 'div');
+      /* Immer ein div — der Knopf sitzt auf dem Namen und dehnt seine
+         Klickfläche per CSS über die Karte. So verschmilzt der Karteninhalt
+         für Screenreader nicht zu einem einzigen langen Knopfnamen. */
+      var karte = document.createElement('div');
       karte.className = 'karte';
-      if (k.onClick) { karte.type = 'button'; karte.addEventListener('click', k.onClick); }
       if (k.id) karte.id = k.id;
 
       var kopf = document.createElement('span');
       kopf.className = 'karte-kopf';
-      var nm = document.createElement('span');
-      nm.className = 'karte-name';
+      var nm;
+      if (k.onClick) {
+        nm = document.createElement('button');
+        nm.type = 'button';
+        nm.className = 'karte-knopf';
+        nm.addEventListener('click', k.onClick);
+      } else {
+        nm = document.createElement('span');
+        nm.className = 'karte-name';
+      }
       nm.appendChild(K.text(k.name, k.sprache));
       kopf.appendChild(nm);
       if (k.zahl !== undefined && k.zahl !== null) {
         var n = document.createElement('span');
         n.className = 'token token--zahl';
-        n.style.marginLeft = 'auto';
         n.textContent = k.zahl;
         if (k.zahlText) {
           var sr = document.createElement('span');
@@ -413,9 +470,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
         b.addEventListener('click', e.onClick);
       } else {
         b = document.createElement('span');
-        b.style.display = 'flex';
-        b.style.alignItems = 'center';
-        b.style.gap = '6px';
+        b.className = 'eintrag';
       }
       var sw = document.createElement('span');
       sw.className = 'swatch' + (e.form === 'quadrat' ? '' : ' rund');
@@ -427,6 +482,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
   }
   K.zeichneLegende = zeichneLegende;
 
+  /* Kanten des überfahrenen Knotens hervorheben — per Klasse, damit die
+     Farbe eine einzige Quelle hat (main.css). Präsentationsattribute würden
+     von den .g-link-Regeln ohnehin übersteuert. */
   function markiere(id) {
     if (K.state.hervor) return;
     var kanten = K.el.netz.querySelectorAll('.g-link');
@@ -434,8 +492,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       if (kanten[i].getAttribute('data-pset')) continue;   // radiale Bündel nicht anfassen
       var an = kanten[i].getAttribute('data-a') === id ||
                kanten[i].getAttribute('data-b') === id;
-      kanten[i].setAttribute('stroke', (id && an) ? '#0F5C4E' : '#A9B4B1');
-      kanten[i].setAttribute('stroke-width', (id && an) ? 2 : 1.2);
+      kanten[i].classList.toggle('an', !!(id && an));
     }
   }
 
@@ -508,7 +565,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       .map(function (p) {
         return {
           pset: p,
-          farbe: element.farbe[p] || '#8A9A96',
+          farbe: element.farbe[p] || '#7D8B87',   // = --kante, 3.1:1 auf Weiss
           merkmale: merkmale.filter(function (m) { return m.pset === p; })
         };
       });
@@ -658,7 +715,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       class: 'g-center-sub', x: 0, y: (zeilen.length - 1) / 2 * 15 + 12,
       'text-anchor': 'middle', 'dominant-baseline': 'middle'
     });
-    sub.textContent = N + ' Merkmale';
+    sub.textContent = N + ' ' + K.plural(N, 'Merkmal', 'Merkmale');
     zentrum.appendChild(sub);
     wurzel.appendChild(zentrum);
 
@@ -742,7 +799,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (m.ifcTyp) typ += ' · ' + m.ifcTyp;
     tipZeile(t, typ);
     if (m.liste && m.liste.anzahl) {
-      tipZeile(t, m.liste.anzahl + ' zulässige Werte: ' + K.gekuerzt(m.liste.werte, 90));
+      tipZeile(t, m.liste.anzahl + ' zulässige Werte: ' + K.kurzListe(m.liste.werte, 90));
     }
     if (m.beschreibung && m.beschreibung !== m.name) {
       tipZeile(t, K.gekuerzt(m.beschreibung, 130));
@@ -796,8 +853,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
   K.grafikSteuerung = function () {
     var svg = K.el.netz;
 
+    /* Zoomen nur mit Ctrl/Cmd oder bei fokussierter Grafik — sonst kapert
+       der containerbreite Graph das Scrollrad der ganzen Seite. */
     svg.addEventListener('wheel', function (ev) {
       if (!vb) return;
+      if (!ev.ctrlKey && !ev.metaKey && document.activeElement !== svg) return;
       ev.preventDefault();
       var rect = svg.getBoundingClientRect();
       zoom(ev.deltaY > 0 ? 1.12 : 1 / 1.12,
