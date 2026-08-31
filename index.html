@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KBOB Data Dictionary — Objekttypen und Attribute</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<header>
+  <div class="titlebar">
+    <h1>KBOB Data Dictionary</h1>
+    <span class="subtitle">Welche Attribute ein Objekttyp mitbringen muss</span>
+    <span class="spacer"></span>
+    <div class="views" role="group" aria-label="Ansicht">
+      <button id="v-liste" aria-pressed="true">Liste</button>
+      <button id="v-galerie" aria-pressed="false">Galerie</button>
+      <button id="v-grafik" aria-pressed="false">Grafik</button>
+    </div>
+  </div>
+
+  <nav class="krumen" id="krumen" aria-label="Pfad"></nav>
+
+  <details class="conn">
+    <summary>Verbindung und Abfrage</summary>
+    <div class="controls">
+      <div class="field">
+        <label for="endpoint">SPARQL-Endpunkt</label>
+        <input id="endpoint" type="text" value="https://int.lindas.admin.ch/query" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="graph">Named Graph</label>
+        <input id="graph" type="url" value="https://lindas.admin.ch/fobl/kbob/dd-fm" spellcheck="false">
+      </div>
+      <button id="neuladen" class="ghost">Neu laden</button>
+      <button id="show-query" class="ghost">Abfragen ansehen</button>
+      <button id="csv" class="ghost" disabled>Als CSV speichern</button>
+    </div>
+  </details>
+
+  <div class="status" id="status">Katalog wird geladen …</div>
+  <div class="spinner" id="spinner" role="status" hidden></div>
+</header>
+
+<div class="shell">
+  <main>
+    <div class="toolbar" id="toolbar" hidden>
+      <div class="field">
+        <label for="f-phase">Phase</label>
+        <select id="f-phase"></select>
+      </div>
+      <div class="field">
+        <label for="f-typ">Typ</label>
+        <select id="f-typ"></select>
+      </div>
+      <div class="field">
+        <label for="filter">Suche</label>
+        <input type="search" id="filter" placeholder="Quelle, Objekttyp oder Attribut" aria-label="Suche">
+      </div>
+      <span class="count" id="count"></span>
+    </div>
+
+    <div id="empty" class="empty">
+      <h3>Katalog wird geladen …</h3>
+      <p>Die Übersicht holt alle Quellen und Objekttypen mit ihren Kennzahlen. Die
+         Attribute eines Objekttyps kommen erst dazu, wenn du es öffnest.</p>
+      <p>Scheitert die Abfrage an CORS – typisch beim Öffnen der Datei per
+         <code>file://</code> – starte <code>lindas-proxy.py</code> und rufe
+         <code>http://localhost:8765</code> auf.</p>
+    </div>
+
+    <div id="view-liste" hidden></div>
+
+    <div id="view-galerie" hidden>
+      <div class="galerie" id="galerie"></div>
+    </div>
+
+    <div id="view-grafik" hidden>
+      <div class="graph-wrap">
+        <svg id="netz" role="img" aria-label="Quellen, Objekttypen und Attribute als Netzgrafik"></svg>
+        <div class="tip" id="tip" role="status"></div>
+        <div class="legend" id="legende"></div>
+      </div>
+      <p class="graph-hint" id="graph-hinweis"></p>
+    </div>
+
+    <div id="view-attribut" hidden>
+      <div class="attribut-detail" id="attribut-detail"></div>
+    </div>
+  </main>
+</div>
+
+<dialog id="dlg-query">
+  <h3>SPARQL-Abfragen</h3>
+  <div class="tabs">
+    <button class="ghost" id="tab-uebersicht" aria-pressed="true">Übersicht</button>
+    <button class="ghost" id="tab-detail" aria-pressed="false">Attribute eines Objekttyps</button>
+    <button class="ghost" id="tab-werte" aria-pressed="false">Zulässige Werte</button>
+  </div>
+  <textarea id="query-text" readonly spellcheck="false"></textarea>
+  <div class="row">
+    <button class="ghost" id="copy-query">In Zwischenablage kopieren</button>
+    <button id="close-query">Schliessen</button>
+  </div>
+</dialog>
+
+<script src="js/data.js"></script>
+<script src="js/views.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
