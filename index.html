@@ -126,23 +126,35 @@
     </div>
 
     <div id="view-graph" hidden>
-      <div class="kbob-graph-controls" id="graph-steuerung">
-        <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-plus" aria-label="Vergrössern" data-i18n-aria-label="graph.zoomIn">
-          <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#plus"></use></svg>
-        </button>
-        <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-minus" aria-label="Verkleinern" data-i18n-aria-label="graph.zoomOut">
-          <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#minus"></use></svg>
-        </button>
-        <button class="ob-button ob-button-secondary" id="zoom-reset" data-i18n="graph.reset">Ausschnitt zurücksetzen</button>
-      </div>
       <div class="kbob-message" id="graph-meldung" hidden></div>
       <div class="kbob-graph-wrap kbob-wide" id="graph-wrap">
-        <svg id="netz" tabindex="0" aria-labelledby="graph-hinweis"></svg>
+        <span class="ob-screen-reader-only" id="graph-titel"></span>
+        <button type="button" class="kbob-graph-skip" id="graph-ueberspringen"
+                data-i18n="graph.skip">Grafik überspringen — zur Textfassung</button>
+        <svg id="netz" tabindex="0" role="group" aria-labelledby="graph-titel"
+             aria-describedby="graph-hinweis"></svg>
+        <div class="kbob-graph-overlay" id="graph-steuerung">
+          <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-plus" aria-label="Vergrössern" data-i18n-aria-label="graph.zoomIn" data-i18n-title="graph.zoomIn" title="Vergrössern">
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#plus"></use></svg>
+          </button>
+          <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-minus" aria-label="Verkleinern" data-i18n-aria-label="graph.zoomOut" data-i18n-title="graph.zoomOut" title="Verkleinern">
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#minus"></use></svg>
+          </button>
+          <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-reset" aria-label="Ausschnitt zurücksetzen" data-i18n-aria-label="graph.reset" data-i18n-title="graph.reset" title="Ausschnitt zurücksetzen">
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#target"></use></svg>
+          </button>
+          <button class="ob-button ob-button-secondary ob-icon-button" id="vollbild" aria-label="Vollbild" data-i18n-aria-label="graph.fullscreen" data-i18n-title="graph.fullscreen" title="Vollbild">
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#fullscreen"></use></svg>
+          </button>
+        </div>
         <div class="ob-tooltip" id="tip" aria-hidden="true"></div>
+        <aside class="kbob-graph-panel" id="graph-panel" hidden
+               aria-label="Details zum gewählten Knoten" data-i18n-aria-label="graph.panel"></aside>
         <div class="kbob-legend" id="legende"></div>
+        <div class="kbob-zoom-hint" id="zoom-hinweis" aria-hidden="true" hidden></div>
       </div>
       <p class="kbob-graph-hint" id="graph-hinweis"></p>
-      <div class="ob-screen-reader-only" id="graph-text"></div>
+      <div class="ob-screen-reader-only" id="graph-text" tabindex="-1"></div>
     </div>
 
     <div id="view-merkmal" hidden>

@@ -52,7 +52,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
    'graph-meldung', 'graph-wrap', 'graph-steuerung', 'aktive-filter',
    'merkmal-detail', 'zoom-plus', 'zoom-minus', 'zoom-reset',
    'facetten', 'blaettern', 'copy-status', 'sprache',
-   'zurueck'].forEach(function (id) {
+   'zurueck', 'graph-panel', 'graph-titel', 'zoom-hinweis',
+   'graph-ueberspringen', 'vollbild'].forEach(function (id) {
     el[id] = document.getElementById(id);
   });
 
@@ -112,6 +113,23 @@ var KBOB = window.KBOB || (window.KBOB = {});
       if (meineGen !== st.generation) return;
       if (!el.platzhalter.hidden && !st.elemente.length) {
         meldung(el.platzhalter, { titel: K.t('loading.catalog'), laedt: true });
+      }
+      /* Neuladen mit bestehendem Inhalt (Sprach-/Endpunktwechsel): die
+         Oberflaechentexte wechseln sofort, der Inhalt zeigt den EINEN
+         Ladezustand — Spinner in Tabelle, Galerie oder Graph. */
+      if (st.elemente.length) {
+        el.blaettern.hidden = true;
+        if (st.ansicht === 'galerie') {
+          sichtbareAnsicht('galerie');
+          K.zeichneGalerie({ karten: [], leerText: K.t('loading.catalog'), laedt: true });
+        } else if (st.ansicht === 'graph') {
+          sichtbareAnsicht('graph');
+          graphMeldung(K.t('loading.catalog'), '', true);
+        } else {
+          sichtbareAnsicht('liste');
+          K.zeichneListe({ titel: K.t('loading.catalog'), spalten: [{ titel: '' }],
+                           zeilen: [], leerText: K.t('loading.catalog'), laedt: true });
+        }
       }
       busy(true, K.t('loading.catalog'));
     });
@@ -290,6 +308,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
     menu.hidden = true;
     menu.setAttribute('role', 'group');
     menu.setAttribute('aria-label', titel);
+    /* tabindex=-1: Beim Mousedown auf eine Zeile schickt Chrome den Fokus
+       zum nächsten fokussierbaren VORFAHREN. Ohne dieses Attribut ist das
+       main#content — der focusout-Wächter unten hielt das für «ausserhalb»
+       und schloss das Menü ZWISCHEN Mousedown und Mouseup; der Klick fiel
+       auf die Seite dahinter durch («Zeile tut nichts»). Mit tabindex=-1
+       bleibt der Fokus im Menü, und die Zeile schaltet zuverlässig. */
+    menu.tabIndex = -1;
     knopf.setAttribute('aria-controls', menu.id);
 
     var reset = null;   // wird unten gebaut; beschrifte() hält ihn aktuell
@@ -302,15 +327,23 @@ var KBOB = window.KBOB || (window.KBOB = {});
       if (reset) reset.disabled = n === 0;
     }
 
-    eintraege.forEach(function (e) {
-      var l = document.createElement('label');
-      l.className = 'kbob-facet-option';
+    eintraege.forEach(function (e, idx) {
+      /* BEWUSST kein <label>: die native Label-Weiterleitung erzeugte je
+         nach Engine trotz preventDefault einen zweiten Klick auf die
+         Checkbox — Toggle plus Rück-Toggle sah aus wie «Zeile tut nichts».
+         Ein neutraler Container mit EINEM expliziten Handler ist in jedem
+         Browser eindeutig; den zugänglichen Namen liefert aria-labelledby. */
+      var zeile = document.createElement('div');
+      zeile.className = 'kbob-facet-option';
 
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'ob-checkbox';
       cb.value = e.wert;
       cb.checked = K.state.facetten[schluessel].indexOf(e.wert) !== -1;
+
+      var textId = id + '-opt-' + idx;
+      cb.setAttribute('aria-labelledby', textId);
       cb.addEventListener('change', function () {
         var auswahl = K.state.facetten[schluessel];
         var i = auswahl.indexOf(e.wert);
@@ -320,20 +353,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
         neuAuswerten();
       });
 
-      /* Die ganze Zeile schaltet — ausdrücklich, statt sich auf die
-         Label-Weiterleitung zu verlassen (die je nach Klickziel und
-         Browser still ausbleiben kann). preventDefault unterbindet das
-         native Doppel-Toggle, wenn die Weiterleitung doch greift. */
-      l.addEventListener('click', function (ev) {
+      zeile.addEventListener('click', function (ev) {
         if (ev.target === cb) return;   // direkter Checkbox-Klick: nativer Weg
-        ev.preventDefault();
         cb.checked = !cb.checked;
         cb.dispatchEvent(new Event('change'));
       });
 
-      l.appendChild(cb);
-      l.appendChild(document.createTextNode(e.text));
-      menu.appendChild(l);
+      zeile.appendChild(cb);
+      zeile.appendChild(K.e('span', '', e.text)).id = textId;
+      menu.appendChild(zeile);
     });
 
     var fuss = document.createElement('div');
@@ -701,7 +729,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (K.state.objekttyp !== uri) K.state.sort = null;
     K.state.objekttyp = uri;
     K.state.merkmal = null;
-    K.state.hervor = null;
+    /* Die Hervorhebung reist mit, wenn der Zieltyp dieses Property Set
+       fuehrt — die Radialansicht oeffnet dann mit der Gruppe im Fokus. */
+    var ziel = objekttypVon(uri);
+    if (!(K.state.hervor && ziel && ziel.psets.some(function (p) {
+      return p.name === K.state.hervor;
+    }))) K.state.hervor = null;
     inUrl();
     zeichne(true);
     if (!K.state.detail[uri]) ladeDetail(uri);
@@ -786,12 +819,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var st = K.state;
     el.krumen.innerHTML = '';
 
-    /* Auf der Übersicht führt die Krume nirgendwohin und wiederholt nur
-       die Überschrift darunter — Brotkrumen erst ab Tiefe 2. */
-    el.krumen.parentNode.hidden = !st.objekttyp;
-    if (!st.objekttyp) return;
-
-    el.krumen.appendChild(krume(K.t('overview.title'), K.geheZuUebersicht, false));
+    /* Die Krume steht auf jeder Ebene — auch auf der Übersicht (stabiler
+       Ankerpunkt, redaktioneller Entscheid). */
+    el.krumen.parentNode.hidden = false;
+    el.krumen.appendChild(krume(K.t('overview.title'), K.geheZuUebersicht, !st.objekttyp));
 
     if (st.objekttyp) {
       var e = objekttypVon(st.objekttyp);
@@ -959,6 +990,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* Einzige Stelle, die die vier View-Container kennt */
   function sichtbareAnsicht(name) {
+    if (name !== 'graph') schliesseGraphPanel(false);
     ['liste', 'galerie', 'graph', 'merkmal'].forEach(function (v) {
       el['view-' + v].hidden = (v !== name);
     });
@@ -1096,9 +1128,194 @@ var KBOB = window.KBOB || (window.KBOB = {});
   /* Netz nur, solange es lesbar bleibt. Die Dokumenttypen bleiben draussen —
      sie würden das Netz fluten und führen alle dasselbe kleine Merkmalschema.
      Wer ausdrücklich nach ihnen filtert, bekommt sie trotzdem. */
+  /* ---------- Graph: Seitenpanel, Hervorhebung, Signatur ----------
+     Klick auf einen Knoten zeigt Details im Panel; navigiert wird erst
+     ueber die Aktion im Panel. Die Hervorhebung laeuft als reine
+     DOM-Operation (kein Neulayout), und ein unveraenderter Knotenbestand
+     wird gar nicht neu gebaut — Ausschnitt und Zoom bleiben stehen. */
+
+  var netzPsetDaten = {};     // Schluessel -> {name, objekttypen, merkmale}
+  var netzLegendeBauen = null;
+  var letzteNetzSig = '';
+  var letzteRadialSig = '';
+
+  function sucheKnoten(id) {
+    var alle = el.netz.querySelectorAll('.g-knoten');
+    for (var i = 0; i < alle.length; i++) {
+      if (alle[i].getAttribute('data-id') === id) return alle[i];
+    }
+    return null;
+  }
+
+  function schliesseGraphPanel(fokusZurueck) {
+    var panel = el['graph-panel'];
+    if (panel.hidden) return;
+    var auswahl = K.state.graphAuswahl;
+    panel.hidden = true;
+    panel.innerHTML = '';
+    K.state.graphAuswahl = null;
+    K.graphAuswahlMarkieren(null);
+    if (fokusZurueck && auswahl && auswahl.knotenId) {
+      var g = sucheKnoten(auswahl.knotenId);
+      (g || el.netz).focus();
+    }
+  }
+
+  /* Ein Bauplan fuer alle Panel-Arten: Kopf (Art, Name, Schliessen),
+     optionale Beschreibung, Kennzeilen, Aktionen. Fokus wandert auf den
+     Titel; Escape und der Schliessen-Knopf geben ihn an den Knoten zurueck. */
+  function zeigeGraphPanel(daten) {
+    var panel = el['graph-panel'];
+    panel.innerHTML = '';
+    panel.hidden = false;
+    K.state.graphAuswahl = daten.merker;
+    K.graphAuswahlMarkieren(daten.merker.knotenId || null);
+
+    var kopf = K.e('div', 'kbob-graph-panel-head');
+    var titelbox = K.e('div', 'kbob-graph-panel-title');
+    titelbox.appendChild(K.e('span', 'kbob-graph-panel-kind', daten.art));
+    var h = K.e('h2', '', null);
+    h.tabIndex = -1;
+    h.appendChild(K.text(daten.name, daten.sprache));
+    titelbox.appendChild(h);
+    kopf.appendChild(titelbox);
+    var zu = K.knopf('kbob-graph-panel-close', null, function () { schliesseGraphPanel(true); });
+    zu.setAttribute('aria-label', K.t('common.close'));
+    zu.appendChild(K.icon('xmark'));
+    kopf.appendChild(zu);
+    panel.appendChild(kopf);
+
+    if (daten.beschreibung) {
+      panel.appendChild(K.e('p', 'kbob-graph-panel-desc', K.gekuerzt(daten.beschreibung, 280)));
+    }
+
+    if (daten.zeilen && daten.zeilen.length) {
+      var dl = K.e('dl', 'kbob-graph-panel-data');
+      daten.zeilen.forEach(function (z) {
+        if (!z[1]) return;
+        dl.appendChild(K.e('dt', '', z[0]));
+        var dd = K.e('dd', '');
+        if (typeof z[1] === 'string') dd.textContent = z[1];
+        else dd.appendChild(z[1]);
+        dl.appendChild(dd);
+      });
+      panel.appendChild(dl);
+    }
+
+    var aktionen = K.e('div', 'kbob-graph-panel-actions');
+    (daten.aktionen || []).forEach(function (a) {
+      var b = K.knopf('ob-button ' + (a.primaer ? 'ob-button-primary' : 'ob-button-secondary'),
+                      a.text, a.onClick);
+      if (a.gedrueckt !== undefined) b.setAttribute('aria-pressed', String(a.gedrueckt));
+      if (a.name) b.setAttribute('data-aktion', a.name);
+      aktionen.appendChild(b);
+    });
+    panel.appendChild(aktionen);
+
+    panel.addEventListener('keydown', panelEscape);
+    if (daten.fokus !== false) h.focus();
+  }
+
+  function panelEscape(ev) {
+    if (ev.key === 'Escape') { ev.stopPropagation(); schliesseGraphPanel(true); }
+  }
+
+  function zeigePanelTyp(e, knotenId, fokus) {
+    zeigeGraphPanel({
+      merker: { art: 'typ', uri: e.uri, knotenId: knotenId },
+      art: K.t('graph.legendType'), name: e.name, sprache: e.sprache,
+      beschreibung: e.beschreibung,
+      zeilen: [
+        [K.t('col.attrs'), K.zahl(e.anzahl)],
+        [K.t('col.psets'), K.zahl(e.psets.length)],
+        [K.t('col.status'), e.status || ''],
+        [K.t('col.catalog'), e.quelle]
+      ],
+      aktionen: [
+        { text: K.t('common.open'), primaer: true, name: 'oeffnen',
+          onClick: function () { K.geheZuObjekttyp(e.uri); } }
+      ],
+      fokus: fokus
+    });
+  }
+
+  function zeigePanelPset(schluessel, knotenId, fokus) {
+    var d = netzPsetDaten[schluessel];
+    if (!d) return;
+    var aktiv = K.state.hervor === d.name;
+    zeigeGraphPanel({
+      merker: { art: 'pset', schluessel: schluessel, knotenId: knotenId },
+      art: K.t('graph.legendPset'), name: d.name,
+      zeilen: [
+        [K.t('overview.title'), K.zahl(d.objekttypen)],
+        [K.t('col.attrs'), K.zahl(d.merkmale)]
+      ],
+      aktionen: [
+        { text: aktiv ? K.t('graph.highlightOff') : K.t('graph.highlightOn'),
+          gedrueckt: aktiv, name: 'hervor',
+          onClick: function () { toggleNetzHervor(d.name, schluessel, knotenId); } },
+        { text: K.t('graph.showInList'), name: 'liste',
+          onClick: function () {
+            el.filter.value = d.name;
+            K.state.seite = 1;
+            setzeAnsicht('liste');
+          } }
+      ],
+      fokus: fokus
+    });
+  }
+
+  function toggleNetzHervor(name, schluessel, knotenId) {
+    K.state.hervor = (K.state.hervor === name) ? null : name;
+    K.hervorhebungNetz();
+    if (netzLegendeBauen) netzLegendeBauen();
+    /* Panel neu beschriften, Fokus bleibt auf dem Umschaltknopf */
+    zeigePanelPset(schluessel, knotenId, false);
+    var knopf = el['graph-panel'].querySelector('[data-aktion="hervor"]');
+    if (knopf) knopf.focus();
+    K.setStatus(K.state.hervor
+      ? K.t('graph.highlighted', { name: name })
+      : K.t('graph.highlightCleared'));
+  }
+
+  function hebeNetzHervorAuf() {
+    K.state.hervor = null;
+    K.hervorhebungNetz();
+    if (netzLegendeBauen) netzLegendeBauen();
+    var offen = K.state.graphAuswahl;
+    if (offen && offen.art === 'pset') zeigePanelPset(offen.schluessel, offen.knotenId, false);
+    K.setStatus(K.t('graph.highlightCleared'));
+  }
+
+  function zeigePanelMerkmal(m, e, knotenId, fokus) {
+    zeigeGraphPanel({
+      merker: { art: 'merkmal', uri: m.uri, knotenId: knotenId },
+      art: K.t('col.attr'), name: m.name, sprache: m.sprache,
+      beschreibung: (m.beschreibung && m.beschreibung !== m.name) ? m.beschreibung : '',
+      zeilen: [
+        [K.t('col.pset'), m.pset],
+        [K.t('col.datatype'), m.typ || ''],
+        [K.t('col.unit'), m.einheit || ''],
+        [K.t('col.status'), m.status || ''],
+        [K.t('col.values'), m.liste && m.liste.anzahl
+          ? K.zahl(m.liste.anzahl) + ': ' + K.kurzListe(m.liste.werte, 90) : '']
+      ],
+      aktionen: [
+        { text: K.t('common.open'), primaer: true, name: 'oeffnen',
+          onClick: function () { K.geheZuMerkmal(m.uri); } }
+      ],
+      fokus: fokus
+    });
+  }
+
+  /* Netz nur, solange es lesbar bleibt. Die Dokumenttypen bleiben draussen —
+     sie wuerden das Netz fluten und fuehren alle dasselbe kleine
+     Merkmalschema. Wer nach ihnen filtert, bekommt sie trotzdem. */
   function uebersichtsGraph(liste) {
+    el['graph-titel'].textContent = K.t('graph.titleOverview');
+
     if (!liste.length) {
-      graphMeldung(K.t('graph.emptyTitle'), K.t('graph.emptyTypes'));
+      graphMeldung(K.t('graph.emptyTitle'), K.t('graph.emptyTypes'), false, 'leer');
       return;
     }
 
@@ -1107,62 +1324,91 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var ausgeblendet = liste.length - netzListe.length;
 
     if (netzListe.length > K.NETZ_MAX) {
-      graphMeldung(K.t('graph.tooManyTitle'), K.t('graph.tooMany', { n: K.zahl(netzListe.length), max: K.NETZ_MAX }));
+      graphMeldung(K.t('graph.tooManyTitle'),
+                   K.t('graph.tooMany', { n: K.zahl(netzListe.length), max: K.NETZ_MAX }));
       return;
     }
     graphMeldung(null);
 
+    var hinweisText = K.t('graph.overviewHint') + ' ' +
+      (ausgeblendet ? K.t('graph.docsHidden', { n: K.zahl(ausgeblendet) }) + ' ' : '') +
+      K.t('graph.controls');
+
+    /* Unveraenderter Knotenbestand: nichts neu bauen — Hervorhebung und
+       Legende nachfuehren, Ausschnitt der Nutzenden respektieren. */
+    var v = verbindung();
+    var sig = [v.graph, K.state.sprache]
+      .concat(netzListe.map(function (e) { return e.uri; })).join('|');
+    if (sig === letzteNetzSig && el.netz.getAttribute('data-modus') === 'netz') {
+      el['graph-hinweis'].textContent = hinweisText;
+      K.hervorhebungNetz();
+      if (netzLegendeBauen) netzLegendeBauen();
+      return;
+    }
+    letzteNetzSig = sig;
+    schliesseGraphPanel(false);
+
     var knoten = [], kanten = [], nachPset = {};
+    netzPsetDaten = {};
     netzListe.forEach(function (e) {
       var k = {
-        id: 'o:' + e.uri, name: e.name, farbe: '#2379a4' /* ob interaction-state */, form: 'kreis',
+        id: 'o:' + e.uri, name: e.name, art: 'typ', klasse: 'g-dot-typ',
+        farbe: '#2379a4' /* ob interaction-state */, form: 'kreis',
         r: 4 + Math.sqrt(e.anzahl) * 1.5,
         vorlesen: e.name + ', ' + e.anzahl + ' ' +
                   K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs')) + ', ' + e.quelle,
         zeilen: [e.quelle, e.anzahl + ' ' +
-                 K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs')) + ' — ' + K.t('graph.open')],
-        onClick: function () { K.geheZuObjekttyp(e.uri); }
+                 K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs'))],
+        onClick: function () { zeigePanelTyp(e, 'o:' + e.uri); }
       };
       knoten.push(k);
       e.psets.forEach(function (p) {
-        var pk = nachPset[p.name];
+        /* Schluessel = URI (namensgleiche Sets verschiedener Kataloge
+           bleiben eigene Knoten); die Hervorhebung matcht den NAMEN —
+           dort geht es um den fachlichen Begriff. */
+        var schluessel = p.uri || 'name:' + p.name;
+        var pk = nachPset[schluessel];
         if (!pk) {
-          pk = nachPset[p.name] = {
-            id: 'p:' + p.name, name: p.name, farbe: '#46596b' /* ob secondary-hover */, form: 'quadrat',
+          pk = nachPset[schluessel] = {
+            id: 'p:' + schluessel, name: p.name, art: 'pset', klasse: 'g-dot-pset',
+            farbe: '#46596b' /* ob secondary-hover */, form: 'quadrat',
             r: 5, stark: true, objekttypen: 0, merkmale: 0,
-            onClick: (function (nm) {
-              return function () {
-                K.state.hervor = (K.state.hervor === nm) ? null : nm;
-                zeichne();
-              };
-            })(p.name)
+            onClick: (function (s, kid) {
+              return function () { zeigePanelPset(s, kid); };
+            })(schluessel, 'p:' + schluessel)
           };
           knoten.push(pk);
         }
         pk.objekttypen++;
         pk.merkmale += p.n;
-        kanten.push({ a: k, b: pk });
+        kanten.push({ a: k, b: pk, n: p.n });
       });
     });
 
-    Object.keys(nachPset).forEach(function (n) {
-      var pk = nachPset[n];
+    Object.keys(nachPset).forEach(function (s) {
+      var pk = nachPset[s];
       pk.r = 5 + Math.sqrt(pk.objekttypen) * 2.2;
       pk.vorlesen = K.t('graph.psetVorlesen', { name: pk.name, t: pk.objekttypen, a: pk.merkmale });
       pk.zeilen = [K.t('graph.legendPset'),
-                   K.t('graph.psetIn', { t: pk.objekttypen, a: pk.merkmale }),
-                   K.t('graph.highlight')];
+                   K.t('graph.psetIn', { t: pk.objekttypen, a: pk.merkmale })];
+      netzPsetDaten[s] = { name: pk.name, objekttypen: pk.objekttypen, merkmale: pk.merkmale };
     });
 
-    K.zeichneNetz(knoten, kanten, [
-      { name: K.t('graph.legendType'), n: netzListe.length, farbe: '#2379a4' },
-      { name: K.t('graph.legendPset'), n: Object.keys(nachPset).length, farbe: '#46596b', form: 'quadrat' },
-      { hinweis: K.state.hervor ? K.t('graph.highlighted', { name: K.state.hervor })
-                                : K.t('graph.dotSize') }
-    ], K.t('graph.overviewHint') + ' ' +
-       (ausgeblendet ? K.t('graph.docsHidden', { n: K.zahl(ausgeblendet) }) + ' ' : '') +
-       K.t('graph.controls'),
-       K.t('graph.contentTitle'));
+    netzLegendeBauen = function () {
+      K.zeichneLegende([
+        { name: K.t('graph.legendType'), n: netzListe.length, farbe: '#2379a4' },
+        { name: K.t('graph.legendPset'), n: Object.keys(nachPset).length,
+          farbe: '#46596b', form: 'quadrat' },
+        K.state.hervor
+          ? { hinweis: K.t('graph.highlighted', { name: K.state.hervor }),
+              onDismiss: hebeNetzHervorAuf,
+              ariaLabel: K.t('graph.highlightOff') }
+          : { hinweis: K.t('graph.dotSize') }
+      ]);
+    };
+
+    K.zeichneNetz(knoten, kanten, null, hinweisText, K.t('graph.contentTitle'));
+    netzLegendeBauen();
   }
 
   /* --- Ein Objekttyp und seine Merkmale --- */
@@ -1282,13 +1528,22 @@ var KBOB = window.KBOB || (window.KBOB = {});
     } else {
       sichtbareAnsicht('graph');
       if (!merkmale.length) {
-        graphMeldung(K.t('graph.emptyTitle'), K.t('graph.emptyAttrs'));
+        graphMeldung(K.t('graph.emptyTitle'), K.t('graph.emptyAttrs'), false, 'leer');
         return;
       }
       graphMeldung(null);
+      el['graph-titel'].textContent = K.t('graph.attrsOf', { name: e.name });
+      var radialSig = [verbindung().graph, st.sprache, e.uri]
+        .concat(merkmale.map(function (m) { return m.uri; })).join('|');
+      if (radialSig !== letzteRadialSig) schliesseGraphPanel(false);
+      letzteRadialSig = radialSig;
       K.zeichneRadial(e, merkmale,
         K.t('graph.typeHint', { name: e.name }) + ' ' + K.t('graph.controls'),
-        K.geheZuMerkmal);
+        function (uri) {
+          var m = null;
+          (st.detail[e.uri] || []).forEach(function (kand) { if (kand.uri === uri) m = kand; });
+          if (m) zeigePanelMerkmal(m, e, 'm:' + uri);
+        }, radialSig);
     }
   }
 
@@ -1349,13 +1604,25 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   /* Statt einer leeren Zeichenfläche: sagen, was zu tun ist —
      beziehungsweise mit drehendem Ring, dass etwas unterwegs ist. */
-  function graphMeldung(titel, text, laedt) {
+  function graphMeldung(titel, text, laedt, stil) {
     var zeigen = !!titel;
     el['graph-meldung'].hidden = !zeigen;
     el['graph-wrap'].hidden = zeigen;
-    el['graph-steuerung'].hidden = zeigen;
     el['graph-hinweis'].hidden = zeigen;
-    if (zeigen) meldung(el['graph-meldung'], { titel: titel, text: text, laedt: laedt });
+    if (!zeigen) return;
+    /* Die Textfassung darf den vorigen Graphen nicht ueberleben, und ein
+       offenes Panel gehoert zu einem Graphen, der nicht mehr da ist. */
+    el['graph-text'].innerHTML = '';
+    schliesseGraphPanel(false);
+    if (!laedt && stil === 'leer') {
+      /* Leere Auswahl ist kein Alarm: dieselbe stille Zeile wie in Liste
+         und Galerie statt einer blauen Alert-Kachel. */
+      el['graph-meldung'].innerHTML = '';
+      var z = K.e('p', 'kbob-no-results', titel + (text ? ' ' + text : ''));
+      el['graph-meldung'].appendChild(z);
+      return;
+    }
+    meldung(el['graph-meldung'], { titel: titel, text: text, laedt: laedt });
   }
 
   function typMarke(m) {
@@ -1495,6 +1762,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
     K.state.ansicht = name;
     ansichtKnoepfe(name);
     if (K.state.merkmal) K.state.merkmal = null;
+    /* fluechtig heisst fluechtig: die Hervorhebung uebersteht keinen
+       Ansichtswechsel — wie beim Zurueck-Knopf (ausUrl) */
+    K.state.hervor = null;
     inUrl();
     zeichne();
   }
@@ -1815,6 +2085,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
       window.scrollTo({ top: 0, behavior: ruhig ? 'auto' : 'smooth' });
       el.titel.focus();
     });
+
+    /* Graph-Hooks: Klick auf freie Flaeche schliesst das Panel; Escape
+       schliesst Panel oder hebt die Hervorhebung auf. */
+    K.graphHintergrund = function () { schliesseGraphPanel(false); };
+    K.graphEscape = function () {
+      if (!el['graph-panel'].hidden) { schliesseGraphPanel(true); return true; }
+      if (K.state.hervor && !K.state.objekttyp) { hebeNetzHervorAuf(); return true; }
+      return false;
+    };
 
     K.grafikSteuerung();
 

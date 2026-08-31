@@ -206,8 +206,21 @@ umgesetzt; «offen» ist begründet.
 - **`node --test test/`** findet unter Windows/Node 24 das Verzeichnis
   nicht; der dokumentierte Aufruf bleibt `node --test test/helfer.test.js`.
 
+### Nachtrag (31.08.2026, Graph-Runde)
+
+Der zunächst «sauber» befundete Facetten-Zeilenklick war in echten Browsern
+doch tot — Ursache war weder die Label-Weiterleitung noch ein Doppel-Toggle,
+sondern der focusout-Wächter: Beim Mousedown auf die Zeile wandert der Fokus
+zum nächsten fokussierbaren Vorfahren, und das ist `main#content`
+(tabindex="-1" für den Skip-Link) — `relatedTarget` war damit gesetzt und
+ausserhalb der Box, das Menü schloss ZWISCHEN Mousedown und Mouseup, der
+Klick fiel auf die Tabelle dahinter durch. Fix: `tabindex="-1"` auf dem
+Menü selbst (Fokus bleibt in der Box) plus ein expliziter Zeilen-Handler
+ohne `<label>`-Semantik (Name via `aria-labelledby`). Mit echten Klicks in
+Chrome verifiziert (an/abwählen per Zeile, Menü bleibt offen, Esc schliesst).
+
 ### Sauber befundet
 
-Facetten-Zeilenklick (kein Doppel-Toggle), Sprite-Nachladen, ID-Vollaudit,
+Sprite-Nachladen, ID-Vollaudit,
 Listener-Hygiene, Blätter-Randfälle, Doppelklick-Schutz, popstate während
 des Erstladens, `inUrl`/`ausUrl`-Symmetrie, ZIP-Bytelayout, Proxy-Whitelist.

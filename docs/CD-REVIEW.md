@@ -131,8 +131,36 @@ XLSX-Arbeitsmappe (drei Blätter, eine Gesamtabfrage).
 | Thema | Grund |
 |---|---|
 | `ob-table-collapse` (gestapelte Zeilen unter md, `data-title` je Zelle) | Grösserer Markup-Umbau in `K.zeichneListe`; horizontales Scrollen ist als C12 dokumentiert und zugänglich. |
-| Pinch-Zoom im Graphen | Zwei-Pointer-Geometrie; +/−-Knöpfe sind auf Touch erreichbar (48 px). |
+| ~~Pinch-Zoom im Graphen~~ | Inzwischen umgesetzt (Graph-Runde, docs/GRAPH-REVIEW.md). |
 | Icon-only-Kopfknöpfe unter md | Erst sinnvoll mit i18n-Umbau (Beschriftungen wandern ohnehin); Kopf ist ohne Sticky nicht mehr teuer. |
 | Dialog-Letterspacing 0.5 px (Legacy `ob-body1`) | DS-Text-Layer gewinnt laut Rangordnung (§1 in OBLIQUE.md). |
 | `vertical-align: top` der Zellen (CD: middle) | Bewusste App-Beigabe für mehrzeilige Zellen. |
 | Statuszeile bei gescrollter Seite ausser Sicht | Beobachtung; ein auto-scrollender oder unten angehefteter Status wäre ein eigenes Muster. |
+
+
+## 9. Spacing-Review (Abstände gegen die CD-Skala, 31.08.2026)
+
+Eigener Prüflauf über gaps/margins/paddings in main.css gegen die
+CD-Abstandsskala (Legacy `$ob-spacing-*`: 4/8/12/16/24/32/48; DS-Dimension-
+Tokens: micro 1–3, element 4/6/8/10/12, spacing 16–32, density bis 64;
+Typo-Kontext: h1 0/8, h2–h6 12/8, p 0/12). Kopf-, Fusszeilen-, Alert-,
+Dialogflächen- und Tabellenwerte wurden Wert für Wert als CD-exakt
+bestätigt; der vertikale Seitenrhythmus (16px-Takt zwischen Sektionen,
+keine stapelnden Margins) hielt der Prüfung stand.
+
+Umgesetzt:
+
+| Befund | Fix |
+|---|---|
+| Dialog-Aktionszeile 24px unter dem Inhalt statt der 8px des CD (`_mat-dialog.scss`: kein margin) | `margin-top` entfernt |
+| `.kbob-tag` mit 5px-Gap (auf keiner Skala) | Gap 4px (CD-Chip-Abstand); 1/7px-Polster als Randkompensation zu 2/8 kommentiert |
+| Paginator-Navigationsknöpfe 4px auseinander (CD: 20px Separation; mobil sassen 48px-Ziele 4px auseinander) | Gap 8px |
+| Listen 16px unter dem Absatz-Takt von 12px (DS `typography_context`/List-Token) | 12px |
+| Dialog-Geschwister auf zwei Takten (Controls 16 / Tabs 12) | beide 16px |
+| Zwei Sticky-Scroll-Offsets (Zeilen +16, H1 +8) | einheitlich +16px |
+| `.kbob-phase` Höhe 18px (einziger Off-Skala-Wert der Mikro-Gruppe) | 20px |
+| Chip-Familie mit 4/5/6/8-Gemisch | interne Gaps einheitlich 4px, Zeilen-Gap 8px |
+| Facetten-Menü mit fünf Abstandswerten (2/4/6/8/10) | 4er-Raster: Optionen 8px 12px, Listen-Gap 4px |
+
+Der P1 des Laufs («Overlay-/Panel-/Skip-Selektoren tot») war der halbfertige
+Graph-Umbau im Prüfmoment; mit dessen Abschluss gegenstandslos.

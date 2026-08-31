@@ -134,6 +134,7 @@ dokumentierter interner Namensraum der Fachvisualisierung.
 | C13 | **Fusszeile einzeilig**: Flex (Links links, Quellcode-Hinweis rechts) statt CD-Grid `1fr 1fr` | Redaktioneller Entscheid; unter md weiterhin gestapelt wie im CD. |
 | C14 | **Suchfeld** mit Lupe links im Feld und Lösch-Knopf (×) rechts | Muster von `ob-search-box`, als natives Suchfeld umgesetzt; der native Webkit-Löschknopf ist abgeschaltet. |
 | C15 | **Facetten-Trigger** tragen Filter-Icon + Namen + «(n)» statt separatem Label und «n von m gewählt»; der Ansichts-Umschalter zeigt die Wahl als Interaction-`selected`-Fläche | Redaktioneller Entscheid: der Knopf sagt selbst, welcher Filter wirkt; Zustand ≠ Aktion, darum keine Primärfläche. |
+| C16 | **Graph-Ansicht**: Steuerung (Zoom/Ausschnitt/Vollbild) als Overlay auf der Grafik, Knoten-Details in einem `kbob-graph-panel` (Navigation erst über die Panel-Aktion), Skip-Knopf zur Textfassung | Kein Oblique-Gegenstück; `kbob-*` im Oblique-Look (DS-Icon-Knöpfe, Panel-Schatten, Token-Flächen). Befunde und Begründung: docs/GRAPH-REVIEW.md. |
 
 ## 6. Umbau-Etappen (ausgeführt)
 

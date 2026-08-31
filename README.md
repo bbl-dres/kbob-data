@@ -45,7 +45,10 @@ dazu eine Volltextsuche. Auf tieferen Ebenen erscheinen nur die Facetten, die
 dort auch wirken. Aktive Filter stehen als Pillen über der Liste und lassen
 sich einzeln wegnehmen. Jede Ebene gibt es als **Liste**, **Galerie** und
 **Graph**; Liste und Galerie blättern zu 50, 100 oder 200 Einträgen, die
-Listenspalten sortieren per Klick auf den Spaltenkopf.
+Listenspalten sortieren per Klick auf den Spaltenkopf. Im Graph zeigt ein
+Klick auf einen Knoten die Details in einem Seitenpanel (mit «Öffnen» als
+Navigation); Zoom, Ausschnitt und Vollbild liegen als Overlay auf der
+Grafik, gezoomt wird mit Ctrl + Mausrad, +/− oder Doppelklick.
 
 Die Sprachwahl oben rechts (DE/FR/IT/EN) schaltet **Oberfläche und
 Katalogbeschriftungen** gemeinsam um. Die Oberflächentexte kommen aus
@@ -124,6 +127,7 @@ SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
     docs/CODE-REVIEW.md  Code-Review: Performance, Komplexität, Robustheit
     docs/OBLIQUE.md   Übernahme des Oblique-Designsystems: Quellen, Abweichungen
     docs/CD-REVIEW.md CD-Abgleich mit Oblique: Befunde und Umsetzung
+    docs/GRAPH-REVIEW.md  Review der Graph-Ansicht: Befunde und Umsetzung
     LICENSE           MIT
 
 Endpunkt, Named Graph und die Abfragen sind zur Laufzeit über

@@ -322,30 +322,37 @@ var KBOB = window.KBOB || (window.KBOB = {});
      Graph — gemeinsame Mechanik
      ========================================================= */
 
-  var vb = null, vbStart = null;
+  var vb = null, vbStart = null, inhaltBox = null;
 
   function setViewBox() {
     if (vb) K.el.netz.setAttribute('viewBox', vb.x + ' ' + vb.y + ' ' + vb.w + ' ' + vb.h);
   }
 
-  /* Schriftgrössen sind Nutzerkoordinaten: ein enger Ausschnitt vergrössert die
-     Beschriftung mit. Der Ausschnitt bekommt darum das Seitenverhältnis des
-     Rahmens und wird nie über 1:1 hineingezoomt. */
+  /* Schriftgrössen sind Nutzerkoordinaten: ein enger Ausschnitt vergrössert
+     die Beschriftung mit. Der Ausschnitt bekommt das Seitenverhältnis des
+     Rahmens; kleine Cluster dürfen moderat vergrössert starten (bis ~1.7×),
+     damit sie nicht als winziger Fleck in einer leeren Fläche stehen —
+     grosse Graphen behalten den 1:1-Start. */
   function rahmen(minX, minY, maxX, maxY, rand) {
     var rect = K.el.netz.getBoundingClientRect();
     var RW = rect.width || 1400, RH = rect.height || 900;
     var mx = (minX + maxX) / 2, my = (minY + maxY) / 2;
     var w = Math.max(maxX - minX, 10) + rand * 2;
     var h = Math.max(maxY - minY, 10) + rand * 2;
+    inhaltBox = { x: minX - rand, y: minY - rand, w: w, h: h };
     var seiten = RW / RH;
     if (w / h < seiten) w = h * seiten; else h = w / seiten;
-    if (w < RW) { w = RW; h = RH; }
+    if (w < RW) {
+      var f = Math.max(w / RW, 0.6);
+      w = RW * f; h = RH * f;
+    }
     vb = { x: mx - w / 2, y: my - h / 2, w: w, h: h };
     vbStart = { x: vb.x, y: vb.y, w: vb.w, h: vb.h };
     setViewBox();
   }
 
   function neuesNetz() {
+    versteckeTip();   // ein schwebender Tooltip überlebt den Neuaufbau nicht
     K.el.netz.innerHTML = '';
     K.el.legende.innerHTML = '';
     K.el['graph-text'].innerHTML = '';
@@ -364,11 +371,18 @@ var KBOB = window.KBOB || (window.KBOB = {});
     ziel.appendChild(ul);
   }
 
-  /* Tooltip-Verdrahtung je Knoten — in Netz und Radial identisch */
+  /* Tooltip-Verdrahtung je Knoten — in Netz und Radial identisch.
+     Tastaturfokus zeigt denselben Tooltip (WCAG-Parität): positioniert an
+     der Knotenmitte, weg beim Verlassen; Escape schliesst ihn (1.4.13). */
   function bindeTip(g, zeig) {
     g.addEventListener('mouseenter', zeig);
     g.addEventListener('mousemove', bewegeTip);
     g.addEventListener('mouseleave', versteckeTip);
+    g.addEventListener('focus', function () {
+      var r = g.getBoundingClientRect();
+      zeig({ clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 });
+    });
+    g.addEventListener('blur', versteckeTip);
   }
 
   function knotenGruppe(id, beschriftung, onClick) {
@@ -391,6 +405,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   K.zeichneNetz = function (knoten, kanten, legende, hinweis, textTitel) {
     var wurzel = neuesNetz();
+    K.el.netz.setAttribute('data-modus', 'netz');
     K.el['graph-hinweis'].textContent = hinweis || '';
 
     if (!knoten.length) {
@@ -403,22 +418,31 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var kantenG = svgEl('g', { 'aria-hidden': 'true' });
     wurzel.appendChild(kantenG);
     kanten.forEach(function (kn) {
-      kantenG.appendChild(svgEl('line', {
+      var linie = svgEl('line', {
         x1: kn.a.x, y1: kn.a.y, x2: kn.b.x, y2: kn.b.y,
         class: 'g-link', 'data-a': kn.a.id, 'data-b': kn.b.id
-      }));
+      });
+      /* Liniendicke = geteilte Merkmale (inline style, weil die
+         .g-link-Regel Präsentationsattribute übersteuern würde) */
+      if (kn.n) linie.style.strokeWidth = Math.min(4, 0.8 + Math.sqrt(kn.n));
+      kantenG.appendChild(linie);
     });
 
     knoten.forEach(function (k) {
       var g = knotenGruppe(k.id, k.vorlesen || k.name, k.onClick);
+      g.setAttribute('data-name', k.name);
+      if (k.art) g.setAttribute('data-art', k.art);
 
       if (k.form === 'quadrat') {
         g.appendChild(svgEl('rect', {
           x: k.x - k.r, y: k.y - k.r, width: k.r * 2, height: k.r * 2, rx: 3,
-          fill: k.farbe, class: 'g-dot'
+          fill: k.farbe, class: 'g-dot' + (k.klasse ? ' ' + k.klasse : '')
         }));
       } else {
-        g.appendChild(svgEl('circle', { cx: k.x, cy: k.y, r: k.r, fill: k.farbe, class: 'g-dot' }));
+        g.appendChild(svgEl('circle', {
+          cx: k.x, cy: k.y, r: k.r,
+          fill: k.farbe, class: 'g-dot' + (k.klasse ? ' ' + k.klasse : '')
+        }));
       }
 
       var t = svgEl('text', {
@@ -430,7 +454,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       g.appendChild(t);
 
       g.appendChild(svgEl('circle', {
-        cx: k.x, cy: k.y, r: Math.max(k.r + 8, 14), class: 'g-hit'
+        cx: k.x, cy: k.y, r: Math.max(k.r + 8, 16), class: 'g-hit'
       }));
 
       bindeTip(g, function (ev) { tipKnoten(ev, k); });
@@ -442,21 +466,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       wurzel.appendChild(g);
     });
 
-    if (K.state.hervor) {
-      var behalten = {};
-      knoten.forEach(function (k) { if (k.name === K.state.hervor) behalten[k.id] = true; });
-      kanten.forEach(function (kn) {
-        if (behalten[kn.b.id]) behalten[kn.a.id] = true;
-        if (behalten[kn.a.id]) behalten[kn.b.id] = true;
-      });
-      Array.prototype.forEach.call(wurzel.querySelectorAll('.g-knoten'), function (g) {
-        g.classList.toggle('g-fade', !behalten[g.getAttribute('data-id')]);
-      });
-      Array.prototype.forEach.call(wurzel.querySelectorAll('.g-link'), function (l) {
-        l.classList.toggle('g-fade', !(behalten[l.getAttribute('data-a')] &&
-                                       behalten[l.getAttribute('data-b')]));
-      });
-    }
+    K.hervorhebungNetz();
 
     var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     knoten.forEach(function (k) {
@@ -470,18 +480,31 @@ var KBOB = window.KBOB || (window.KBOB = {});
       knoten.map(function (k) { return k.vorlesen || k.name; }));
   };
 
+  /* Legende. Einträge: {hinweis, onDismiss} für Notizzeilen (onDismiss macht
+     daraus eine abwählbare Chip-Zeile), sonst {name, n, farbe, form,
+     onClick, gedrueckt, aus, ariaLabel, schluessel}. gedrueckt steuert
+     aria-pressed («ist hervorgehoben»), aus nur die Abblend-Optik. */
   function zeichneLegende(eintraege) {
     var leg = K.el.legende;
     leg.innerHTML = '';
     (eintraege || []).forEach(function (e) {
       if (e.hinweis) {
-        leg.appendChild(K.e('span', 'kbob-legend-note', e.hinweis));
+        if (e.onDismiss) {
+          var chip = K.knopf('kbob-legend-clear', e.hinweis, e.onDismiss);
+          if (e.ariaLabel) chip.setAttribute('aria-label', e.ariaLabel);
+          chip.appendChild(K.icon('xmark'));
+          leg.appendChild(chip);
+        } else {
+          leg.appendChild(K.e('span', 'kbob-legend-note', e.hinweis));
+        }
         return;
       }
       var b;
       if (e.onClick) {
-        b = K.knopf('', null, e.onClick);
-        b.setAttribute('aria-pressed', String(!e.aus));
+        b = K.knopf(e.aus ? 'aus' : '', null, e.onClick);
+        b.setAttribute('aria-pressed', String(!!e.gedrueckt));
+        if (e.ariaLabel) b.setAttribute('aria-label', e.ariaLabel);
+        if (e.schluessel) b.setAttribute('data-legende', e.schluessel);
       } else {
         b = K.e('span', 'eintrag');
       }
@@ -492,6 +515,42 @@ var KBOB = window.KBOB || (window.KBOB = {});
       leg.appendChild(b);
     });
   }
+  K.zeichneLegende = zeichneLegende;
+
+  /* Hervorhebung im Netz als reine DOM-Operation — kein Neulayout, der
+     Ausschnitt der Nutzenden bleibt stehen. hervor ist der NAME des
+     Property Sets (namensgleiche Sets aus verschiedenen Katalogen leuchten
+     gemeinsam — gewollt: es geht um den fachlichen Begriff). */
+  K.hervorhebungNetz = function () {
+    var wurzel = K.el.netz;
+    var hervor = K.state.hervor;
+    var behalten = {};
+    if (hervor) {
+      Array.prototype.forEach.call(wurzel.querySelectorAll('.g-knoten[data-art="pset"]'), function (g) {
+        if (g.getAttribute('data-name') === hervor) behalten[g.getAttribute('data-id')] = true;
+      });
+      Array.prototype.forEach.call(wurzel.querySelectorAll('.g-link'), function (l) {
+        if (l.getAttribute('data-pset')) return;   // radiale Bündel
+        if (behalten[l.getAttribute('data-b')]) behalten[l.getAttribute('data-a')] = true;
+        if (behalten[l.getAttribute('data-a')]) behalten[l.getAttribute('data-b')] = true;
+      });
+    }
+    Array.prototype.forEach.call(wurzel.querySelectorAll('.g-knoten'), function (g) {
+      g.classList.toggle('g-fade', !!hervor && !behalten[g.getAttribute('data-id')]);
+    });
+    Array.prototype.forEach.call(wurzel.querySelectorAll('.g-link'), function (l) {
+      if (l.getAttribute('data-pset')) return;
+      l.classList.toggle('g-fade', !!hervor && !(behalten[l.getAttribute('data-a')] &&
+                                                 behalten[l.getAttribute('data-b')]));
+    });
+  };
+
+  /* Ausgewählter Knoten (Seitenpanel offen) — sichtbarer Ring per Klasse */
+  K.graphAuswahlMarkieren = function (id) {
+    Array.prototype.forEach.call(K.el.netz.querySelectorAll('.g-knoten'), function (g) {
+      g.classList.toggle('g-ausgewaehlt', !!id && g.getAttribute('data-id') === id);
+    });
+  };
 
   /* Kanten des überfahrenen Knotens hervorheben — per Klasse, damit die
      Farbe eine einzige Quelle hat (main.css). Präsentationsattribute würden
@@ -560,14 +619,29 @@ var KBOB = window.KBOB || (window.KBOB = {});
      Radial: ein Objekttyp mit Property Sets und Merkmalen
      ========================================================= */
 
-  /* onMerkmal: Navigations-Callback aus app.js — views.js navigiert nicht
-     selbst. Der hervor-Toggle in radialLegende schreibt K.state.hervor als
-     bewusste Ausnahme direkt (schneller Teil-Rerender ohne Neulayout). */
-  K.zeichneRadial = function (element, merkmale, hinweis, onMerkmal) {
+  /* onMerkmal: Callback aus app.js (öffnet das Seitenpanel) — views.js
+     navigiert nicht selbst. Der hervor-Toggle in radialLegende schreibt
+     K.state.hervor als bewusste Ausnahme direkt (Teil-Rerender ohne
+     Neulayout). Bei unveränderter Signatur wird gar nicht neu gebaut —
+     der Ausschnitt der Nutzenden bleibt stehen. */
+  var radialSig = '', radialGruppen = null;
+
+  K.zeichneRadial = function (element, merkmale, hinweis, onMerkmal, sig) {
+    if (sig && sig === radialSig && radialGruppen &&
+        K.el.netz.getAttribute('data-modus') === 'radial') {
+      K.el['graph-hinweis'].textContent = hinweis || '';
+      hervorhebung();
+      radialLegende(radialGruppen);
+      return;
+    }
+    radialSig = sig || '';
+    radialGruppen = null;
+
     var wurzel = neuesNetz();
     K.el['graph-hinweis'].textContent = hinweis || '';
     if (!merkmale.length) {
       K.el['graph-hinweis'].textContent = K.t('common.noResults');
+      radialSig = '';
       return;
     }
 
@@ -583,6 +657,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
           merkmale: merkmale.filter(function (m) { return m.pset === p; })
         };
       });
+    radialGruppen = gruppen;
+    K.el.netz.setAttribute('data-modus', 'radial');
 
     var N = merkmale.length;
     var LUECKE = 1.8;
@@ -614,17 +690,25 @@ var KBOB = window.KBOB || (window.KBOB = {});
     gruppen.forEach(function (gr) {
       var p = pt(Rp, gr.mitte);
       var z = pt(Rz, gr.mitte);
-      links.appendChild(svgEl('path', {
+      /* Farben inline (style), nicht als Attribut — die .g-link-Regel
+         würde Präsentationsattribute übersteuern und die Set-Farbe töten */
+      var stamm = svgEl('path', {
         d: 'M' + z[0] + ',' + z[1] + 'L' + p[0] + ',' + p[1],
-        class: 'g-link', 'stroke-width': 2, stroke: gr.farbe, 'data-pset': gr.pset
-      }));
+        class: 'g-link', 'data-pset': gr.pset
+      });
+      stamm.style.stroke = gr.farbe;
+      stamm.style.strokeWidth = 2;
+      links.appendChild(stamm);
       gr.merkmale.forEach(function (m) {
         var ziel = pt(R, m._w);
         var ctrl = pt((Rp + R) / 2, m._w);
-        links.appendChild(svgEl('path', {
+        var ast = svgEl('path', {
           d: 'M' + p[0] + ',' + p[1] + 'Q' + ctrl[0] + ',' + ctrl[1] + ' ' + ziel[0] + ',' + ziel[1],
-          class: 'g-link', stroke: gr.farbe, 'stroke-opacity': .45, 'data-pset': gr.pset
-        }));
+          class: 'g-link', 'data-pset': gr.pset
+        });
+        ast.style.stroke = gr.farbe;
+        ast.style.strokeOpacity = 0.45;
+        links.appendChild(ast);
       });
     });
 
@@ -642,7 +726,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
         var kippen = (grad > 90 || grad < -90);
 
         knoten.appendChild(svgEl('circle', {
-          class: 'g-dot', cx: R * Math.cos(m._w), cy: R * Math.sin(m._w), r: 5, fill: gr.farbe
+          class: 'g-dot', cx: R * Math.cos(m._w), cy: R * Math.sin(m._w), r: 6.5, fill: gr.farbe
         }));
 
         var t = svgEl('text', {
@@ -655,7 +739,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
         knoten.appendChild(t);
 
         knoten.appendChild(svgEl('circle', {
-          cx: R * Math.cos(m._w), cy: R * Math.sin(m._w), r: 13, class: 'g-hit'
+          cx: R * Math.cos(m._w), cy: R * Math.sin(m._w), r: 15, class: 'g-hit'
         }));
 
         bindeTip(knoten, function (ev) { tipMerkmal(ev, m, element); });
@@ -773,11 +857,22 @@ var KBOB = window.KBOB || (window.KBOB = {});
     zeichneLegende(gruppen.map(function (gr) {
       return {
         name: gr.pset, n: gr.merkmale.length, farbe: gr.farbe,
+        schluessel: gr.pset,
+        /* gedrückt = «ist hervorgehoben»; abgeblendet sind die anderen */
+        gedrueckt: K.state.hervor === gr.pset,
         aus: !!(K.state.hervor && K.state.hervor !== gr.pset),
+        ariaLabel: K.t('graph.legendHighlight', { name: gr.pset, n: gr.merkmale.length }),
         onClick: function () {
           K.state.hervor = (K.state.hervor === gr.pset) ? null : gr.pset;
           hervorhebung();
           radialLegende(gruppen);
+          /* Der Neuaufbau darf den Fokus nicht auf <body> fallen lassen */
+          var wieder = K.el.legende.querySelector('[data-legende="' +
+            gr.pset.replace(/"/g, '\\"') + '"]');
+          if (wieder) wieder.focus();
+          K.setStatus(K.state.hervor
+            ? K.t('graph.highlighted', { name: gr.pset })
+            : K.t('graph.highlightCleared'));
         }
       };
     }));
@@ -800,23 +895,17 @@ var KBOB = window.KBOB || (window.KBOB = {});
     t.appendChild(z);
   }
 
+  /* Schlank: voller Name plus eine Einordnungszeile — das Datenblatt
+     zeigt das Seitenpanel beim Klick (CD-Tooltips sind knappe Etiketten) */
   function tipMerkmal(ev, m, element) {
     var t = K.el.tip;
     t.innerHTML = '';
     var b = document.createElement('b');
     b.textContent = m.name;
     t.appendChild(b);
-    tipZeile(t, element.name + ' · ' + m.pset);
-    var typ = m.typ || K.t('empty.type');
+    var typ = m.pset + ' · ' + (m.typ || K.t('empty.type'));
     if (m.einheit) typ += ' · ' + m.einheit;
-    if (m.ifcTyp) typ += ' · ' + m.ifcTyp;
     tipZeile(t, typ);
-    if (m.liste && m.liste.anzahl) {
-      tipZeile(t, K.t('values.count', { n: m.liste.anzahl, werte: K.kurzListe(m.liste.werte, 90) }));
-    }
-    if (m.beschreibung && m.beschreibung !== m.name) {
-      tipZeile(t, K.gekuerzt(m.beschreibung, 130));
-    }
     t.classList.add('on');
     bewegeTip(ev);
   }
@@ -845,16 +934,32 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   function versteckeTip() { K.el.tip.classList.remove('on'); }
 
-  /* ---------- Zoom, Verschieben, Tastatur ---------- */
+  /* ---------- Zoom, Verschieben, Tastatur, Vollbild ---------- */
 
   function zoom(faktor, fx, fy) {
     if (!vb) return;
-    var neuW = Math.min(24000, Math.max(120, vb.w * faktor));
+    /* Grenzen relativ zum Startausschnitt: tief genug fuer Details,
+       nie so weit hinaus, dass der Inhalt unauffindbar wird */
+    var minW = vbStart ? Math.max(60, vbStart.w / 10) : 120;
+    var maxW = vbStart ? vbStart.w * 3 : 24000;
+    var neuW = Math.min(maxW, Math.max(minW, vb.w * faktor));
     var neuH = vb.h * (neuW / vb.w);
     vb.x += (vb.w - neuW) * (fx === undefined ? 0.5 : fx);
     vb.y += (vb.h - neuH) * (fy === undefined ? 0.5 : fy);
     vb.w = neuW; vb.h = neuH;
+    klemmeAusschnitt();
     setViewBox();
+  }
+
+  /* Mindestens ein Teil des Inhalts bleibt im Bild — niemand strandet
+     beim Verschieben in leerer Flaeche */
+  function klemmeAusschnitt() {
+    if (!inhaltBox || !vb) return;
+    var m = 0.15;
+    vb.x = Math.min(Math.max(vb.x, inhaltBox.x - vb.w * (1 - m)),
+                    inhaltBox.x + inhaltBox.w - vb.w * m);
+    vb.y = Math.min(Math.max(vb.y, inhaltBox.y - vb.h * (1 - m)),
+                    inhaltBox.y + inhaltBox.h - vb.h * m);
   }
 
   function zuruecksetzen() {
@@ -863,14 +968,34 @@ var KBOB = window.KBOB || (window.KBOB = {});
     setViewBox();
   }
 
+  /* Hooks fuer app.js: Klick auf den Hintergrund (Panel schliessen) und
+     Escape in der Grafik (Hervorhebung/Panel aufheben). */
+  K.graphHintergrund = null;
+  K.graphEscape = null;
+
   K.grafikSteuerung = function () {
     var svg = K.el.netz;
+    var wrap = document.getElementById('graph-wrap');
 
-    /* Zoomen nur mit Ctrl/Cmd oder bei fokussierter Grafik — sonst kapert
-       der containerbreite Graph das Scrollrad der ganzen Seite. */
+    /* Fluechtiger Hinweis nach wirkungslosem Mausrad (Karten-Muster) */
+    var hintTimer = null;
+    function zeigeRadHinweis() {
+      var z = document.getElementById('zoom-hinweis');
+      if (!z) return;
+      z.textContent = K.t('graph.wheelHint');
+      z.hidden = false;
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(function () { z.hidden = true; }, 1600);
+    }
+
+    /* Zoomen mit Ctrl/Cmd — oder bei SICHTBAR fokussierter Grafik
+       (Tastaturweg). Ein blosser Klick fokussiert zwar auch, soll das
+       Scrollrad der Seite aber nicht stillschweigend kapern. */
     svg.addEventListener('wheel', function (ev) {
       if (!vb) return;
-      if (!ev.ctrlKey && !ev.metaKey && document.activeElement !== svg) return;
+      var darf = ev.ctrlKey || ev.metaKey ||
+                 (svg.matches && svg.matches(':focus-visible'));
+      if (!darf) { zeigeRadHinweis(); return; }
       ev.preventDefault();
       var rect = svg.getBoundingClientRect();
       zoom(ev.deltaY > 0 ? 1.12 : 1 / 1.12,
@@ -878,39 +1003,108 @@ var KBOB = window.KBOB || (window.KBOB = {});
            (ev.clientY - rect.top) / rect.height);
     }, { passive: false });
 
-    var zieht = false, startX = 0, startY = 0, startVb = null;
-    svg.addEventListener('pointerdown', function (ev) {
-      /* Ein zweiter Finger darf den laufenden Zug nicht überschreiben */
-      if (zieht) return;
+    /* Doppelklick auf freie Flaeche: an den Punkt heranzoomen */
+    svg.addEventListener('dblclick', function (ev) {
       if (!vb || (ev.target.closest && ev.target.closest('.g-knoten'))) return;
-      zieht = true;
+      ev.preventDefault();
+      var rect = svg.getBoundingClientRect();
+      zoom(1 / 1.5, (ev.clientX - rect.left) / rect.width,
+                    (ev.clientY - rect.top) / rect.height);
+    });
+
+    /* Ein Finger/Maus verschiebt, zwei Finger zoomen (Pinch). touch-action
+       pan-y bleibt: eine vertikale Ein-Finger-Geste scrollt die Seite. */
+    var zieht = false, startX = 0, startY = 0, startVb = null, bewegt = false;
+    var zeiger = {};          // pointerId -> {x, y}
+    var pinchDist = 0;
+
+    function zeigerZahl() { return Object.keys(zeiger).length; }
+    function pinchWerte() {
+      var ids = Object.keys(zeiger);
+      var a = zeiger[ids[0]], b = zeiger[ids[1]];
+      var dx = a.x - b.x, dy = a.y - b.y;
+      return {
+        dist: Math.max(10, Math.sqrt(dx * dx + dy * dy)),
+        mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2
+      };
+    }
+
+    svg.addEventListener('pointerdown', function (ev) {
+      if (!vb) return;
+      zeiger[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+      if (zeigerZahl() === 2) {
+        /* Pinch beginnt: laufenden Zug beenden */
+        zieht = false;
+        svg.classList.remove('dragging');
+        pinchDist = pinchWerte().dist;
+        try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
+        return;
+      }
+      if (ev.button !== 0) return;   // rechte/mittlere Taste zieht nicht
+      if (ev.target.closest && ev.target.closest('.g-knoten')) return;
+      zieht = true; bewegt = false;
       startX = ev.clientX; startY = ev.clientY;
       startVb = { x: vb.x, y: vb.y };
       svg.classList.add('dragging');
-      svg.setPointerCapture(ev.pointerId);
+      try { svg.setPointerCapture(ev.pointerId); } catch (e) {}
     });
+
     svg.addEventListener('pointermove', function (ev) {
+      if (zeiger[ev.pointerId]) {
+        zeiger[ev.pointerId] = { x: ev.clientX, y: ev.clientY };
+      }
+      if (zeigerZahl() === 2 && vb) {
+        var pw = pinchWerte();
+        var rect = svg.getBoundingClientRect();
+        zoom(pinchDist / pw.dist,
+             (pw.mx - rect.left) / rect.width,
+             (pw.my - rect.top) / rect.height);
+        pinchDist = pw.dist;
+        return;
+      }
       if (!zieht) return;
-      var rect = svg.getBoundingClientRect();
-      vb.x = startVb.x - (ev.clientX - startX) * (vb.w / rect.width);
-      vb.y = startVb.y - (ev.clientY - startY) * (vb.h / rect.height);
+      var r = svg.getBoundingClientRect();
+      if (Math.abs(ev.clientX - startX) + Math.abs(ev.clientY - startY) > 4) bewegt = true;
+      vb.x = startVb.x - (ev.clientX - startX) * (vb.w / r.width);
+      vb.y = startVb.y - (ev.clientY - startY) * (vb.h / r.height);
+      klemmeAusschnitt();
       setViewBox();
     });
+
     function ende(ev) {
+      delete zeiger[ev.pointerId];
+      try { svg.releasePointerCapture(ev.pointerId); } catch (e) {}
       if (!zieht) return;
       zieht = false;
       svg.classList.remove('dragging');
-      try { svg.releasePointerCapture(ev.pointerId); } catch (e) {}
+      /* Klick (ohne Zug) auf freie Flaeche: Auswahl/Panel schliessen */
+      if (!bewegt && K.graphHintergrund &&
+          !(ev.target.closest && ev.target.closest('.g-knoten'))) {
+        K.graphHintergrund();
+      }
     }
     svg.addEventListener('pointerup', ende);
     svg.addEventListener('pointercancel', ende);
+    svg.addEventListener('lostpointercapture', function (ev) {
+      delete zeiger[ev.pointerId];
+      if (zieht && zeigerZahl() === 0) { zieht = false; svg.classList.remove('dragging'); }
+    });
 
-    /* Ohne Maus: Pfeiltasten verschieben, +/− zoomen, 0 setzt zurück */
+    /* Ohne Maus: Pfeiltasten verschieben, +/- zoomen, 0 setzt zurueck,
+       Escape hebt Hervorhebung/Panel auf und schliesst den Tooltip */
     svg.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') {
+        versteckeTip();
+        if (K.graphEscape && K.graphEscape()) ev.preventDefault();
+        return;
+      }
       if (!vb || ev.target !== svg) return;
       var schritt = vb.w * 0.12;
       var t = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[ev.key];
-      if (t) { vb.x += t[0] * schritt; vb.y += t[1] * schritt; setViewBox(); ev.preventDefault(); return; }
+      if (t) {
+        vb.x += t[0] * schritt; vb.y += t[1] * schritt;
+        klemmeAusschnitt(); setViewBox(); ev.preventDefault(); return;
+      }
       if (ev.key === '+' || ev.key === '=') { zoom(1 / 1.2); ev.preventDefault(); }
       if (ev.key === '-') { zoom(1.2); ev.preventDefault(); }
       if (ev.key === '0') { zuruecksetzen(); ev.preventDefault(); }
@@ -919,5 +1113,58 @@ var KBOB = window.KBOB || (window.KBOB = {});
     K.el['zoom-plus'].addEventListener('click', function () { zoom(1 / 1.2); });
     K.el['zoom-minus'].addEventListener('click', function () { zoom(1.2); });
     K.el['zoom-reset'].addEventListener('click', zuruecksetzen);
+
+    /* Vollbild: die ganze Grafikflaeche; Icon und Name wechseln mit */
+    var vollbild = document.getElementById('vollbild');
+    function vollbildStand() {
+      var an = document.fullscreenElement === wrap;
+      Array.prototype.forEach.call(vollbild.querySelectorAll('use'), function (u) {
+        u.setAttribute('href', an ? '#fullscreen_exit' : '#fullscreen');
+        u.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href',
+                         an ? '#fullscreen_exit' : '#fullscreen');
+      });
+      var text = K.t(an ? 'graph.fullscreenExit' : 'graph.fullscreen');
+      vollbild.setAttribute('aria-label', text);
+      vollbild.title = text;
+    }
+    if (vollbild && wrap.requestFullscreen) {
+      vollbild.addEventListener('click', function () {
+        if (document.fullscreenElement === wrap) {
+          document.exitFullscreen();
+        } else {
+          var v = wrap.requestFullscreen();
+          if (v && v.catch) v.catch(function () {});   // z. B. ohne Nutzergeste
+        }
+      });
+      document.addEventListener('fullscreenchange', vollbildStand);
+    } else if (vollbild) {
+      vollbild.hidden = true;   // z. B. iPhone-Safari
+    }
+
+    /* Grid-/Fenster-Resize: Seitenverhaeltnis des Ausschnitts nachfuehren,
+       sonst driften Zoom-Anker, Zuggeschwindigkeit und Reset-Rahmen */
+    if (window.ResizeObserver) {
+      var beobachter = new ResizeObserver(function () {
+        if (!vb || !vbStart) return;
+        var r = svg.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        var seiten = r.width / r.height;
+        [vb, vbStart].forEach(function (box) {
+          var cy = box.y + box.h / 2;
+          box.h = box.w / seiten;
+          box.y = cy - box.h / 2;
+        });
+        setViewBox();
+      });
+      beobachter.observe(svg);
+    }
+
+    /* Grafik ueberspringen: direkt zur Textfassung */
+    var ueberspringen = document.getElementById('graph-ueberspringen');
+    if (ueberspringen) {
+      ueberspringen.addEventListener('click', function () {
+        K.el['graph-text'].focus();
+      });
+    }
   };
 })(KBOB);

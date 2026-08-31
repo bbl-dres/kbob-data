@@ -77,7 +77,7 @@ button, select { text-transform: none; }
 button[disabled], input[disabled], select[disabled], textarea[disabled] { cursor: not-allowed !important; }
 textarea { resize: vertical; }
 [type="search"]::-webkit-search-decoration, [type="search"]::-webkit-search-cancel-button { display: none; }
-ol, ul, dl { margin-top: 0; margin-bottom: 16px; }
+ol, ul, dl { margin-top: 0; margin-bottom: 12px; }
 dt { font-weight: 700; }
 dd { margin-bottom: 0; margin-left: 0; }
 
@@ -619,8 +619,9 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
 .kbob-empty { color: var(--ob-s3-color-neutral-fg-contrast_lowest-inversity_normal); }
 
 .kbob-tag {
-  display: inline-flex; align-items: center; gap: 5px;
+  display: inline-flex; align-items: center; gap: 4px;
   font-size: 0.75rem; font-weight: 500; line-height: 1.333333; letter-spacing: 0.5px;
+  /* 1px-Rand + 1/7 Innenpolster = 2/8 aussen — Skalenwerte */
   padding: 1px 7px;
   border: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
   border-radius: var(--ob-s-border_radius-md);
@@ -628,7 +629,7 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
   background: none; white-space: nowrap;
 }
 .kbob-count { font-variant-numeric: tabular-nums; }
-.kbob-tags { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.kbob-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 
 /* Zellinhalte tragen keine eigenen Schriftstile — eine Zeilenschrift,
    Auszeichnung nur über den blauen Zeilen-Link und die eine Tag-Form. */
@@ -644,7 +645,7 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
 /* LOIN-Meilenstein-Kaestchen (fachspezifisch, kein Oblique-Gegenstueck) */
 .kbob-phase-track { display: inline-flex; gap: 2px; }
 .kbob-phase {
-  min-width: 16px; height: 18px; padding: 0 3px;
+  min-width: 16px; height: 20px; padding: 0 3px;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 0.6875rem; font-weight: 500; font-variant-numeric: tabular-nums;
   border-radius: var(--ob-s-border_radius-md);
@@ -656,7 +657,7 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
 /* ========== 10 Chips (Filter-Pillen, _mat-chip.scss) ========== */
 
 .ob-chip {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 4px;
   font-size: 0.75rem; font-weight: 500; line-height: 1.333333; letter-spacing: 0.5px;
   color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped);
   background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_flipped);
@@ -743,7 +744,7 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); font-size: 0.875rem;
 }
 .kbob-paginator-range { font-variant-numeric: tabular-nums; flex: 1 1 0; }
-.kbob-paginator-nav { display: flex; align-items: center; gap: 4px; }
+.kbob-paginator-nav { display: flex; align-items: center; gap: 8px; }
 .kbob-paginator-size { display: flex; align-items: center; gap: 8px; flex: 1 1 0; justify-content: flex-end; }
 .kbob-paginator-size select.ob-select { height: 36px; }
 
@@ -784,7 +785,7 @@ dialog.ob-dialog::backdrop { background: rgba(0, 0, 0, 0.32); }
   padding: 0 0 8px; margin: 0;
 }
 .ob-dialog-content { font-size: 1rem; line-height: 1.5; padding: 0 0 8px; }
-.ob-dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding: 0; margin-top: 16px; flex-wrap: wrap; }
+.ob-dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding: 0; flex-wrap: wrap; }
 .kbob-dialog-status { margin-right: auto; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
 @media (max-width: 600px) {
   dialog.ob-dialog { padding: 16px; }
@@ -803,7 +804,7 @@ dialog textarea {
 }
 
 /* Abfrage-Tabs: Knopfgruppe mit rotem Aktiv-Balken (mat-tab-Optik) */
-.kbob-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.kbob-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .kbob-tab {
   background: none; border: 0; cursor: pointer; font: inherit;
   padding: 8px 12px;
@@ -887,7 +888,7 @@ dialog textarea {
 /* Seitenkopfbereich (Titel + Kennzahlen + Zurueck) */
 .kbob-page-header { margin: 0 0 16px; position: relative; }
 .kbob-page-header h1:focus-visible { outline-offset: 4px; }
-.kbob-page-header h1 { scroll-margin-top: calc(var(--kopf-gesamt, 0px) + 8px); }
+.kbob-page-header h1 { scroll-margin-top: calc(var(--kopf-gesamt, 0px) + 16px); }
 .kbob-page-meta { margin: 0; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 74ch; }
 .kbob-page-lead { margin: 12px 0 0; max-width: 68ch; }
 .kbob-back { position: absolute; top: 0; right: 0; }
@@ -935,14 +936,14 @@ dialog textarea {
   border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   box-shadow: 0 3px 4px 1px #828e9a;
   padding: 8px;
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: 4px;
 }
 /* Die ganze Zeile ist das Bedienelement: das <label> umschliesst die
    Checkbox — Klick, Hover und Zeiger gelten fuer die volle Breite */
 .kbob-facet-option {
   display: flex; align-items: center; gap: 12px; width: 100%;
   font-size: 1rem; cursor: pointer; min-height: 40px;
-  padding: 6px 10px; white-space: normal; word-break: normal;
+  padding: 8px 12px; white-space: normal; word-break: normal;
   border-radius: var(--ob-s-border_radius-md);
   -webkit-user-select: none; user-select: none;
 }
@@ -963,13 +964,18 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
 
 /* ========== 18 Graph (Fachvisualisierung, kbob + interner g-Namensraum) ========== */
 
-.kbob-graph-controls { display: flex; gap: 8px; align-items: center; margin: 0 0 12px; }
 .kbob-graph-wrap {
   position: relative;
   border: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
 }
+.kbob-graph-wrap:fullscreen {
+  border: 0; border-radius: 0;
+  display: flex; flex-direction: column;
+}
+.kbob-graph-wrap:fullscreen #netz { flex: 1; height: auto; max-height: none; }
+
 #netz {
   display: block; width: 100%;
   height: 62vh; min-height: 440px; max-height: 720px;
@@ -978,12 +984,107 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
 #netz.dragging { cursor: grabbing; }
 @media (max-height: 760px) { #netz { min-height: 340px; height: 56vh; } }
 
-.g-link { fill: none; stroke: var(--ob-s3-color-neutral-bg-contrast_low-inversity_flipped); stroke-width: 1.2; }
-.g-link.an { stroke: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped); stroke-width: 2; }
-.g-dot { stroke: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); stroke-width: 1; }
-.g-center-circle { fill: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); }
+/* Steuerung als Overlay AUF der Grafik (oben links), nicht als eigener
+   Streifen darueber — die Werkzeuge gehoeren zum Werkstueck */
+.kbob-graph-overlay {
+  position: absolute; top: 12px; left: 12px; z-index: 20;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.kbob-graph-overlay .ob-button {
+  background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
+  box-shadow: var(--ob-s-shadow-sm);
+}
+.kbob-graph-overlay .ob-button:hover:not([disabled]) {
+  background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal);
+}
+
+/* Grafik ueberspringen: unsichtbar, bis der Fokus darauf landet */
+.kbob-graph-skip {
+  position: absolute; top: 12px; left: 60px; z-index: 30;
+  width: 1px; height: 1px; padding: 0; overflow: hidden;
+  clip-path: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.kbob-graph-skip:focus {
+  width: auto; height: auto; padding: 8px 12px; overflow: visible;
+  clip-path: none; white-space: normal;
+  background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
+  border: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
+  border-radius: var(--ob-s-border_radius-lg);
+  box-shadow: var(--ob-s-shadow-sm);
+  font: inherit; cursor: pointer;
+}
+
+/* Fluechtiger Rad-Hinweis (Karten-Muster): unten mittig, dunkle Pille */
+.kbob-zoom-hint {
+  position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
+  z-index: 20; pointer-events: none;
+  padding: 6px 12px; border-radius: var(--ob-s-border_radius-lg);
+  background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_flipped);
+  color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped);
+  font-size: 0.875rem;
+}
+
+/* Seitenpanel: Details zum gewaehlten Knoten; Navigation erst ueber die
+   Aktion hier drin. Rechte Kante der Grafikflaeche, intern scrollbar. */
+.kbob-graph-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 25;
+  width: min(340px, 85%);
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
+  border-left: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  border-radius: 0 var(--ob-s-border_radius-lg) var(--ob-s-border_radius-lg) 0;
+  box-shadow: 0 3px 4px 1px #828e9a;   /* ob-default-panel-box-shadow */
+}
+.kbob-graph-panel-head { display: flex; align-items: flex-start; gap: 8px; }
+.kbob-graph-panel-title { flex: 1; min-width: 0; }
+.kbob-graph-panel-kind {
+  display: block; font-size: 0.75rem; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
+}
+.kbob-graph-panel h2 {
+  margin: 0; font-size: 1.0625rem; line-height: 24px; word-break: break-word;
+}
+.kbob-graph-panel h2:focus-visible { outline-offset: 2px; }
+.kbob-graph-panel-close {
+  flex: none; width: 32px; height: 32px; padding: 0; border: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; cursor: pointer;
+  color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
+  border-radius: var(--ob-s-border_radius-rounded);
+}
+.kbob-graph-panel-close:hover { background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
+.kbob-graph-panel-close .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
+.kbob-graph-panel-desc {
+  margin: 8px 0 0; font-size: 0.875rem;
+  color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
+}
+.kbob-graph-panel-data { margin: 8px 0 0; }
+.kbob-graph-panel-data dt {
+  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.25px;
+  padding: 8px 0 0;
+}
+.kbob-graph-panel-data dd { margin: 0; font-size: 0.875rem; word-break: break-word; }
+.kbob-graph-panel-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
+}
+.ob-layout-collapsed .kbob-graph-panel { width: 100%; border-radius: var(--ob-s-border_radius-lg); }
+
+/* Kanten: leiser als die Knoten (Figur vor Grund); Staerke = geteilte
+   Merkmale (inline gesetzt). .an ist die Hover-/Fokus-Betonung. */
+.g-link { fill: none; stroke: var(--ob-s3-color-neutral-border-medium-inversity_normal); stroke-width: 1.2; }
+.g-link.an { stroke: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped); stroke-width: 2.5 !important; }
+
+/* Knotenfarben ueber Klassen und Token (die Radial-Palette K.FARBEN bleibt
+   inline — Abweichung C10) */
+.g-dot { stroke: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal); stroke-width: 1; }
+.g-dot-typ { fill: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped); }
+.g-dot-pset { fill: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_flipped); }
+.g-center-circle { fill: var(--ob-s3-color-neutral-bg-contrast_high-inversity_flipped); }
+
+/* SVG-Typo: nie unter dem DS-Minimum (12px) */
 .g-label {
-  font-family: var(--ob-s-static-font_family-body); font-size: 11px;
+  font-family: var(--ob-s-static-font_family-body); font-size: 12px;
   fill: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   paint-order: stroke; stroke: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal); stroke-width: 3px; stroke-linejoin: round;
 }
@@ -993,14 +1094,23 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
   paint-order: stroke; stroke: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal); stroke-width: 4px; stroke-linejoin: round;
 }
 .g-center-label { font-family: var(--ob-s-static-font_family-body); font-size: 13px; font-weight: 600; fill: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped); }
-.g-center-sub { font-family: var(--ob-s-static-font_family-body); font-size: 11px; fill: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_flipped); }
-.g-fade { opacity: 0.13; }
+.g-center-sub { font-family: var(--ob-s-static-font_family-body); font-size: 12px; fill: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_flipped); }
+
+/* Abgeblendet heisst zurueckgenommen, nicht ausradiert */
+.g-fade { opacity: 0.3; }
 .g-fade:focus-visible, .g-fade:focus-within { opacity: 1; }
 .g-hit { fill: transparent; stroke: none; cursor: pointer; }
+
+/* Fokusring und Auswahlring behalten ihre Staerke bei jedem Zoom */
 .g-knoten:focus-visible { outline: none; }
 .g-knoten:focus-visible .g-dot,
 .g-knoten:focus-visible circle {
   stroke: var(--ob-s-border-focus_ring-inversity_normal-color); stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.g-knoten.g-ausgewaehlt .g-dot {
+  stroke: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped);
+  stroke-width: 3; vector-effect: non-scaling-stroke;
 }
 
 .kbob-legend {
@@ -1017,10 +1127,19 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
 }
 .kbob-legend .eintrag { cursor: default; }
 .kbob-legend button:hover { background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.kbob-legend button[aria-pressed="false"] { color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
-.kbob-legend button[aria-pressed="false"] .kbob-swatch { opacity: 0.35; }
+.kbob-legend button[aria-pressed="true"] { font-weight: 700; }
+.kbob-legend button.aus { color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
+.kbob-legend button.aus .kbob-swatch { opacity: 0.35; }
 .kbob-legend .kbob-swatch.rund { border-radius: 50%; }
 .kbob-legend-note { margin-left: auto; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); align-self: center; }
+.kbob-legend-clear {
+  margin-left: auto; align-self: center;
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 0; background: none; padding: 2px 4px; cursor: pointer;
+  font-size: 0.875rem; color: var(--ob-h-link-color-default);
+}
+.kbob-legend-clear:hover { text-decoration: underline; text-underline-offset: 3px; }
+.kbob-legend-clear .ob-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); }
 .kbob-graph-hint { margin: 8px 0 0; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 78ch; }
 
 /* Breite Inhalte (Graph) duerfen ueber die Lesebreite hinaus */
@@ -1035,7 +1154,7 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
 @media print {
   *, *::before, *::after, *:focus { box-shadow: none !important; text-shadow: none !important; transition: none !important; }
   .ob-master-layout-header, .ob-access-keys, .kbob-toolbar, .kbob-active-filters,
-  .kbob-paginator, .kbob-graph-controls, .kbob-legend button, .kbob-back,
+  .kbob-paginator, .kbob-graph-overlay, .kbob-graph-panel, .kbob-legend button, .kbob-back,
   .ob-master-layout-footer button { display: none !important; }
   body { background: #fff; color: #000; }
   .ob-main-layout { padding: 0 !important; width: auto !important; }
