@@ -79,7 +79,7 @@ The proxy serves the app at <http://localhost:8765/> and forwards SPARQL through
 | Project | [Live explorer](https://bbl-dres.github.io/kbob-data/) · [source](https://github.com/bbl-dres/kbob-data) · [issues](https://github.com/bbl-dres/kbob-data/issues) |
 | KBOB | [Website](https://www.kbob.admin.ch/) · [official GitHub organisation](https://github.com/KBOB-admin) |
 | Product and code | [`DESIGN.md`](docs/DESIGN.md) · [`REVIEW.md`](docs/REVIEW.md) · [`CODE-REVIEW.md`](docs/CODE-REVIEW.md) |
-| Interface | [`GRAPH-REVIEW.md`](docs/GRAPH-REVIEW.md) · [`OBLIQUE.md`](docs/OBLIQUE.md) · [`CD-REVIEW.md`](docs/CD-REVIEW.md) · [Oblique](https://github.com/oblique-bit/oblique) |
+| Interface | [`GRAPH-REVIEW.md`](docs/GRAPH-REVIEW.md) · [`MOBILE-REVIEW.md`](docs/MOBILE-REVIEW.md) · [`OBLIQUE.md`](docs/OBLIQUE.md) · [`CD-REVIEW.md`](docs/CD-REVIEW.md) · [Oblique](https://github.com/oblique-bit/oblique) |
 
 ## License
 

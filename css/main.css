@@ -306,11 +306,38 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
   border-bottom: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
 }
 
+/* Service-Navigation gestapelt in vollen Zeilen (CD-Muster fuer
+   sichtbare Controls auf schmalen Viewports); Sprache rechts darunter */
+.ob-layout-collapsed .ob-service-navigation { padding-bottom: 8px; }
+.ob-layout-collapsed .ob-service-navigation-list { width: 100%; }
+.ob-layout-collapsed .ob-service-navigation-custom-control,
+.ob-layout-collapsed .ob-service-navigation-custom-control .ob-button { width: 100%; }
+.ob-layout-collapsed .ob-language-dropdown { margin-left: auto; }
+
 /* Werkzeugleiste als saubere Spalte */
 .ob-layout-collapsed .kbob-toolbar .kbob-search { width: 100%; }
 .ob-layout-collapsed .kbob-field, .ob-layout-collapsed .kbob-facet,
 .ob-layout-collapsed .kbob-facet-toggle { width: 100%; }
+.ob-layout-collapsed .kbob-facet-menu { min-width: 100%; }
 .ob-layout-collapsed .kbob-toolbar-right { margin-left: 0; width: 100%; justify-content: space-between; }
+
+/* Ansichts-Umschalter: drei gleiche Segmente in voller Breite,
+   im Rhythmus der Spalte darueber */
+.ob-layout-collapsed .kbob-view-switch { display: flex; width: 100%; }
+.ob-layout-collapsed .kbob-view-switch .ob-button { flex: 1 1 0; }
+
+/* Blaettern: drei ruhige, zentrierte Zeilen statt dreier Ausrichtungen */
+.ob-layout-collapsed .kbob-paginator { flex-direction: column; align-items: center; gap: 12px; }
+.ob-layout-collapsed .kbob-paginator-range,
+.ob-layout-collapsed .kbob-paginator-size { flex: none; width: auto; justify-content: center; }
+
+/* Graph: Steuerung als Zeile statt 216px-Saeule; Skip-Fokus darunter;
+   Legende kompakt (die Encoding-Notiz weicht dem knappen Platz —
+   die abwaehlbare Hervorhebungs-Chipzeile bleibt) */
+.ob-layout-collapsed .kbob-graph-overlay { flex-direction: row; top: 8px; left: 8px; }
+.ob-layout-collapsed .kbob-graph-skip:focus { top: 64px; left: 8px; }
+.ob-layout-collapsed .kbob-legend { padding: 8px 12px; gap: 4px 12px; }
+.ob-layout-collapsed .kbob-legend-note { display: none; }
 
 /* Facetten-Menu im Fluss statt schwebend — kein Seitenscroll, kein
    Scrollbereich im Scrollbereich */
@@ -321,12 +348,44 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
   border-radius: var(--ob-s-border_radius-lg);
 }
 
-/* Beruehrziele: der mobile Token (48px) greift jetzt wirklich */
+/* Beruehrziele: der mobile Token (48px) gilt als GROESSE, nicht nur als
+   Hoehe — Icon-Knoepfe wuerden sonst zu 38x48-Ovalen; und er erreicht
+   auch die eigenstaendigen Bedienelemente ausserhalb von .ob-button. */
 .ob-viewport-mobile .ob-button,
 .ob-viewport-mobile .kbob-paginator-button {
   min-height: var(--ob-h-button-touch_target-min_size, 48px);
 }
-.ob-viewport-mobile .kbob-paginator-button { min-width: var(--ob-h-button-touch_target-min_size, 48px); }
+.ob-viewport-mobile .ob-button.ob-icon-button,
+.ob-viewport-mobile .kbob-paginator-button {
+  min-width: var(--ob-h-button-touch_target-min_size, 48px);
+}
+.ob-viewport-mobile .kbob-graph-panel-close {
+  width: var(--ob-h-button-touch_target-min_size, 48px);
+  height: var(--ob-h-button-touch_target-min_size, 48px);
+}
+/* 40 ist die Obergrenze im 40px-Suchfeld */
+.ob-viewport-mobile .kbob-search-clear { width: 40px; height: 40px; right: 0; }
+.ob-viewport-mobile .ob-top-control {
+  width: var(--ob-h-button-touch_target-min_size, 48px);
+  height: var(--ob-h-button-touch_target-min_size, 48px);
+}
+.ob-viewport-mobile select.ob-select-borderless {
+  height: auto; min-height: var(--ob-h-button-touch_target-min_size, 48px);
+}
+.ob-viewport-mobile .kbob-paginator-size select.ob-select {
+  height: var(--ob-h-button-touch_target-min_size, 48px);
+}
+.ob-viewport-mobile .ob-chip { min-height: 40px; border-radius: 20px; }
+.ob-viewport-mobile .kbob-legend button { min-height: 32px; }
+/* Krume und Sortierkoepfe: Trefferhoehe wachsen lassen, Optik unveraendert */
+.ob-viewport-mobile button.ob-breadcrumb-label,
+.ob-viewport-mobile .kbob-sort { padding-top: 8px; padding-bottom: 8px; margin-top: -8px; margin-bottom: -8px; }
+/* Auf Touch gibt es kein Hover: der Sortierpfeil ist immer angedeutet */
+.ob-viewport-mobile .kbob-sort-arrow { opacity: 0.55; }
+.ob-viewport-mobile th[aria-sort] .kbob-sort-arrow { opacity: 1; }
+/* iOS zoomt bei Eingabefeldern unter 16px in die Seite — die Textarea
+   ist das einzige Feld unter diesem Wert */
+.ob-viewport-mobile dialog textarea { font-size: 1rem; }
 
 /* ========== 6 Brotkrume (ob-breadcrumbs, im Inhalt) ========== */
 
@@ -785,7 +844,7 @@ dialog.ob-dialog::backdrop { background: rgba(0, 0, 0, 0.32); }
   padding: 0 0 8px; margin: 0;
 }
 .ob-dialog-content { font-size: 1rem; line-height: 1.5; padding: 0 0 8px; }
-.ob-dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding: 0; flex-wrap: wrap; }
+.ob-dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--ob-h-button-container-spacing-gap, 16px); padding: 0; flex-wrap: wrap; }
 .kbob-dialog-status { margin-right: auto; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
 @media (max-width: 600px) {
   dialog.ob-dialog { padding: 16px; }
@@ -1068,7 +1127,6 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
 .kbob-graph-panel-actions {
   display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
 }
-.ob-layout-collapsed .kbob-graph-panel { width: 100%; border-radius: var(--ob-s-border_radius-lg); }
 
 /* Kanten: leiser als die Knoten (Figur vor Grund); Staerke = geteilte
    Merkmale (inline gesetzt). .an ist die Hover-/Fokus-Betonung. */

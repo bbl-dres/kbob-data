@@ -351,6 +351,20 @@ var KBOB = window.KBOB || (window.KBOB = {});
     setViewBox();
   }
 
+  /* Trefferflächen sind Nutzerkoordinaten und schrumpfen mit der Skala —
+     bei grossen Graphen auf schmalen Rahmen unter jede Touch-Tauglichkeit.
+     Nach dem Rahmen werden sie auf mindestens ~24 CSS-Pixel Durchmesser
+     angehoben (WCAG 2.5.8), gemessen an der Startskala. */
+  function hitsSkalieren() {
+    if (!vb) return;
+    var rect = K.el.netz.getBoundingClientRect();
+    if (!rect.width) return;
+    var minR = 12 * (vb.w / rect.width);
+    Array.prototype.forEach.call(K.el.netz.querySelectorAll('.g-hit'), function (h) {
+      if (parseFloat(h.getAttribute('r')) < minR) h.setAttribute('r', minR);
+    });
+  }
+
   function neuesNetz() {
     versteckeTip();   // ein schwebender Tooltip überlebt den Neuaufbau nicht
     K.el.netz.innerHTML = '';
@@ -474,6 +488,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
       minY = Math.min(minY, k.y - k.r); maxY = Math.max(maxY, k.y + k.r);
     });
     rahmen(minX, minY, maxX, maxY, 40);
+    hitsSkalieren();
 
     zeichneLegende(legende);
     textFassung(textTitel || K.t('graph.contentTitle'),
@@ -816,6 +831,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     zentrum.appendChild(sub);
     wurzel.appendChild(zentrum);
 
+    hitsSkalieren();
     radialLegende(gruppen);
     hervorhebung();
 
@@ -983,6 +999,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
       var z = document.getElementById('zoom-hinweis');
       if (!z) return;
       z.textContent = K.t('graph.wheelHint');
+      /* Ueber der Legende schweben, egal wie hoch sie gerade umbricht */
+      z.style.bottom = (K.el.legende.offsetHeight + 16) + 'px';
       z.hidden = false;
       clearTimeout(hintTimer);
       hintTimer = setTimeout(function () { z.hidden = true; }, 1600);
@@ -1077,8 +1095,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
       if (!zieht) return;
       zieht = false;
       svg.classList.remove('dragging');
-      /* Klick (ohne Zug) auf freie Flaeche: Auswahl/Panel schliessen */
-      if (!bewegt && K.graphHintergrund &&
+      /* Klick (ohne Zug) auf freie Flaeche: Auswahl/Panel schliessen.
+         NUR bei echtem pointerup — ein pointercancel (Browser uebernimmt
+         die Geste als Seiten-Scroll) ist kein Klick und darf das Panel
+         nicht schliessen. */
+      if (ev.type === 'pointerup' && !bewegt && K.graphHintergrund &&
           !(ev.target.closest && ev.target.closest('.g-knoten'))) {
         K.graphHintergrund();
       }
