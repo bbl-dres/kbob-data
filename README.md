@@ -20,6 +20,11 @@ A browser explorer for the [KBOB Data Dictionary](https://github.com/KBOB-admin/
 
 **Live app:** https://bbl-dres.github.io/kbob-data/
 
+<p align="center">
+  <img src="assets/preview1.jpg" width="49%" alt="Object-type gallery with catalogue, maturity and LOIN filters"/>
+  <img src="assets/preview2.jpg" width="49%" alt="Room attributes grouped by property set in the graph view"/>
+</p>
+
 ## Highlights
 
 - Flat, faceted access to object types, with catalogue, maturity and LOIN-milestone filters and shareable URL state.
