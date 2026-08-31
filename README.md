@@ -1,136 +1,86 @@
-# kbob-data
+# KBOB Data Dictionary Explorer
 
-Browser-Explorer für das **KBOB Data Dictionary** aus dem LINDAS-Graphen
-`https://lindas.admin.ch/fobl/kbob/dd-fm`.
+<p align="center">
+  <a href="https://bbl-dres.github.io/kbob-data/">
+    <img src="assets/kbob-data-hero.jpg" width="100%" alt="Abstract architectural data network connecting building object types to property sets and attributes"/>
+  </a>
+</p>
 
-Die Rohdaten sind für Datenmodellierer geschrieben: `PropertyRequirement`,
-`GroupOfProperties`, `contextualDatatype`. Diese App übersetzt das in die
-Sicht einer BIM-Managerin: **welcher Objekttyp welche Merkmale braucht, in
-welchem Format, aus welchem Property Set.**
+[![Demo on GitHub Pages](https://img.shields.io/badge/demo-GitHub%20Pages-2ea44f?logo=github&logoColor=white)](https://bbl-dres.github.io/kbob-data/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Status: prototype](https://img.shields.io/badge/status-prototype-orange.svg)
+![Tests: 14 passing](https://img.shields.io/badge/tests-14%20passing-brightgreen.svg)
 
-## Starten
+> [!CAUTION]
+> **Prototype over integration data.** The explorer queries the public KBOB catalogue through the LINDAS integration endpoint. It does not publish or modify the catalogue, and the integration graph is not a final production release.
 
-Der Endpunkt schickt CORS-Header (`access-control-allow-origin` spiegelt die
-Origin), daher genügt ein beliebiger statischer Server:
+A browser explorer for the [KBOB Data Dictionary](https://github.com/KBOB-admin/KBOB-data-dictionary). It translates the RDF model into the questions a BIM or facility manager asks: **which object type needs which attributes, in what format, from which property set, and with which allowed values?**
+
+## Highlights
+
+- Flat, faceted access to object types, with catalogue, maturity and LOIN-milestone filters and shareable URL state.
+- Object and attribute detail with descriptions, datatypes, units, value lists, property sets and IFC mappings.
+- List, gallery and accessible SVG graph views, including complete text alternatives and keyboard controls.
+- German, French, Italian and English UI and catalogue labels, with explicit language fallback.
+- Client-side XLSX export with Object types, Attributes and Info sheets; no spreadsheet library required.
+- Inspectable SPARQL queries, lazy detail loading, request deduplication and protection against stale responses.
+
+## KBOB and stakeholders
+
+The **Coordination Conference for Public Sector Construction and Property Services (KBOB)** coordinates and represents member public-sector construction and property bodies from the Confederation, cantons, cities and municipalities. Its work covers procurement, standards, sustainability, property operations, digital construction and BIM.
+
+| Stakeholder | Role in this ecosystem |
+|---|---|
+| [KBOB](https://www.kbob.admin.ch/de/ueber-uns) and its public-owner network | Coordinating body and [catalogue publisher](https://api.i14y.admin.ch/api/public/v1/datasets/019fec56-1bba-7457-8f5d-bc4a67625cf2). Formal members span all levels of government; Swiss Federal Railways is an observer. Its [specialist groups](https://www.kbob.admin.ch/de/fachgruppen-und-arbeitsgruppen) are forums for domain work and knowledge exchange. |
+| [FOBL/BBL](https://www.bbl.admin.ch/de/aufgaben-und-organisation) | Chairs KBOB and runs its secretariat under [VILB art. 25](https://www.fedlex.admin.ch/eli/cc/2008/857/de#art_25). |
+| [Swiss Federal Archives](https://lindas.admin.ch/ecosystem/about-LINDAS/) | Operate LINDAS, the linked-data infrastructure that serves the RDF graph through SPARQL. |
+| [Federal Statistical Office / I14Y](https://www.i14y.admin.ch/en/home) | Operate Switzerland's national metadata catalogue, where the dataset and API are described and made discoverable. |
+| Populated source dictionaries | Templates currently come from KBOB Data Dictionary FM, AG ATB iDSK Pilot, IFMA Area Management, KBOB Document Types Catalogue and an RTE 26201 BIM railway-lighting dictionary under a VoeV namespace. Their presence records provenance, not joint governance of KBOB. |
+
+## Data model and current status
+
+- The core chain is `DataTemplate -> PropertyRequirement -> Property`, enriched with property sets, contextual datatypes and units, enumerations, LOIN milestones, maturity and IFC alignment. The graph currently provides no SHACL shapes.
+- The integration snapshot contains **719 object types**, **3,292 normalised object-type/attribute rows**, **26 property sets** and five populated source dictionaries; 666 object types are document types. The graph contains 3,666 underlying `PropertyRequirement` resources.
+- The [I14Y record](https://api.i14y.admin.ch/api/public/v1/datasets/019fec56-1bba-7457-8f5d-bc4a67625cf2) reports publication level `Public`, version `0.3.0` and registration status `Candidate`. In the examined graph, 677 object types are `Candidate` and 42 are `Preview`; none are approved.
+- Every requirement currently uses `requirementLevel = included`, so the data does not distinguish mandatory from optional attributes.
+- LOIN milestones are attached to data templates; after normalisation, 91 attribute rows inherit at least one. The graph exposes `LZP1`-`LZP9` but does not define or map them to SIA 112 project phases.
+
+## Technical overview
+
+- Static single-page application using vanilla ES5-style JavaScript, HTML and CSS; no framework, dependencies or build step.
+- Overview data loads at startup, object details load on demand, value lists load once, and a single all-details query supports full export.
+- `js/export.js` writes OOXML and ZIP directly in the browser. `lindas-proxy.py` is an optional standard-library same-origin proxy with gzip and Basic authentication.
+- Fourteen dependency-free helper, query, i18n and XLSX tests run with `node --test test/helfer.test.js`.
+- KBOB maintains the official [workbook validator](https://github.com/KBOB-admin/KBOB-data-dictionary), [RDF publication pipeline](https://github.com/KBOB-admin/KBOB-data-dictionary-schemaforge) and [NatDD vocabulary](https://github.com/KBOB-admin/KBOB-data-dictionary-schema); this repository is the read-only browser layer.
+
+## Run locally
+
+Serve the repository over HTTP; opening `index.html` through `file://` prevents the runtime requests:
 
 ```bash
-python -m http.server 8000      # http://localhost:8000
+python -m http.server 8000
 ```
 
-Wer den Endpunkt wechseln oder eine Anmeldung braucht, nimmt den Proxy:
+Then open <http://localhost:8000/>. Use the proxy when the endpoint changes or requires authentication:
 
 ```bash
-python lindas-proxy.py                # http://localhost:8765
-python lindas-proxy.py --check        # nur Erreichbarkeit testen
-python lindas-proxy.py --user me      # Endpunkt mit Anmeldung; Passwort wird abgefragt
+python lindas-proxy.py
+python lindas-proxy.py --check
+python lindas-proxy.py --user me
 ```
 
-Der Proxy liefert das Frontend aus und leitet SPARQL weiter; Frontend und
-Abfrage haben dann dieselbe Origin. Der Katalog lädt in beiden Fällen
-automatisch beim Öffnen der Seite. Direkt per `file://` geöffnet scheitert
-die Abfrage dagegen an CORS.
+The proxy serves the app at <http://localhost:8765/> and forwards SPARQL through `/query`.
 
-## Navigation
+## References and documentation
 
-Eine flache, facettierte Liste aller Objekttypen — darunter die Merkmale
-eines Objekttyps, darunter ein einzelnes Merkmal:
+| | |
+|---|---|
+| Service | [I14Y record](https://www.i14y.admin.ch/de/catalog/dataservices/kbob-fm-data-dictionary-sparql/description) · [LINDAS](https://lindas.admin.ch/) |
+| Project | [Live explorer](https://bbl-dres.github.io/kbob-data/) · [source](https://github.com/bbl-dres/kbob-data) · [issues](https://github.com/bbl-dres/kbob-data/issues) |
+| KBOB | [Website](https://www.kbob.admin.ch/) · [official GitHub organisation](https://github.com/KBOB-admin) |
+| Product and code | [`DESIGN.md`](docs/DESIGN.md) · [`REVIEW.md`](docs/REVIEW.md) · [`CODE-REVIEW.md`](docs/CODE-REVIEW.md) |
+| Interface | [`GRAPH-REVIEW.md`](docs/GRAPH-REVIEW.md) · [`OBLIQUE.md`](docs/OBLIQUE.md) · [`CD-REVIEW.md`](docs/CD-REVIEW.md) · [Oblique](https://github.com/oblique-bit/oblique) |
 
-    Übersicht  ›  Objekttyp  ›  Merkmal
+## License
 
-Der Katalog ist eine Facette, keine Navigationsstufe: 666 der 719 Objekttypen
-stammen aus einer einzigen Quelle, dem Dokumenttypenkatalog.
-
-Facetten (Mehrfachauswahl): **Katalog**, **Reifegrad**, **LOIN-Meilenstein**,
-dazu eine Volltextsuche. Auf tieferen Ebenen erscheinen nur die Facetten, die
-dort auch wirken. Aktive Filter stehen als Pillen über der Liste und lassen
-sich einzeln wegnehmen. Jede Ebene gibt es als **Liste**, **Galerie** und
-**Graph**; Liste und Galerie blättern zu 50, 100 oder 200 Einträgen, die
-Listenspalten sortieren per Klick auf den Spaltenkopf. Im Graph zeigt ein
-Klick auf einen Knoten die Details in einem Seitenpanel (mit «Öffnen» als
-Navigation); Zoom, Ausschnitt und Vollbild liegen als Overlay auf der
-Grafik, gezoomt wird mit Ctrl + Mausrad, +/− oder Doppelklick.
-
-Die Sprachwahl oben rechts (DE/FR/IT/EN) schaltet **Oberfläche und
-Katalogbeschriftungen** gemeinsam um. Die Oberflächentexte kommen aus
-`data/i18n.json` (fehlt ein Schlüssel, erscheint sichtbar `MISSING …`);
-die Katalogbeschriftungen holt die SPARQL-Abfrage in der gewählten Sprache
-(Rückfall: gewählte Sprache → Deutsch → Englisch, mit `lang`-Auszeichnung).
-Die Erklärung zur Barrierefreiheit bleibt vorerst deutsch.
-
-Der Zustand steht in der URL — Ansichten sind teilbar, der Zurück-Knopf
-funktioniert:
-
-    #k=KBOB%20Data%20Dictionary%20FM&r=Candidate&q=raum
-    #o=https%3A%2F%2Flindas.admin.ch%2F...%2Fclasses%2Froom&v=graph
-
-## Was die Oberfläche ungefragt sagt
-
-- **Reifegrad** je Objekttyp und Merkmal: im ganzen Katalog steht nichts auf
-  «verabschiedet» — 677 Objekttypen sind *Candidate*, 42 *Preview*.
-- **Keine Pflicht-/Kann-Unterscheidung**: alle 3 292 Merkmale sind
-  gleichrangig vorgesehen (`requirementLevel` ist durchgehend `included`).
-- **LOIN-Meilensteine** (LZP1–LZP9) sind dünn belegt und werden nur dort als
-  Spalte gezeigt, wo sie etwas unterscheiden. Sie sind keine
-  SIA-112-Projektphasen.
-- Der ausgewertete Graph liegt auf der **Integrationsumgebung** und ist kein
-  publizierter Stand.
-
-## Abfragestufen
-
-| Stufe | Abfrage | Umfang |
-|---|---|---|
-| Übersicht | eine Zeile je Objekttyp und Property Set | ~800 Zeilen, beim Start |
-| Detail | die Merkmale eines Objekttyps | erst beim Öffnen des Objekttyps |
-| Werte | zulässige Werte je Werteliste | einmalig beim ersten Detail |
-| Gesamtexport | alle Merkmale aller Objekttypen | eine Abfrage, nur beim Export |
-
-Die Abfragen sind in der App unter «Verbindung und Abfrage» im Kopf
-einsehbar und kopierbar.
-
-## Excel-Export
-
-«Als Excel exportieren» erzeugt ohne Bibliotheken eine echte
-XLSX-Arbeitsmappe (js/export.js) mit drei Tabellenblättern: **Objekttypen**
-(eine Zeile je Objekttyp), **Merkmale** (eine Zeile je Merkmal und
-Objekttyp) und **Info** (Quelle, Stand, angewandte Filter). Exportiert wird
-die sichtbare Auswahl — ungefiltert der ganze Katalog; die Merkmale dafür
-kommen in einer einzigen Abfrage.
-
-## Was der Graph enthält
-
-Der Katalog vereint fünf Quellen: KBOB Data Dictionary FM, AG ATB iDSK
-Pilot-Datenkatalog, Data Dictionary Flächenmanagement, RTE 26201 (VöV) und
-den KBOB Dokumenttypenkatalog. Letzterer stellt mit 666 von 719 Einträgen
-die grosse Mehrheit — er beschreibt Dokumenttypen, nicht Bauteile. Genau
-darum heisst die Stufe neutral «Objekttyp»: der Katalog verwaltet beides.
-Über die Quellenstufe sind sie sauber getrennt.
-
-SHACL-Shapes gibt es im Graphen nicht; das Modell steckt in
-`DataTemplate` → `PropertyRequirement` → `Property`.
-
-## Dateien
-
-    index.html        Gerüst (Oblique-Master-Layout)
-    css/tokens.css    Oblique-Design-Tokens (unverändert übernommen)
-    css/main.css      Komponenten und App-Stile auf Token-Basis
-    js/data.js        Abfragen, Laden, Normalisieren, Palette
-    js/views.js       Liste, Galerie, Netz- und Radialgrafik, Icons
-    js/export.js      XLSX-Arbeitsmappe ohne Abhängigkeiten
-    js/i18n.js        Oberflächen-Übersetzungen (K.t, data/i18n.json)
-    js/app.js         Navigation, Facetten, Blättern, Export
-    data/i18n.json    Frontend-Tokens DE/FR/IT/EN
-    lindas-proxy.py   lokaler Proxy, nur Standardbibliothek
-    test/             Tests der reinen Helfer (node --test test/helfer.test.js)
-    assets/           Schriften, Icons und Logos aus dem Oblique-Designsystem (MIT)
-    docs/DESIGN.md    Review, Entscheidungen und offene Fragen
-    docs/REVIEW.md    Design-/UX-Durchsicht: Befunde und Umsetzungsstand
-    docs/CODE-REVIEW.md  Code-Review: Performance, Komplexität, Robustheit
-    docs/OBLIQUE.md   Übernahme des Oblique-Designsystems: Quellen, Abweichungen
-    docs/CD-REVIEW.md CD-Abgleich mit Oblique: Befunde und Umsetzung
-    docs/GRAPH-REVIEW.md  Review der Graph-Ansicht: Befunde und Umsetzung
-    LICENSE           MIT
-
-Endpunkt, Named Graph und die Abfragen sind zur Laufzeit über
-«Verbindung und Abfrage» im Kopf einsehbar. Gestaltung und Bauteile folgen
-dem Oblique-Designsystem der Bundesverwaltung
-(https://github.com/oblique-bit/oblique, MIT) — Details in docs/OBLIQUE.md.
+Original project code is licensed under the [MIT License](LICENSE). Vendored fonts, icons and design tokens originate from the MIT-licensed [Oblique design system](https://github.com/oblique-bit/oblique).
