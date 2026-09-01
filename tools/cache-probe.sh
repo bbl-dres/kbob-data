@@ -25,8 +25,8 @@ node "$HERE/cache-probe-gen.cjs" "$WORK" >/dev/null || {
   echo "body generation failed — run from the repository checkout"; exit 1; }
 
 printf '\nEndpoint: %s\n\n' "$ENDPOINT"
-printf '%-22s %-5s %8s %6s %6s %8s %8s  %-6s %-4s %s\n' \
-  probe http bytes tls ttfb total eval cache age varnish
+printf '%-22s %-5s %8s %6s %6s %8s %8s  %-6s %-4s %6s\n' \
+  probe http bytes tls ttfb total eval cache age srv
 
 FAILED=0
 
@@ -44,17 +44,23 @@ probe() {
   local code bytes tls ttfb total
   read -r code bytes tls ttfb total <<< "$out"
   h() { tr -d '\r' < "$hdr" | awk -F': ' -v k="$1" 'tolower($0) ~ "^"k":" {print $2; exit}'; }
-  local xcache age varnish
-  xcache=$(h x-cache); age=$(h age); varnish=$(h x-varnish)
-  printf '%-22s %-5s %8s %6.2f %6.2f %8.2f %8.2f  %-6s %-4s %s\n' \
+  local xcache age dt dur
+  xcache=$(h x-cache); age=$(h age); dt=$(h date)
+  # Server-Timing (sparql-proxy;dur=...) is the backend evaluation time in
+  # ms — the most precise number here, and the one a query rewrite must beat.
+  dur=$(h server-timing | grep -o 'dur=[0-9.]*' | head -1 | cut -d= -f2)
+  printf '%-22s %-5s %8s %6.2f %6.2f %8.2f %8.2f  %-6s %-4s %6s\n' \
     "$name" "$code" "$bytes" "$tls" "$ttfb" "$total" \
     "$(awk -v a="$ttfb" -v b="$tls" 'BEGIN{printf "%.2f", a-b}')" \
-    "${xcache:--}" "${age:--}" "${varnish:--}"
-  eval "R_${name//-/_}_cache='$xcache' R_${name//-/_}_total='$total'"
+    "${xcache:--}" "${age:--}" \
+    "$(awk -v d="${dur:-}" 'BEGIN{ if (d=="") printf "-"; else printf "%.2f", d/1000 }')"
+  eval "R_${name//-/_}_cache='$xcache' R_${name//-/_}_total='$total' R_${name//-/_}_date='$dt'"
   sleep "$pause"
 }
 
-probe run1-overview-de  overview-de      "$ACCEPT"
+# >1s gap: the Date header has 1s granularity — after the gap, an equal
+# Date on run2 can only mean a cache replayed run1's response.
+probe run1-overview-de  overview-de      "$ACCEPT" 1.5
 probe run2-overview-de  overview-de      "$ACCEPT"
 probe accept-variant    overview-de      "$ACCEPT, */*"
 probe cold1-overview-de overview-de-bust1 "$ACCEPT"
@@ -71,11 +77,18 @@ if [ "$FAILED" -ge 10 ]; then
   exit 1
 fi
 c1="${R_run1_overview_de_cache:-}" c2="${R_run2_overview_de_cache:-}"
-if [ -z "$c1$c2" ]; then cat <<'EOT'
-* No X-Cache header: this endpoint does not show the varnish-post cache
-  signature. Assume every request pays full evaluation; pre-warming would
-  be pointless — a client-side cache and cheaper queries are the levers.
+if [ -z "$c1$c2" ]; then
+  if [ -n "${R_run1_overview_de_date:-}" ] && \
+     [ "${R_run1_overview_de_date}" = "${R_run2_overview_de_date:-x}" ]; then
+    echo '* run1 and run2 carry the SAME Date header: something replayed the'
+    echo '  response from a cache that does not identify itself.'
+  else cat <<'EOT'
+* No X-Cache header and fresh Date headers per request: no response cache
+  is active on this endpoint — every request pays full evaluation, and
+  pre-warming would warm nothing. The levers are a client-side cache and
+  cheaper queries; "srv" (Server-Timing) is the evaluation time to beat.
 EOT
+  fi
 elif [ "$c2" = "HIT" ]; then cat <<'EOT'
 * run2 was a cache HIT: the server cache is active and shared. run2's
   "total" is the best case every visitor can get whenever anyone (or a
