@@ -163,7 +163,7 @@ a:visited { color: var(--ob-h-link-color-visited); }
 
 /* ========== 5 Master layout: access keys, header, language, footer ========== */
 
-/* Skip-Link als Oblique-Access-Key (oranges Band) */
+/* Skip link as the Oblique access key (orange band) */
 .ob-access-keys {
   position: fixed; top: 0; width: 100%; height: 0;
   display: flex; justify-content: center; z-index: 1010;
@@ -334,12 +334,18 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
 .ob-layout-collapsed .ob-service-navigation-custom-control .ob-button { padding-inline: 12px; }
 .ob-layout-collapsed .ob-language-dropdown { margin-left: 0; }
 
-/* Werkzeugleiste als saubere Spalte */
-.ob-layout-collapsed .app-toolbar .ob-text-control { width: 100%; }
-.ob-layout-collapsed .app-field, .ob-layout-collapsed .app-facet,
-.ob-layout-collapsed .app-facet-toggle { width: 100%; }
+/* Toolbar as a clean column — but only where the width really is scarce.
+   The collapsed layout starts below md (905px) and therefore also covers
+   tablets around 700–900px, where three full-width rows leave half the
+   viewport empty and push the table down. Below sm (600px) the column is
+   right; above it, the toolbar simply wraps. */
+@media (max-width: 600px) {
+  .ob-layout-collapsed .app-toolbar .ob-text-control { width: 100%; max-width: none; }
+  .ob-layout-collapsed .app-field, .ob-layout-collapsed .app-facet,
+  .ob-layout-collapsed .app-facet-toggle { width: 100%; }
+  .ob-layout-collapsed .app-toolbar-end { margin-left: 0; width: 100%; justify-content: space-between; }
+}
 .ob-layout-collapsed .app-facet-menu { min-width: 100%; }
-.ob-layout-collapsed .app-toolbar-end { margin-left: 0; width: 100%; justify-content: space-between; }
 
 /* The view switch stays compact here too (an icon per choice, the wording
    on the active one) and closes the toolbar column instead of taking a
@@ -359,13 +365,16 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
 .ob-layout-collapsed .app-legend { padding: 8px 12px; gap: 4px 12px; }
 .ob-layout-collapsed .app-legend-note { display: none; }
 
-/* Facet menu in flow instead of floating — no page scroll, no scroll
-   area inside a scroll area */
-.ob-layout-collapsed .app-facet-menu {
-  position: static; max-width: none; max-height: none;
-  box-shadow: none;
-  border: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
-  border-radius: var(--ob-s-border_radius-lg);
+/* Facet menu in flow instead of floating — no page scroll, no scroll area
+   inside a scroll area. Only on phones: from sm upwards the triggers sit
+   side by side again, where an in-flow menu would shove the row apart. */
+@media (max-width: 600px) {
+  .ob-layout-collapsed .app-facet-menu {
+    position: static; max-width: none; max-height: none;
+    box-shadow: none;
+    border: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
+    border-radius: var(--ob-s-border_radius-lg);
+  }
 }
 
 /* Touch targets: the mobile token (48px) counts as a SIZE, not only as a
