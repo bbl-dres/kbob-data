@@ -1,10 +1,10 @@
-/* Abfragen, Laden und Normalisieren des KBOB Data Dictionary aus LINDAS.
+/* Querying, loading and normalising the KBOB Data Dictionary from LINDAS.
 
-   Zwei Stufen, damit beim Start nur wenig über die Leitung geht:
-     L1  Übersicht — ein Datensatz je Objekttyp und Property Set (rund 800 Zeilen)
-     L2  Detail    — die Merkmale eines einzelnen Objekttyps, erst auf Abruf
+   Two stages, so that little goes over the wire at startup:
+     L1  overview — one record per object type and property set (~800 rows)
+     L2  detail   — the attributes of a single object type, on demand only
 
-   Alles haengt am gemeinsamen Namensraum KBOB. */
+   Everything hangs off the shared KBOB namespace. */
 
 var KBOB = window.KBOB || (window.KBOB = {});
 
@@ -15,10 +15,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
   var DD = 'https://lindas.admin.ch/fobl/kbob/dd-fm/vocab/';
 
-  /* Datentypen des Katalogs in Alltagssprache — als i18n-Schlüssel,
-     aufgelöst zur Übernahmezeit (der Sprachwechsel leert die Caches) */
-  K.TYPEN = {
-    AUSWAHL: 'type.select',
+  /* Catalogue datatypes in plain language — as i18n keys, resolved when the
+     rows are adopted (switching language clears the caches) */
+  K.TYPES = {
+    ENUM:    'type.select',
     STRING:  'type.text',
     REAL:    'type.number',
     INTEGER: 'type.integer',
@@ -26,8 +26,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
     TIME:    'type.datetime'
   };
 
-  /* QUDT-Einheiten auf gebraeuchliche Symbole */
-  K.EINHEITEN = {
+  /* QUDT units mapped to their common symbols */
+  K.UNITS = {
     M: 'm', M2: 'm²', M3: 'm³', MilliM: 'mm', CentiM: 'cm', KiloM: 'km',
     LUX: 'lx', LM: 'lm', CD: 'cd', 'CD-PER-M2': 'cd/m²',
     K: 'K', DEG_C: '°C', SEC: 's', MIN: 'min', HR: 'h', DAY: 'd', YR: 'a',
@@ -37,181 +37,181 @@ var KBOB = window.KBOB || (window.KBOB = {});
     DEG: '°', RAD: 'rad', KiloGM: 'kg', TON: 't', L: 'l'
   };
 
-  /* Kategoriale Palette, validiert gegen die Papierflaeche */
-  K.FARBEN = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100',
+  /* Categorical palette, validated against the paper-white ground */
+  K.COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100',
               '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
 
-  /* Redaktionelle Reihenfolge der Kataloge: die beiden allgemeinen zuerst,
-     die Spezialkataloge danach, der Dokumenttypenkatalog zuletzt. Bestimmt
-     Facetten-Reihenfolge und Standardsortierung der Uebersicht. */
-  K.KATALOG_PRIORITAET = ['KBOB Data Dictionary FM', 'Data Dictionary Flächenmanagement'];
+  /* Editorial order of the catalogues: the two general ones first, the
+     specialised ones next, the document-type catalogue last. Determines
+     facet order and the default sort of the overview. */
+  K.CATALOGUE_PRIORITY = ['KBOB Data Dictionary FM', 'Data Dictionary Flächenmanagement'];
 
-  K.katalogRang = function (name, istDokument) {
-    var i = K.KATALOG_PRIORITAET.indexOf(name);
+  K.catalogueRank = function (name, isDocument) {
+    var i = K.CATALOGUE_PRIORITY.indexOf(name);
     if (i !== -1) return i;
-    return istDokument ? 9 : 5;
+    return isDocument ? 9 : 5;
   };
 
-  /* ---------- kleine Helfer ---------- */
+  /* ---------- small helpers ---------- */
 
-  /* Schweizer Locale zur gewählten Oberflächensprache */
+  /* Swiss locale for the selected interface language */
   var LOCALES = { de: 'de-CH', fr: 'fr-CH', it: 'it-CH', en: 'en-CH' };
   K.locale = function () {
-    return LOCALES[(K.state && K.state.sprache) || 'de'] || 'de-CH';
+    return LOCALES[(K.state && K.state.language) || 'de'] || 'de-CH';
   };
 
-  K.zahl = function (n) { return n.toLocaleString(K.locale()); };
+  K.formatNumber = function (n) { return n.toLocaleString(K.locale()); };
 
-  /* Kollation an einer Stelle, im Locale der Oberfläche — sonst vergisst
-     eine kuenftige Sortierstelle das Locale und Umlaute wandern ans Ende. */
-  K.deCompare = function (a, b) { return String(a).localeCompare(String(b), K.locale()); };
-  K.nachName = function (a, b) { return K.deCompare(a.name, b.name); };
+  /* Collation in one place, in the locale of the interface — otherwise a
+     future sorting site forgets the locale and umlauts drift to the end. */
+  K.compare = function (a, b) { return String(a).localeCompare(String(b), K.locale()); };
+  K.byName = function (a, b) { return K.compare(a.name, b.name); };
 
-  K.kurz = function (uri) {
+  K.lastSegment = function (uri) {
     if (!uri) return '';
     var m = /[#\/]([^#\/]+)$/.exec(uri);
     return m ? m[1] : uri;
   };
 
-  K.gekuerzt = function (text, n) {
+  K.truncate = function (text, n) {
     if (!text) return '';
     return text.length > n ? text.slice(0, n) + ' …' : text;
   };
 
-  /* Kürzt eine mit « · » verkettete Werteliste an einer Wertgrenze —
-     halbe Werte sähen aus wie echte Katalogwerte. */
-  K.kurzListe = function (werte, n) {
-    if (!werte || werte.length <= n) return werte || '';
-    var teile = werte.split(' · ');
-    var behalten = [], laenge = 0;
-    for (var i = 0; i < teile.length; i++) {
-      if (laenge + teile[i].length > n && behalten.length) break;
-      behalten.push(teile[i]);
-      laenge += teile[i].length + 3;
+  /* Truncates a « · »-joined value list at a value boundary — half values
+     would look like genuine catalogue values. */
+  K.truncateList = function (values, n) {
+    if (!values || values.length <= n) return values || '';
+    var parts = values.split(' · ');
+    var kept = [], length = 0;
+    for (var i = 0; i < parts.length; i++) {
+      if (length + parts[i].length > n && kept.length) break;
+      kept.push(parts[i]);
+      length += parts[i].length + 3;
     }
-    var rest = teile.length - behalten.length;
-    return behalten.join(' · ') +
+    var rest = parts.length - kept.length;
+    return kept.join(' · ') +
            (rest > 0 ? ' … ' + K.t('values.more', { n: rest }) : '');
   };
 
-  K.plural = function (n, einzahl, mehrzahl) {
-    return n === 1 ? einzahl : mehrzahl;
+  K.plural = function (n, one, many) {
+    return n === 1 ? one : many;
   };
 
-  /* ---------- Export-Bausteine (rein, testbar) ---------- */
+  /* ---------- export building blocks (pure, testable) ---------- */
 
-  K.dateiname = function (s) {
+  K.fileName = function (s) {
     s = s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue');
     if (String.prototype.normalize) {
       s = s.normalize('NFD').replace(/[̀-ͯ]/g, '');   // é -> e, à -> a …
     }
     s = s.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    /* Datum im Namen: zwei Exporte von verschiedenen Tagen bleiben
-       unterscheidbar. */
+    /* Date in the name: two exports from different days stay
+       distinguishable. */
     var d = new Date();
-    var datum = d.getFullYear() + '-' +
-                ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
-                ('0' + d.getDate()).slice(-2);
-    return (s || 'objekttyp') + '-' + datum;
+    var date = d.getFullYear() + '-' +
+               ('0' + (d.getMonth() + 1)).slice(-2) + '-' +
+               ('0' + d.getDate()).slice(-2);
+    return (s || 'objecttype') + '-' + date;
   };
 
   function v(row, name) { return row[name] ? row[name].value : ''; }
 
-  function liste(row, name) {
+  function listOf(row, name) {
     var s = v(row, name);
     return s ? s.split(' ').filter(Boolean).sort() : [];
   }
 
-  /* Farben gelten immer nur innerhalb eines Objekttyps.
+  /* Colours only ever apply within one object type.
 
-     Der Katalog hat 26 Property Sets, die Palette acht Farben. Eine
-     katalogweite Zuordnung muesste also Farben mehrfach vergeben, und
-     beliebige Paare kaemen nebeneinander zu stehen — in dieser Palette sind
-     nicht alle Paare unterscheidbar genug (Orange/Rot, Orange/Gruen bei
-     Rotsehschwaeche). Innerhalb eines Objekttyps dagegen liegen die Property
-     Sets in fester Reihenfolge nebeneinander; genau fuer diese Nachbarschaft
-     ist die Reihenfolge der Palette geprueft.
+     The catalogue has 26 property sets, the palette eight colours. A
+     catalogue-wide assignment would therefore have to reuse colours, and
+     arbitrary pairs would end up side by side — in this palette not every
+     pair is distinguishable enough (orange/red, orange/green under red
+     deficiency). Within one object type, by contrast, the property sets sit
+     next to each other in a fixed order; it is exactly that adjacency the
+     palette order has been checked for.
 
-     Darum: Farbe ordnet die Attribute eines Objekttyps, sie ist kein
-     katalogweiter Code. Ausserhalb eines Objekttyps werden die Chips
-     entsprechend ohne Farbe gezeigt. */
-  function farbenZuordnen(e) {
-    e.farbe = {};
-    e.psets.forEach(function (p, i) {
-      e.farbe[p.name] = K.FARBEN[i % K.FARBEN.length];
+     Hence: colour orders the attributes of one object type, it is not a
+     catalogue-wide code. Outside an object type the chips are shown
+     without colour accordingly. */
+  function assignColors(entry) {
+    entry.color = {};
+    entry.psets.forEach(function (p, i) {
+      entry.color[p.name] = K.COLORS[i % K.COLORS.length];
     });
   }
 
-  /* ---------- Sprachketten ----------
+  /* ---------- language chains ----------
 
-     Beschriftungen folgen der Kette: gewählte Sprache, dann Deutsch (auch
-     ungetaggte Literale), dann Englisch. Für 'de' ist das die bisherige
-     zweistufige Kette; 'en' bevorzugt Englisch vor Deutsch. Der Umschalter
-     betrifft die Katalogdaten — die Oberfläche selbst bleibt deutsch. */
+     Labels follow the chain: selected language, then German (including
+     untagged literals), then English. For 'de' that is the previous
+     two-step chain; 'en' prefers English over German. The switch applies to
+     the catalogue data — the interface itself follows its own i18n. */
 
-  K.SPRACHEN = ['de', 'fr', 'it', 'en'];
+  K.LANGUAGES = ['de', 'fr', 'it', 'en'];
 
-  function sprachStufen(lang) {
-    var stufen = [];
-    if (lang && lang !== 'de' && K.SPRACHEN.indexOf(lang) !== -1) stufen.push(lang);
-    stufen.push('de');
-    if (lang !== 'en') stufen.push('en');
-    return stufen;
+  function languageChain(lang) {
+    var chain = [];
+    if (lang && lang !== 'de' && K.LANGUAGES.indexOf(lang) !== -1) chain.push(lang);
+    chain.push('de');
+    if (lang !== 'en') chain.push('en');
+    return chain;
   }
 
-  /* Parameter heisst vn, nicht v — v(row, name) ist in dieser Datei der
-     zentrale Zeilen-Accessor und darf nicht verschattet werden. */
-  function stufenFilter(vn, stufe) {
-    return stufe === 'de'
-      ? 'lang(' + vn + ') = "de" || lang(' + vn + ') = ""'
-      : 'lang(' + vn + ') = "' + stufe + '"';
+  /* The parameter is called varName, not v — v(row, name) is this file's
+     central row accessor and must not be shadowed. */
+  function chainFilter(varName, step) {
+    return step === 'de'
+      ? 'lang(' + varName + ') = "de" || lang(' + varName + ') = ""'
+      : 'lang(' + varName + ') = "' + step + '"';
   }
-  K.sprachStufen = sprachStufen;   // exportiert für Tests
+  K.languageChain = languageChain;   // exported for the tests
 
-  /* OPTIONAL-Zeilen für ein Prädikat über alle Stufen */
-  function kette(subjekt, praedikat, basis, stufen) {
-    var zeilen = [], vars = [];
-    stufen.forEach(function (stufe, i) {
-      var v = '?' + basis + i;
-      vars.push(v);
-      zeilen.push('  OPTIONAL { ' + subjekt + ' ' + praedikat + ' ' + v +
-                  ' FILTER(' + stufenFilter(v, stufe) + ') }');
+  /* OPTIONAL lines for one predicate across all chain steps */
+  function labelChain(subject, predicate, base, chain) {
+    var lines = [], vars = [];
+    chain.forEach(function (step, i) {
+      var varName = '?' + base + i;
+      vars.push(varName);
+      lines.push('  OPTIONAL { ' + subject + ' ' + predicate + ' ' + varName +
+                 ' FILTER(' + chainFilter(varName, step) + ') }');
     });
-    return { zeilen: zeilen, vars: vars };
+    return { lines: lines, vars: vars };
   }
 
-  function coalesce(vars, ziel) {
-    return '  BIND(COALESCE(' + vars.join(', ') + ') AS ' + ziel + ')';
+  function coalesce(vars, target) {
+    return '  BIND(COALESCE(' + vars.join(', ') + ') AS ' + target + ')';
   }
 
-  /* Welche Stufe hat getroffen? gruppen: je Stufe die Variablen dieser Stufe. */
-  function sprachBind(gruppen, stufen, ziel) {
-    var ausdruck = '"' + stufen[stufen.length - 1] + '"';
-    for (var i = stufen.length - 2; i >= 0; i--) {
-      var bedingung = gruppen[i].map(function (v) { return 'BOUND(' + v + ')'; }).join(' || ');
-      ausdruck = 'IF(' + bedingung + ', "' + stufen[i] + '", ' + ausdruck + ')';
+  /* Which chain step matched? groups: the variables of each step. */
+  function languageBind(groups, chain, target) {
+    var expression = '"' + chain[chain.length - 1] + '"';
+    for (var i = chain.length - 2; i >= 0; i--) {
+      var condition = groups[i].map(function (varName) { return 'BOUND(' + varName + ')'; }).join(' || ');
+      expression = 'IF(' + condition + ', "' + chain[i] + '", ' + expression + ')';
     }
-    return '  BIND(' + ausdruck + ' AS ' + ziel + ')';
+    return '  BIND(' + expression + ' AS ' + target + ')';
   }
 
-  /* Beschreibung: skos:definition je Stufe, rdfs:comment als deutscher
-     Zusatz-Rückfall direkt nach der deutschen Definition. */
-  function beschreibungKette(subjekt, basis, stufen) {
-    var def = kette(subjekt, 'skos:definition', basis, stufen);
-    var zeilen = def.zeilen.slice();
-    zeilen.push('  OPTIONAL { ' + subjekt + ' rdfs:comment ?' + basis +
-                'k FILTER(lang(?' + basis + 'k) = "de" || lang(?' + basis + 'k) = "") }');
-    var reihenfolge = [];
-    stufen.forEach(function (stufe, i) {
-      reihenfolge.push(def.vars[i]);
-      if (stufe === 'de') reihenfolge.push('?' + basis + 'k');
+  /* Description: skos:definition per chain step, rdfs:comment as an extra
+     German fallback directly after the German definition. */
+  function descriptionChain(subject, base, chain) {
+    var def = labelChain(subject, 'skos:definition', base, chain);
+    var lines = def.lines.slice();
+    lines.push('  OPTIONAL { ' + subject + ' rdfs:comment ?' + base +
+               'c FILTER(lang(?' + base + 'c) = "de" || lang(?' + base + 'c) = "") }');
+    var order = [];
+    chain.forEach(function (step, i) {
+      order.push(def.vars[i]);
+      if (step === 'de') order.push('?' + base + 'c');
     });
-    return { zeilen: zeilen, vars: reihenfolge };
+    return { lines: lines, vars: order };
   }
 
-  /* ---------- Abfragen ---------- */
+  /* ---------- queries ---------- */
 
-  var PREFIXE = [
+  var PREFIXES = [
     'PREFIX dd:   <' + DD + '>',
     'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>',
     'PREFIX skos: <http://www.w3.org/2004/02/skos/core#>',
@@ -220,172 +220,175 @@ var KBOB = window.KBOB || (window.KBOB = {});
     ''
   ];
 
-  /* L1: je Objekttyp und Property Set eine Zeile — ohne die Merkmale selbst */
-  K.uebersichtQuery = function (graph, lang) {
-    var stufen = sprachStufen(lang);
-    var kl = kette('?klasse', 'rdfs:label', 'k', stufen);
-    var be = beschreibungKette('?klasse', 'b', stufen);
-    var gp = kette('?gop', 'rdfs:label', 'g', stufen);
-    var qu = kette('?q', 'rdfs:label', 'q', stufen);
-    return PREFIXE.concat([
-      '# Übersicht: Objekttypen mit ihren Property Sets, Anzahl Merkmale,',
-      '# vorkommenden Datentypen und LOIN-Meilensteinen. Die Merkmale selbst',
-      '# holt erst die Detailabfrage — das hält den Start klein.',
-      '# Beschriftungssprache: ' + stufen.join(' → ') + '.',
-      'SELECT ?klasse ?gop ?istDokument',
-      '       (SAMPLE(?elementL)      AS ?element)',
-      '       (SAMPLE(?beschreibungL) AS ?beschreibung)',
-      '       (SAMPLE(?statusRaw)     AS ?status)',
-      '       (SAMPLE(?psetL)         AS ?pset)',
-      '       (SAMPLE(?quelleL)       AS ?quelle)',
-      '       (COUNT(DISTINCT ?prop) AS ?anzahl)',
-      '       (GROUP_CONCAT(DISTINCT ?typWert;  separator=" ") AS ?typen)',
-      '       (GROUP_CONCAT(DISTINCT ?phaseRaw; separator=" ") AS ?phasen)',
-      '       (SAMPLE(?nameSprache) AS ?sprache)',
+  /* L1: one row per object type and property set — without the attributes
+     themselves */
+  K.overviewQuery = function (graph, lang) {
+    var chain = languageChain(lang);
+    var cl = labelChain('?class', 'rdfs:label', 'c', chain);
+    var de = descriptionChain('?class', 'd', chain);
+    var gp = labelChain('?gop', 'rdfs:label', 'g', chain);
+    var so = labelChain('?src', 'rdfs:label', 's', chain);
+    return PREFIXES.concat([
+      '# Overview: object types with their property sets, number of',
+      '# attributes, datatypes in use and LOIN milestones. The attributes',
+      '# themselves are fetched by the detail query — that keeps startup small.',
+      '# Label language: ' + chain.join(' → ') + '.',
+      'SELECT ?class ?gop ?isDocument',
+      '       (SAMPLE(?nameL)        AS ?name)',
+      '       (SAMPLE(?descriptionL) AS ?description)',
+      '       (SAMPLE(?statusRaw)    AS ?status)',
+      '       (SAMPLE(?psetL)        AS ?pset)',
+      '       (SAMPLE(?sourceL)      AS ?source)',
+      '       (COUNT(DISTINCT ?prop) AS ?count)',
+      '       (GROUP_CONCAT(DISTINCT ?typeValue;    separator=" ") AS ?types)',
+      '       (GROUP_CONCAT(DISTINCT ?milestoneRaw; separator=" ") AS ?milestones)',
+      '       (SAMPLE(?nameLanguage) AS ?language)',
       'FROM <' + graph + '>',
       'WHERE {',
       '  ?tpl a dd:DataTemplate ;',
-      '       dd:appliesToClass         ?klasse ;',
+      '       dd:appliesToClass         ?class ;',
       '       dd:hasPropertyRequirement ?pr .',
       '  ?pr  dd:requiresProperty       ?prop .',
       '',
-      '  # Dokumenttypen sind eigene Objekttypen und als solche markiert',
-      '  OPTIONAL { ?klasse a dd:DocumentType . BIND(true AS ?dok) }',
-      '  BIND(COALESCE(?dok, false) AS ?istDokument)',
+      '  # Document types are object types of their own and marked as such',
+      '  OPTIONAL { ?class a dd:DocumentType . BIND(true AS ?doc) }',
+      '  BIND(COALESCE(?doc, false) AS ?isDocument)',
       '',
       '  OPTIONAL { ?pr  dd:inGroupOfProperties ?gop }',
-      '  OPTIONAL { ?pr  dd:contextualDatatype  ?typRaw }',
-      '  OPTIONAL { ?tpl dd:loinMilestone       ?phaseRaw }',
+      '  OPTIONAL { ?pr  dd:contextualDatatype  ?typeRaw }',
+      '  OPTIONAL { ?tpl dd:loinMilestone       ?milestoneRaw }',
       '',
-      '  # Ein Text mit Werteliste ist eine Auswahl. Dieselbe Ableitung trifft',
-      '  # die Detailabfrage — sonst filtert die Übersicht an den Zeilen vorbei.',
+      '  # A text with a value list is an enumeration. The detail query',
+      '  # derives the same thing — otherwise the overview would filter',
+      '  # past its own rows.',
       '  OPTIONAL { ?pr   dd:usesEnumerationScheme ?enumPr }',
       '  OPTIONAL { ?prop dd:usesEnumerationScheme ?enumProp }',
-      '  BIND(COALESCE(?typRaw, "") AS ?tRoh)',
-      '  BIND(IF((BOUND(?enumPr) || BOUND(?enumProp)) && ?tRoh = "STRING",',
-      '          "AUSWAHL", ?tRoh) AS ?typWert)',
+      '  BIND(COALESCE(?typeRaw, "") AS ?tRaw)',
+      '  BIND(IF((BOUND(?enumPr) || BOUND(?enumProp)) && ?tRaw = "STRING",',
+      '          "ENUM", ?tRaw) AS ?typeValue)',
       '',
-    ]).concat(kl.zeilen, [
-      coalesce(kl.vars, '?elementL'),
-      sprachBind(kl.vars.map(function (v) { return [v]; }), stufen, '?nameSprache'),
+    ]).concat(cl.lines, [
+      coalesce(cl.vars, '?nameL'),
+      languageBind(cl.vars.map(function (varName) { return [varName]; }), chain, '?nameLanguage'),
       '',
-      '  # Reifegrad: im Katalog steht bisher alles auf Candidate oder Preview',
-      '  OPTIONAL { ?klasse dd:status ?statusRaw }',
+      '  # Maturity: so far the catalogue holds only Candidate or Preview',
+      '  OPTIONAL { ?class dd:status ?statusRaw }',
       '',
-      '  # Jeder Objekttyp im Graphen führt eine Definition in Prosa'
-    ], be.zeilen, [
-      coalesce(be.vars, '?beschreibungL'),
+      '  # Every object type in the graph carries a definition in prose'
+    ], de.lines, [
+      coalesce(de.vars, '?descriptionL'),
       ''
-    ], gp.zeilen, [
+    ], gp.lines, [
       coalesce(gp.vars, '?psetL'),
       '',
       '  OPTIONAL {',
-      '    ?tpl dct:source ?q .'
-    ], qu.zeilen.map(function (z) { return '  ' + z; }), [
-      '  ' + coalesce(qu.vars, '?quelleL'),
+      '    ?tpl dct:source ?src .'
+    ], so.lines.map(function (line) { return '  ' + line; }), [
+      '  ' + coalesce(so.vars, '?sourceL'),
       '  }',
       '}',
-      'GROUP BY ?klasse ?gop ?istDokument'
+      'GROUP BY ?class ?gop ?isDocument'
     ]).join('\n');
   };
 
-  /* L2: die Merkmale eines Objekttyps — oder, ohne klasse, aller Objekttypen
-     auf einmal (eine Abfrage statt hunderter; braucht der Gesamtexport). */
-  function detailArtQuery(graph, klasse, lang) {
-    var stufen = sprachStufen(lang);
-    var pr = kette('?prop', 'rdfs:label', 'pr', stufen);
-    var ps = kette('?prop', 'skos:prefLabel', 'ps', stufen);
-    var be = beschreibungKette('?prop', 'd', stufen);
-    var gp = kette('?gop', 'rdfs:label', 'g', stufen);
-    /* je Stufe: rdfs:label vor skos:prefLabel */
-    var nameVars = [], nameGruppen = [];
-    stufen.forEach(function (s, i) {
+  /* L2: the attributes of one object type — or, without a class, of all
+     object types at once (one query instead of hundreds; the full export
+     needs this). */
+  function buildDetailQuery(graph, classUri, lang) {
+    var chain = languageChain(lang);
+    var pr = labelChain('?prop', 'rdfs:label', 'pr', chain);
+    var ps = labelChain('?prop', 'skos:prefLabel', 'ps', chain);
+    var de = descriptionChain('?prop', 'd', chain);
+    var gp = labelChain('?gop', 'rdfs:label', 'g', chain);
+    /* per chain step: rdfs:label before skos:prefLabel */
+    var nameVars = [], nameGroups = [];
+    chain.forEach(function (step, i) {
       nameVars.push(pr.vars[i], ps.vars[i]);
-      nameGruppen.push([pr.vars[i], ps.vars[i]]);
+      nameGroups.push([pr.vars[i], ps.vars[i]]);
     });
-    return PREFIXE.concat([
-      klasse ? '# Detail: alle Merkmale eines Objekttyps.'
-             : '# Alle Merkmale aller Objekttypen (Gesamtexport).',
-      '# Beschriftungssprache: ' + stufen.join(' → ') + '.',
-      'SELECT ' + (klasse ? '' : '?klasse ') + '?prop ?gop',
-      '       (SAMPLE(?merkmalL)      AS ?merkmal)',
-      '       (SAMPLE(?beschreibungL) AS ?beschreibung)',
-      '       (SAMPLE(?typRaw)        AS ?typ)',
-      '       (SAMPLE(?psetL)         AS ?pset)',
-      '       (SAMPLE(?ifcPsetRaw)    AS ?ifcPset)',
-      '       (SAMPLE(?einheitRaw)    AS ?einheit)',
-      '       (SAMPLE(?ifcRaw)        AS ?ifcTyp)',
-      '       (SAMPLE(?statusRaw)     AS ?status)',
-      '       (SAMPLE(?schemaRaw)     AS ?werteSchema)',
-      '       (SAMPLE(?nameSprache)   AS ?sprache)',
-      '       (GROUP_CONCAT(DISTINCT ?phaseRaw; separator=" ") AS ?phasen)',
+    return PREFIXES.concat([
+      classUri ? '# Detail: all attributes of one object type.'
+               : '# All attributes of all object types (full export).',
+      '# Label language: ' + chain.join(' → ') + '.',
+      'SELECT ' + (classUri ? '' : '?class ') + '?prop ?gop',
+      '       (SAMPLE(?nameL)        AS ?name)',
+      '       (SAMPLE(?descriptionL) AS ?description)',
+      '       (SAMPLE(?typeRaw)      AS ?type)',
+      '       (SAMPLE(?psetL)        AS ?pset)',
+      '       (SAMPLE(?ifcPsetRaw)   AS ?ifcPset)',
+      '       (SAMPLE(?unitRaw)      AS ?unit)',
+      '       (SAMPLE(?ifcRaw)       AS ?ifcType)',
+      '       (SAMPLE(?statusRaw)    AS ?status)',
+      '       (SAMPLE(?schemeRaw)    AS ?valueScheme)',
+      '       (SAMPLE(?nameLanguage) AS ?language)',
+      '       (GROUP_CONCAT(DISTINCT ?milestoneRaw; separator=" ") AS ?milestones)',
       'FROM <' + graph + '>',
       'WHERE {'
-    ]).concat(klasse ? ['  VALUES ?klasse { <' + klasse + '> }'] : []).concat([
+    ]).concat(classUri ? ['  VALUES ?class { <' + classUri + '> }'] : []).concat([
       '  ?tpl a dd:DataTemplate ;',
-      '       dd:appliesToClass         ?klasse ;',
+      '       dd:appliesToClass         ?class ;',
       '       dd:hasPropertyRequirement ?pr .',
       '  ?pr  dd:requiresProperty       ?prop .',
       '',
-      '  OPTIONAL { ?tpl dd:loinMilestone      ?phaseRaw }',
-      '  OPTIONAL { ?pr  dd:contextualDatatype ?typRaw }',
+      '  OPTIONAL { ?tpl dd:loinMilestone      ?milestoneRaw }',
+      '  OPTIONAL { ?pr  dd:contextualDatatype ?typeRaw }',
       '  OPTIONAL { ?pr  dd:inGroupOfProperties ?gop }',
       '',
       '  OPTIONAL { ?pr   dd:contextualUnit ?u1 }',
       '  OPTIONAL { ?pr   qudt:hasUnit      ?u2 }',
       '  OPTIONAL { ?prop qudt:hasUnit      ?u3 }',
-      '  BIND(COALESCE(?u1, ?u2, ?u3) AS ?einheitRaw)',
+      '  BIND(COALESCE(?u1, ?u2, ?u3) AS ?unitRaw)',
       '',
       '  OPTIONAL { ?pr   dd:usesEnumerationScheme ?s1 }',
       '  OPTIONAL { ?prop dd:usesEnumerationScheme ?s2 }',
-      '  BIND(COALESCE(?s1, ?s2) AS ?schemaRaw)',
+      '  BIND(COALESCE(?s1, ?s2) AS ?schemeRaw)',
       '',
       '  OPTIONAL { ?prop dd:status             ?statusRaw }',
       '  OPTIONAL { ?prop dd:ifcDatatype        ?ifcRaw }',
       '  OPTIONAL { ?prop dd:alignedWithIfcPset ?ifcPsetRaw }',
       '',
-    ]).concat(pr.zeilen, ps.zeilen, [
-      coalesce(nameVars, '?merkmalL'),
-      sprachBind(nameGruppen, stufen, '?nameSprache'),
+    ]).concat(pr.lines, ps.lines, [
+      coalesce(nameVars, '?nameL'),
+      languageBind(nameGroups, chain, '?nameLanguage'),
       ''
-    ], be.zeilen, [
-      coalesce(be.vars, '?beschreibungL'),
+    ], de.lines, [
+      coalesce(de.vars, '?descriptionL'),
       ''
-    ], gp.zeilen, [
+    ], gp.lines, [
       coalesce(gp.vars, '?psetL'),
       '}',
-      'GROUP BY ' + (klasse ? '' : '?klasse ') + '?prop ?gop'
+      'GROUP BY ' + (classUri ? '' : '?class ') + '?prop ?gop'
     ]).join('\n');
   }
 
-  K.detailQuery = function (graph, klasse, lang) {
-    return detailArtQuery(graph, klasse, lang);
+  K.detailQuery = function (graph, classUri, lang) {
+    return buildDetailQuery(graph, classUri, lang);
   };
 
-  K.alleDetailsQuery = function (graph, lang) {
-    return detailArtQuery(graph, null, lang);
+  K.allDetailsQuery = function (graph, lang) {
+    return buildDetailQuery(graph, null, lang);
   };
 
-  K.werteQuery = function (graph, lang) {
-    var stufen = sprachStufen(lang);
-    var wl = kette('?ev', 'skos:prefLabel', 'w', stufen);
-    return PREFIXE.concat([
-      '# Zulässige Werte je Werteliste',
-      '# Beschriftungssprache: ' + stufen.join(' → ') + '.',
-      'SELECT ?schema (COUNT(DISTINCT ?ev) AS ?anzahl)',
-      '       (GROUP_CONCAT(DISTINCT ?wert; separator=" · ") AS ?werte)',
+  K.valuesQuery = function (graph, lang) {
+    var chain = languageChain(lang);
+    var vl = labelChain('?ev', 'skos:prefLabel', 'v', chain);
+    return PREFIXES.concat([
+      '# Permitted values per value list',
+      '# Label language: ' + chain.join(' → ') + '.',
+      'SELECT ?scheme (COUNT(DISTINCT ?ev) AS ?count)',
+      '       (GROUP_CONCAT(DISTINCT ?value; separator=" · ") AS ?values)',
       'FROM <' + graph + '>',
       'WHERE {',
-      '  ?schema dd:hasEnumerationValue ?ev .'
-    ]).concat(wl.zeilen, [
-      '  OPTIONAL { ?ev skos:notation ?wn }',
-      coalesce(wl.vars.concat(['?wn']), '?wert'),
+      '  ?scheme dd:hasEnumerationValue ?ev .'
+    ]).concat(vl.lines, [
+      '  OPTIONAL { ?ev skos:notation ?vn }',
+      coalesce(vl.vars.concat(['?vn']), '?value'),
       '}',
-      'GROUP BY ?schema'
+      'GROUP BY ?scheme'
     ]).join('\n');
   };
 
-  /* ---------- Abfrage ausfuehren ---------- */
+  /* ---------- running a query ---------- */
 
   K.run = function (endpoint, query) {
     return fetch(endpoint, {
@@ -403,272 +406,271 @@ var KBOB = window.KBOB || (window.KBOB = {});
       }
       return r.json();
     }).then(function (json) {
-      /* Ein 200er kann auch eine Wartungsseite oder ein Anmeldeportal sein —
-         dann soll die Meldung das sagen, nicht «Unexpected token». */
+      /* A 200 can also be a maintenance page or a login portal — the message
+         should say so, not «Unexpected token». */
       if (!json || !json.results || !(json.results.bindings instanceof Array)) {
-        throw new Error('Die Antwort ist kein SPARQL-Ergebnis — der Endpunkt ' +
-                        'hat vermutlich eine Fehler- oder Anmeldeseite geliefert.');
+        throw new Error(K.t('errors.notSparql'));
       }
       return json;
     });
   };
 
-  /* ---------- L1 uebernehmen ---------- */
+  /* ---------- adopting L1 ---------- */
 
-  K.uebernehmeUebersicht = function (rows) {
+  K.applyOverview = function (rows) {
     var st = K.state;
     if (!rows || !rows.length) return;
 
     var map = {};
 
     rows.forEach(function (r) {
-      var uri = v(r, 'klasse');
+      var uri = v(r, 'class');
       if (!uri) return;
 
-      var e = map[uri];
-      if (!e) {
-        e = map[uri] = {
+      var entry = map[uri];
+      if (!entry) {
+        entry = map[uri] = {
           uri: uri,
-          /* Fehlt jede Beschriftung, steht das sichtbar als MISSING da —
-             der URI-Rest in der Klammer hält den Eintrag unterscheidbar. */
-          name: v(r, 'element') || K.t('common.missing') + ' (' + K.kurz(uri) + ')',
-          sprache: v(r, 'sprache') || 'de',
-          beschreibung: v(r, 'beschreibung'),
+          /* If every label is missing, that shows up visibly as MISSING —
+             the URI tail in brackets keeps the entry distinguishable. */
+          name: v(r, 'name') || K.t('common.missing') + ' (' + K.lastSegment(uri) + ')',
+          language: v(r, 'language') || 'de',
+          description: v(r, 'description'),
           status: v(r, 'status'),
-          quelle: v(r, 'quelle') || K.t('empty.catalog'),
-          istDokument: v(r, 'istDokument') === 'true',
-          anzahl: 0, psets: [], typen: [], phasen: [], farbe: {}
+          source: v(r, 'source') || K.t('empty.catalog'),
+          isDocument: v(r, 'isDocument') === 'true',
+          count: 0, psets: [], types: [], milestones: [], color: {}
         };
       }
 
-      var n = parseInt(v(r, 'anzahl'), 10) || 0;
-      e.anzahl += n;
-      e.psets.push({ uri: v(r, 'gop'), name: v(r, 'pset') || K.t('empty.psetName'), n: n });
+      var n = parseInt(v(r, 'count'), 10) || 0;
+      entry.count += n;
+      entry.psets.push({ uri: v(r, 'gop'), name: v(r, 'pset') || K.t('empty.psetName'), n: n });
 
-      liste(r, 'typen').forEach(function (t) {
-        var klar = K.TYPEN[t] ? K.t(K.TYPEN[t]) : t;
-        if (e.typen.indexOf(klar) === -1) e.typen.push(klar);
+      listOf(r, 'types').forEach(function (t) {
+        var plain = K.TYPES[t] ? K.t(K.TYPES[t]) : t;
+        if (entry.types.indexOf(plain) === -1) entry.types.push(plain);
       });
-      liste(r, 'phasen').forEach(function (p) {
-        if (e.phasen.indexOf(p) === -1) e.phasen.push(p);
+      listOf(r, 'milestones').forEach(function (m) {
+        if (entry.milestones.indexOf(m) === -1) entry.milestones.push(m);
       });
     });
 
-    st.elemente = Object.keys(map).map(function (uri) {
-      var e = map[uri];
-      e.psets.sort(K.nachName);
-      e.typen.sort();
-      e.phasen.sort();
-      return e;
+    st.entries = Object.keys(map).map(function (uri) {
+      var entry = map[uri];
+      entry.psets.sort(K.byName);
+      entry.types.sort();
+      entry.milestones.sort();
+      return entry;
     });
 
-    /* Standardreihenfolge nach Katalog-Priorität (die allgemeinen Kataloge
-       zuerst, Dokumenttypen zuletzt), innerhalb alphabetisch — die
-       fachlichen Objekttypen sind der häufigere Einstieg. Eine explizite
-       Spaltensortierung der Nutzenden übersteuert diese Vorgabe. */
-    st.elemente.sort(function (a, b) {
-      var ra = K.katalogRang(a.quelle, a.istDokument);
-      var rb = K.katalogRang(b.quelle, b.istDokument);
+    /* Default order by catalogue priority (the general catalogues first,
+       document types last), alphabetical within — the domain object types
+       are the more common entry point. An explicit column sort by the user
+       overrides this default. */
+    st.entries.sort(function (a, b) {
+      var ra = K.catalogueRank(a.source, a.isDocument);
+      var rb = K.catalogueRank(b.source, b.isDocument);
       if (ra !== rb) return ra - rb;
-      if (a.quelle !== b.quelle) return K.deCompare(a.quelle, b.quelle);
-      return K.deCompare(a.name, b.name);
+      if (a.source !== b.source) return K.compare(a.source, b.source);
+      return K.compare(a.name, b.name);
     });
 
-    st.elemente.forEach(farbenZuordnen);
+    st.entries.forEach(assignColors);
   };
 
-  /* ---------- Wertelisten ---------- */
+  /* ---------- value lists ---------- */
 
-  K.uebernehmeWerte = function (rows) {
+  K.applyValues = function (rows) {
     var st = K.state;
     rows.forEach(function (r) {
-      st.werte[v(r, 'schema')] = {
-        anzahl: parseInt(v(r, 'anzahl'), 10) || 0,
-        werte: v(r, 'werte')
+      st.values[v(r, 'scheme')] = {
+        count: parseInt(v(r, 'count'), 10) || 0,
+        values: v(r, 'values')
       };
     });
-    st.werteGeladen = true;
+    st.valuesLoaded = true;
   };
 
-  function trivialeJaNeinListe(werte) {
-    var erlaubt = { 'true': 1, 'false': 1, 'ja': 1, 'nein': 1, 'yes': 1, 'no': 1 };
-    return werte.split(' · ').every(function (w) {
-      return erlaubt[w.trim().toLowerCase()] === 1;
+  function isTrivialBooleanList(values) {
+    var allowed = { 'true': 1, 'false': 1, 'ja': 1, 'nein': 1, 'yes': 1, 'no': 1 };
+    return values.split(' · ').every(function (w) {
+      return allowed[w.trim().toLowerCase()] === 1;
     });
   }
 
-  function einheitSymbol(raw) {
+  function unitSymbol(raw) {
     if (!raw) return '';
-    if (raw.indexOf('http') !== 0) return raw;       // bereits ein Symbol
-    var seg = K.kurz(raw);
-    return K.EINHEITEN[seg] || seg;
+    if (raw.indexOf('http') !== 0) return raw;       // already a symbol
+    var seg = K.lastSegment(raw);
+    return K.UNITS[seg] || seg;
   }
 
-  /* ---------- L2 uebernehmen ---------- */
+  /* ---------- adopting L2 ---------- */
 
-  K.uebernehmeDetail = function (uri, rows) {
+  K.applyDetail = function (uri, rows) {
     var st = K.state;
 
     var attrs = rows.map(function (r) {
-      var schema = v(r, 'werteSchema');
-      var wl = schema ? st.werte[schema] : null;
-      var typRaw = v(r, 'typ');
+      var scheme = v(r, 'valueScheme');
+      var valueList = scheme ? st.values[scheme] : null;
+      var typeRaw = v(r, 'type');
 
-      /* Eine Ja/Nein-Liste aus genau true/false sagt nichts, was der Typ nicht
-         schon sagt — sie wird ausgeblendet. Drei Werte (Ja/Nein/Optional) bleiben. */
-      if (wl && typRaw === 'BOOLEAN' && trivialeJaNeinListe(wl.werte)) wl = null;
+      /* A yes/no list of exactly true/false says nothing the type does not
+         already say — it is hidden. Three values (yes/no/optional) stay. */
+      if (valueList && typeRaw === 'BOOLEAN' && isTrivialBooleanList(valueList.values)) valueList = null;
 
       return {
         uri: v(r, 'prop'),
-        name: v(r, 'merkmal') ||
-              K.t('common.missing') + ' (' + K.kurz(v(r, 'prop')) + ')',
-        sprache: v(r, 'sprache') || 'de',
-        beschreibung: v(r, 'beschreibung'),
-        typRaw: typRaw,
-        /* Eine Werteliste macht nur aus einem Text eine Auswahl. BOOLEAN fuehrt
-           ebenfalls eine Liste (true/false, Ja/Nein) — das bleibt Ja/Nein. */
-        typ: (wl && wl.anzahl && typRaw === 'STRING')
-               ? K.t('type.select')
-               : (K.TYPEN[typRaw] ? K.t(K.TYPEN[typRaw]) : (typRaw || '')),
+        name: v(r, 'name') ||
+              K.t('common.missing') + ' (' + K.lastSegment(v(r, 'prop')) + ')',
+        language: v(r, 'language') || 'de',
+        description: v(r, 'description'),
+        typeRaw: typeRaw,
+        /* A value list only turns a TEXT into an enumeration. BOOLEAN also
+           carries a list (true/false, yes/no) — that stays yes/no. */
+        type: (valueList && valueList.count && typeRaw === 'STRING')
+                ? K.t('type.select')
+                : (K.TYPES[typeRaw] ? K.t(K.TYPES[typeRaw]) : (typeRaw || '')),
         psetUri: v(r, 'gop'),
         pset: v(r, 'pset') || K.t('empty.psetName'),
-        ifcPset: K.kurz(v(r, 'ifcPset')),
-        einheit: einheitSymbol(v(r, 'einheit')),
-        ifcTyp: v(r, 'ifcTyp'),
+        ifcPset: K.lastSegment(v(r, 'ifcPset')),
+        unit: unitSymbol(v(r, 'unit')),
+        ifcType: v(r, 'ifcType'),
         status: v(r, 'status'),
-        liste: wl,
-        phasen: liste(r, 'phasen')
+        valueList: valueList,
+        milestones: listOf(r, 'milestones')
       };
     });
 
     attrs.sort(function (a, b) {
-      if (a.pset !== b.pset) return K.deCompare(a.pset, b.pset);
-      return K.nachName(a, b);
+      if (a.pset !== b.pset) return K.compare(a.pset, b.pset);
+      return K.byName(a, b);
     });
 
     st.detail[uri] = attrs;
     return attrs;
   };
 
-  /* Die Wertelisten kommen einmalig beim ersten Detail mit. Ein laufendes
-     Versprechen wird geteilt, damit parallele Details (Export-Bündel,
-     Doppelklick) nicht sechs identische Abfragen feuern. */
-  var werteVersprechen = null;
+  /* The value lists come along once, with the first detail. A pending
+     promise is shared so that parallel details (export bundle, double
+     click) do not fire six identical queries. */
+  var valuesPromise = null;
 
-  function holeWerte(v) {
+  function fetchValues(conn) {
     var st = K.state;
-    if (st.werteGeladen) return Promise.resolve(null);
-    if (!werteVersprechen) {
-      /* Antwort einer älteren Generation (Sprach-/Endpunktwechsel während
-         des Flugs) als Fehler behandeln statt den frischen Cache zu füllen */
+    if (st.valuesLoaded) return Promise.resolve(null);
+    if (!valuesPromise) {
+      /* Treat a response from an older generation (language/endpoint switch
+         while in flight) as a failure instead of filling the fresh cache */
       var gen = st.generation;
-      werteVersprechen = K.run(v.endpoint, K.werteQuery(v.graph, v.sprache))
+      valuesPromise = K.run(conn.endpoint, K.valuesQuery(conn.graph, conn.language))
         .then(function (r) {
-          werteVersprechen = null;
-          return gen === st.generation ? r : { fehler: true };
+          valuesPromise = null;
+          return gen === st.generation ? r : { failed: true };
         }, function () {
-          werteVersprechen = null;
-          return { fehler: true };
+          valuesPromise = null;
+          return { failed: true };
         });
     }
-    return werteVersprechen;
+    return valuesPromise;
   }
 
-  /* Laufende geteilte Versprechen verwerfen — ruft laden() nach jedem
-     Generationswechsel auf: ein noch fliegendes Versprechen der alten
-     Generation darf nicht in die neue hinein wiederverwendet werden. */
-  K.invalidiereLaufend = function () {
-    werteVersprechen = null;
-    alleVersprechen = null;
-    laufendDetail = {};
+  /* Discard pending shared promises — load() calls this after every
+     generation change: a promise still in flight from the old generation
+     must not be reused into the new one. */
+  K.invalidatePending = function () {
+    valuesPromise = null;
+    allDetailsPromise = null;
+    pendingDetail = {};
   };
 
-  /* Merkmale eines Objekttyps besorgen — aus dem Zwischenspeicher oder vom
-     Endpunkt. v ist der beim Laden eingefrorene Verbindungsstand
-     {endpoint, graph, sprache}; eine Antwort aus einer älteren Generation
-     (Sprach-/Endpunktwechsel während des Ladens) wird verworfen, statt den
-     frischen Cache zu vergiften. Läuft dieselbe URI bereits, wird das
-     laufende Versprechen geteilt statt doppelt abgefragt. */
-  var laufendDetail = {};
+  /* Fetch the attributes of one object type — from the cache or from the
+     endpoint. conn is the connection state frozen at load time
+     {endpoint, graph, language}; a response from an older generation
+     (language/endpoint switch during loading) is discarded instead of
+     poisoning the fresh cache. If the same URI is already in flight, the
+     pending promise is shared instead of querying twice. */
+  var pendingDetail = {};
 
-  K.holeDetail = function (v, uri) {
+  K.fetchDetail = function (conn, uri) {
     var st = K.state;
-    if (st.detail[uri] && !st.detailOhneWerte[uri]) {
+    if (st.detail[uri] && !st.detailWithoutValues[uri]) {
       return Promise.resolve(st.detail[uri]);
     }
-    if (laufendDetail[uri]) return laufendDetail[uri];
+    if (pendingDetail[uri]) return pendingDetail[uri];
 
-    /* Unvollständiges Detail (Werteliste fehlte) wird komplett neu geholt */
+    /* An incomplete detail (value list was missing) is fetched again in full */
     delete st.detail[uri];
 
     var gen = st.generation;
     var p = Promise.all([
-      K.run(v.endpoint, K.detailQuery(v.graph, uri, v.sprache)),
-      holeWerte(v)
+      K.run(conn.endpoint, K.detailQuery(conn.graph, uri, conn.language)),
+      fetchValues(conn)
     ]).then(function (res) {
-      delete laufendDetail[uri];
-      if (gen !== st.generation) return [];   // veraltete Antwort: verwerfen
+      delete pendingDetail[uri];
+      if (gen !== st.generation) return [];   // stale response: discard
 
-      var werteFehler = !!(res[1] && res[1].fehler);
-      if (res[1] && !werteFehler) K.uebernehmeWerte(res[1].results.bindings);
+      var valuesFailed = !!(res[1] && res[1].failed);
+      if (res[1] && !valuesFailed) K.applyValues(res[1].results.bindings);
 
-      var attrs = K.uebernehmeDetail(uri, res[0].results.bindings);
-      if (werteFehler) {
-        /* Ohne Wertelisten würde jedes Auswahl-Merkmal still zu «Text».
-           Merken statt löschen: die Ansicht rendert, das nächste Öffnen
-           lädt neu, und der Aufrufer kann den Umstand melden. */
-        st.detailOhneWerte[uri] = true;
+      var attrs = K.applyDetail(uri, res[0].results.bindings);
+      if (valuesFailed) {
+        /* Without the value lists every enumeration attribute would quietly
+           become «Text». Remember instead of deleting: the view renders, the
+           next open reloads, and the caller can report the circumstance. */
+        st.detailWithoutValues[uri] = true;
       } else {
-        delete st.detailOhneWerte[uri];
+        delete st.detailWithoutValues[uri];
       }
       return attrs;
     }, function (err) {
-      delete laufendDetail[uri];
+      delete pendingDetail[uri];
       throw err;
     });
 
-    laufendDetail[uri] = p;
+    pendingDetail[uri] = p;
     return p;
   };
 
-  /* Alle Merkmale aller Objekttypen in EINER Abfrage — für den Gesamtexport.
-     Rund 3300 Zeilen sind für den Endpunkt eine einzige billige Antwort;
-     hunderte Einzelabfragen wären es nicht. Das Ergebnis füllt denselben
-     Detail-Zwischenspeicher, den auch die Ansicht nutzt. */
-  var alleVersprechen = null;
+  /* All attributes of all object types in ONE query — for the full export.
+     Around 3300 rows are a single cheap response for the endpoint; hundreds
+     of individual queries would not be. The result fills the same detail
+     cache the view uses. */
+  var allDetailsPromise = null;
 
-  K.holeAlleDetails = function (v) {
+  K.fetchAllDetails = function (conn) {
     var st = K.state;
-    if (alleVersprechen) return alleVersprechen;
+    if (allDetailsPromise) return allDetailsPromise;
 
     var gen = st.generation;
     var p = Promise.all([
-      K.run(v.endpoint, K.alleDetailsQuery(v.graph, v.sprache)),
-      holeWerte(v)
+      K.run(conn.endpoint, K.allDetailsQuery(conn.graph, conn.language)),
+      fetchValues(conn)
     ]).then(function (res) {
-      alleVersprechen = null;
-      if (gen !== st.generation) return;   // veraltete Antwort: verwerfen
+      allDetailsPromise = null;
+      if (gen !== st.generation) return;   // stale response: discard
 
-      var werteFehler = !!(res[1] && res[1].fehler);
-      if (res[1] && !werteFehler) K.uebernehmeWerte(res[1].results.bindings);
+      var valuesFailed = !!(res[1] && res[1].failed);
+      if (res[1] && !valuesFailed) K.applyValues(res[1].results.bindings);
 
-      var nachKlasse = {};
+      var byClassUri = {};
       res[0].results.bindings.forEach(function (r) {
-        var uri = r.klasse ? r.klasse.value : '';
+        var uri = r['class'] ? r['class'].value : '';
         if (!uri) return;
-        (nachKlasse[uri] = nachKlasse[uri] || []).push(r);
+        (byClassUri[uri] = byClassUri[uri] || []).push(r);
       });
-      Object.keys(nachKlasse).forEach(function (uri) {
-        K.uebernehmeDetail(uri, nachKlasse[uri]);
-        if (werteFehler) st.detailOhneWerte[uri] = true;
-        else delete st.detailOhneWerte[uri];
+      Object.keys(byClassUri).forEach(function (uri) {
+        K.applyDetail(uri, byClassUri[uri]);
+        if (valuesFailed) st.detailWithoutValues[uri] = true;
+        else delete st.detailWithoutValues[uri];
       });
     }, function (err) {
-      alleVersprechen = null;
+      allDetailsPromise = null;
       throw err;
     });
 
-    alleVersprechen = p;
+    allDetailsPromise = p;
     return p;
   };
 })(KBOB);

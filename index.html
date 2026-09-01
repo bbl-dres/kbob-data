@@ -54,16 +54,32 @@
     <h2 class="ob-screen-reader-only" data-i18n="a11y.serviceNav">Service-Navigation</h2>
     <div class="ob-service-navigation">
       <ul class="ob-service-navigation-list">
+        <!-- Icon and wording are both in the markup: below md only the icon
+             remains and the wording moves into the accessible name
+             (aria-label). Three stacked full-width rows became one. -->
         <li class="ob-service-navigation-custom-control">
-          <button type="button" id="verbindung" class="ob-button ob-button-secondary" data-i18n="connection.title">Verbindung und Abfrage</button>
+          <button type="button" id="connection" class="ob-button ob-button-secondary"
+                  aria-label="Verbindung und Abfrage" data-i18n-aria-label="connection.title">
+            <svg class="ob-icon app-button-icon" focusable="false" aria-hidden="true"><use href="#database"></use></svg>
+            <span class="app-button-label" data-i18n="connection.title">Verbindung und Abfrage</span>
+          </button>
         </li>
         <li class="ob-service-navigation-custom-control">
-          <button id="csv" class="ob-button ob-button-secondary" disabled
-                  data-i18n="export.button" data-i18n-title="export.tooltip">Als Excel exportieren</button>
+          <button id="xlsx" class="ob-button ob-button-secondary" disabled
+                  aria-label="Als Excel exportieren" data-i18n-aria-label="export.button"
+                  data-i18n-title="export.tooltip">
+            <svg class="ob-icon app-button-icon" focusable="false" aria-hidden="true"><use href="#file_excel"></use></svg>
+            <!-- The CD spinner arc (lib/spinner) in currentColor; visible
+                 only while the button carries aria-busy. -->
+            <svg class="ob-icon app-button-spinner" viewBox="0 0 48 48" focusable="false" aria-hidden="true">
+              <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" stroke-miterlimit="10" stroke-width="4"/>
+            </svg>
+            <span class="app-button-label" data-i18n="export.button">Als Excel exportieren</span>
+          </button>
         </li>
         <li class="ob-language-dropdown">
           <span class="ob-screen-reader-only" id="ob-language-change" data-i18n="language.label">Sprache der Katalogbeschriftungen</span>
-          <select id="sprache" class="ob-select ob-select-borderless" aria-labelledby="ob-language-change"
+          <select id="language" class="ob-select ob-select-borderless" aria-labelledby="ob-language-change"
                   data-i18n-title="language.label" title="Sprache der Katalogbeschriftungen">
             <option value="de" lang="de" aria-label="Deutsch" selected>DE</option>
             <option value="fr" lang="fr" aria-label="Français">FR</option>
@@ -79,101 +95,128 @@
 <div class="ob-master-layout-wrapper">
   <main id="content" class="ob-main-layout" tabindex="-1">
 
-    <p class="kbob-status" id="status" role="status" aria-live="polite"></p>
+    <p class="app-status" id="status" role="status" aria-live="polite"></p>
 
     <nav aria-label="Pfad" data-i18n-aria-label="a11y.breadcrumb">
-      <ol class="ob-breadcrumbs" id="krumen"></ol>
+      <ol class="ob-breadcrumbs" id="breadcrumb"></ol>
     </nav>
 
-    <div class="kbob-page-header" id="titelblock" hidden>
-      <button class="ob-button ob-button-tertiary kbob-back" id="zurueck" hidden>
+    <div class="app-page-header" id="page-header" hidden>
+      <button class="ob-button ob-button-tertiary app-page-back" id="back" hidden>
         <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#arrow_left"></use></svg>
         <span data-i18n="common.back">Zurück</span>
       </button>
-      <h1 id="titel" tabindex="-1"></h1>
-      <p class="kbob-page-meta" id="kennzahlen"></p>
-      <p class="kbob-page-lead" id="titel-text" hidden></p>
+      <h1 id="page-title" tabindex="-1"></h1>
+      <p class="app-page-meta" id="page-meta"></p>
+      <p class="app-page-lead" id="page-lead" hidden></p>
     </div>
 
-    <div class="kbob-toolbar" id="toolbar" hidden>
-      <span class="kbob-search">
-        <input type="search" id="filter" aria-label="Suche" data-i18n-aria-label="search.label"
+    <div class="app-toolbar" id="toolbar" hidden>
+      <span class="ob-text-control">
+        <input type="search" id="search-input" aria-label="Suche" data-i18n-aria-label="search.label"
                data-i18n-placeholder="search.phOverview" placeholder="Objekttyp oder Beschreibung">
-        <button type="button" class="kbob-search-clear" id="filter-leeren" aria-label="Suche löschen" data-i18n-aria-label="search.clear" hidden>
+        <button type="button" class="ob-text-control-clear" id="search-clear" aria-label="Suche löschen" data-i18n-aria-label="search.clear" hidden>
           <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#xmark"></use></svg>
         </button>
       </span>
-      <div class="kbob-facets" id="facetten"></div>
-      <span class="kbob-toolbar-right">
-        <span class="ob-screen-reader-only" id="treffer" aria-live="polite"></span>
-        <span class="kbob-view-switch" role="group" aria-label="Ansicht" data-i18n-aria-label="views.group">
-          <button id="v-liste" class="ob-button ob-button-secondary" aria-pressed="true" data-i18n="views.list">Liste</button>
-          <button id="v-galerie" class="ob-button ob-button-secondary" aria-pressed="false" data-i18n="views.gallery">Galerie</button>
-          <button id="v-graph" class="ob-button ob-button-secondary" aria-pressed="false" data-i18n="views.graph">Graph</button>
+      <div class="app-facets" id="facets"></div>
+      <span class="app-toolbar-end">
+        <span class="ob-screen-reader-only" id="result-count" aria-live="polite"></span>
+        <!-- Icon on every option, wording only on the active one: the switch
+             keeps one toolbar row on narrow viewports. The accessible name
+             stays complete on all three (aria-label = the visible wording). -->
+        <span class="app-view-switch" role="group" aria-label="Ansicht" data-i18n-aria-label="views.group">
+          <button id="v-list" class="ob-button ob-button-secondary" aria-pressed="true"
+                  aria-label="Liste" data-i18n-aria-label="views.list"
+                  title="Liste" data-i18n-title="views.list">
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#list"></use></svg>
+            <span class="app-view-switch-label" data-i18n="views.list">Liste</span>
+          </button>
+          <button id="v-gallery" class="ob-button ob-button-secondary" aria-pressed="false"
+                  aria-label="Galerie" data-i18n-aria-label="views.gallery"
+                  title="Galerie" data-i18n-title="views.gallery">
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#grid"></use></svg>
+            <span class="app-view-switch-label" data-i18n="views.gallery">Galerie</span>
+          </button>
+          <button id="v-graph" class="ob-button ob-button-secondary" aria-pressed="false"
+                  aria-label="Graph" data-i18n-aria-label="views.graph"
+                  title="Graph" data-i18n-title="views.graph">
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#share"></use></svg>
+            <span class="app-view-switch-label" data-i18n="views.graph">Graph</span>
+          </button>
         </span>
       </span>
     </div>
 
-    <div class="kbob-active-filters" id="aktive-filter" hidden></div>
+    <div class="app-filter-bar" id="filter-bar" hidden></div>
 
-    <div id="platzhalter" class="kbob-message"></div>
+    <div id="placeholder" class="app-message"></div>
 
-    <div id="view-liste" class="ob-table-scrollable" tabindex="0" role="region"
+    <div id="view-list" class="ob-table-scrollable" tabindex="0" role="region"
          aria-label="Tabelle — auf schmalen Fenstern seitlich scrollbar" data-i18n-aria-label="table.region" hidden></div>
 
-    <div id="view-galerie" hidden>
-      <div class="kbob-gallery" id="galerie"></div>
+    <div id="view-gallery" hidden>
+      <div class="app-gallery" id="gallery"></div>
     </div>
 
     <div id="view-graph" hidden>
-      <div class="kbob-message" id="graph-meldung" hidden></div>
-      <div class="kbob-graph-wrap kbob-wide" id="graph-wrap">
-        <span class="ob-screen-reader-only" id="graph-titel"></span>
-        <button type="button" class="kbob-graph-skip" id="graph-ueberspringen"
+      <div class="app-message" id="graph-message" hidden></div>
+      <div class="app-graph app-bleed" id="graph-frame">
+        <span class="ob-screen-reader-only" id="graph-title"></span>
+        <button type="button" class="app-graph-skip" id="graph-skip"
                 data-i18n="graph.skip">Grafik überspringen — zur Textfassung</button>
-        <svg id="netz" tabindex="0" role="group" aria-labelledby="graph-titel"
-             aria-describedby="graph-hinweis"></svg>
-        <div class="kbob-graph-overlay" id="graph-steuerung">
-          <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-plus" aria-label="Vergrössern" data-i18n-aria-label="graph.zoomIn" data-i18n-title="graph.zoomIn" title="Vergrössern">
+        <svg id="graph-canvas" tabindex="0" role="group" aria-labelledby="graph-title"
+             aria-describedby="graph-hint"></svg>
+        <div class="app-graph-controls" id="graph-controls">
+          <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-in" aria-label="Vergrössern" data-i18n-aria-label="graph.zoomIn" data-i18n-title="graph.zoomIn" title="Vergrössern">
             <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#plus"></use></svg>
           </button>
-          <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-minus" aria-label="Verkleinern" data-i18n-aria-label="graph.zoomOut" data-i18n-title="graph.zoomOut" title="Verkleinern">
+          <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-out" aria-label="Verkleinern" data-i18n-aria-label="graph.zoomOut" data-i18n-title="graph.zoomOut" title="Verkleinern">
             <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#minus"></use></svg>
           </button>
           <button class="ob-button ob-button-secondary ob-icon-button" id="zoom-reset" aria-label="Ausschnitt zurücksetzen" data-i18n-aria-label="graph.reset" data-i18n-title="graph.reset" title="Ausschnitt zurücksetzen">
             <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#target"></use></svg>
           </button>
-          <button class="ob-button ob-button-secondary ob-icon-button" id="vollbild" aria-label="Vollbild" data-i18n-aria-label="graph.fullscreen" data-i18n-title="graph.fullscreen" title="Vollbild">
+          <button class="ob-button ob-button-secondary ob-icon-button" id="graph-fullscreen" aria-label="Vollbild" data-i18n-aria-label="graph.fullscreen" data-i18n-title="graph.fullscreen" title="Vollbild">
             <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#fullscreen"></use></svg>
           </button>
         </div>
-        <div class="ob-tooltip" id="tip" aria-hidden="true"></div>
-        <aside class="kbob-graph-panel" id="graph-panel" hidden
+        <div class="ob-tooltip" id="tooltip" aria-hidden="true"></div>
+        <aside class="app-graph-panel" id="graph-panel" hidden
                aria-label="Details zum gewählten Knoten" data-i18n-aria-label="graph.panel"></aside>
-        <div class="kbob-legend" id="legende"></div>
-        <div class="kbob-zoom-hint" id="zoom-hinweis" aria-hidden="true" hidden></div>
+        <div class="app-legend" id="legend"></div>
+        <div class="app-zoom-hint" id="zoom-hint" aria-hidden="true" hidden></div>
       </div>
-      <p class="kbob-graph-hint" id="graph-hinweis"></p>
+      <p class="app-graph-hint" id="graph-hint"></p>
       <div class="ob-screen-reader-only" id="graph-text" tabindex="-1"></div>
     </div>
 
-    <div id="view-merkmal" hidden>
-      <div class="kbob-detail" id="merkmal-detail"></div>
+    <div id="view-attribute" hidden>
+      <div class="app-detail" id="attribute-detail"></div>
     </div>
 
-    <nav class="kbob-paginator" id="blaettern" hidden aria-label="Blättern" data-i18n-aria-label="paginator.label"></nav>
+    <nav class="app-paginator" id="paginator" hidden aria-label="Blättern" data-i18n-aria-label="paginator.label"></nav>
 
   </main>
 
-  <button type="button" class="ob-top-control" id="nach-oben" aria-label="Zum Seitenanfang" data-i18n-aria-label="a11y.toTop" hidden>
-    <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#chevron_up"></use></svg>
-  </button>
+  <!-- Oblique nests the control: .ob-top-control is the host, the button is
+       .ob-top-control-btn (scrolling/top-control.component). -->
+  <div class="ob-top-control">
+    <button type="button" class="ob-top-control-btn" id="to-top" aria-label="Zum Seitenanfang" data-i18n-aria-label="a11y.toTop" hidden>
+      <svg class="ob-icon ob-control-icon" focusable="false" aria-hidden="true"><use href="#chevron_up"></use></svg>
+    </button>
+  </div>
 
   <div class="ob-master-layout-footer">
     <footer>
       <div class="ob-footer-links">
         <ul class="ob-footer-item ob-footer-item-links" aria-label="Links" data-i18n-aria-label="footer.links">
-          <li><button type="button" id="barrierefreiheit" data-i18n="footer.accessibility">Barrierefreiheit</button></li>
+          <li><button type="button" id="accessibility-statement" data-i18n="footer.accessibility">Barrierefreiheit</button></li>
+          <li>
+            <a id="legal" href="https://www.admin.ch/de/rechtliches"
+               data-i18n-href="footer.legalUrl"
+               target="_blank" rel="noopener noreferrer" data-i18n="footer.legal">Rechtliches</a>
+          </li>
           <li>
             <a href="https://www.i14y.admin.ch/de/catalog/dataservices/kbob-fm-data-dictionary-sparql/description"
                target="_blank" rel="noopener noreferrer" data-i18n="footer.i14y">KBOB Data Dictionary auf I14Y</a>
@@ -200,40 +243,44 @@
   </div>
 </div>
 
-<dialog id="dlg-verbindung" class="ob-dialog" aria-labelledby="dlg-verbindung-titel">
-  <h2 class="ob-dialog-title" id="dlg-verbindung-titel" tabindex="-1" autofocus data-i18n="connection.title">Verbindung und Abfrage</h2>
+<dialog id="dlg-connection" class="ob-dialog" aria-labelledby="dlg-connection-title">
+  <h2 class="ob-dialog-title" id="dlg-connection-title" tabindex="-1" autofocus data-i18n="connection.title">Verbindung und Abfrage</h2>
 
-  <div class="kbob-controls">
-    <div class="kbob-field">
+  <div class="app-form-row">
+    <div class="app-field">
       <label for="endpoint" data-i18n="connection.endpoint">SPARQL-Endpunkt</label>
       <input id="endpoint" type="text" value="https://int.lindas.admin.ch/query" spellcheck="false">
     </div>
-    <div class="kbob-field">
-      <label for="graph" data-i18n="connection.graph">Named Graph</label>
-      <input id="graph" type="url" value="https://lindas.admin.ch/fobl/kbob/dd-fm" spellcheck="false">
+    <div class="app-field">
+      <label for="named-graph" data-i18n="connection.graph">Named Graph</label>
+      <input id="named-graph" type="url" value="https://lindas.admin.ch/fobl/kbob/dd-fm" spellcheck="false">
     </div>
-    <button id="neuladen" class="ob-button ob-button-primary" data-i18n="connection.reload">Neu laden</button>
+    <button id="reload" class="ob-button ob-button-primary" data-i18n="connection.reload">Neu laden</button>
   </div>
 
   <h3 data-i18n="connection.queries">Abfragen</h3>
-  <div class="kbob-tabs">
-    <button class="kbob-tab" id="tab-uebersicht" aria-pressed="true" data-i18n="connection.tabOverview">Übersicht</button>
-    <button class="kbob-tab" id="tab-detail" aria-pressed="false" data-i18n="connection.tabDetail">Merkmale eines Objekttyps</button>
-    <button class="kbob-tab" id="tab-werte" aria-pressed="false" data-i18n="connection.tabValues">Zulässige Werte</button>
+  <div class="app-tabs">
+    <button class="app-tab" id="tab-overview" aria-pressed="true" data-i18n="connection.tabOverview">Übersicht</button>
+    <button class="app-tab" id="tab-detail" aria-pressed="false" data-i18n="connection.tabDetail">Merkmale eines Objekttyps</button>
+    <button class="app-tab" id="tab-values" aria-pressed="false" data-i18n="connection.tabValues">Zulässige Werte</button>
   </div>
   <textarea id="query-text" readonly spellcheck="false" aria-label="SPARQL-Abfrage" data-i18n-aria-label="connection.queryText"></textarea>
 
   <div class="ob-dialog-actions">
-    <span class="kbob-dialog-status" id="copy-status" role="status"></span>
+    <span class="app-dialog-status" id="copy-status" role="status"></span>
     <button class="ob-button ob-button-secondary" id="copy-query" data-i18n="connection.copy">In die Zwischenablage kopieren</button>
-    <button class="ob-button ob-button-primary" id="close-verbindung" data-i18n="common.close">Schliessen</button>
+    <button class="ob-button ob-button-primary" id="close-connection" data-i18n="common.close">Schliessen</button>
   </div>
 </dialog>
 
-<dialog id="dlg-a11y" class="ob-dialog" aria-labelledby="dlg-a11y-titel">
-  <h2 class="ob-dialog-title" id="dlg-a11y-titel" tabindex="-1" autofocus lang="de">Erklärung zur Barrierefreiheit</h2>
-  <!-- Die Erklärung liegt vorerst nur auf Deutsch vor (lang="de" für die Aussprache) -->
+<dialog id="dlg-a11y" class="ob-dialog" aria-labelledby="dlg-a11y-title">
+  <h2 class="ob-dialog-title" id="dlg-a11y-title" tabindex="-1" autofocus lang="de">Erklärung zur Barrierefreiheit</h2>
+  <!-- The statement is available in German only for now (lang="de" drives pronunciation) -->
   <div class="ob-dialog-content" lang="de">
+    <p>Digital verfügbare Informationen und Dienstleistungen vereinfachen für
+       Menschen mit Behinderungen die Kommunikation mit öffentlichen Stellen.
+       Übergeordnet gilt
+       <a class="ob-external-link" href="https://www.bbl.admin.ch/de/barrierefreiheit-in-der-bundesverwaltung" target="_blank" rel="noopener noreferrer">Barrierefreiheit in der Bundesverwaltung<svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#link_external"></use></svg><span class="ob-screen-reader-only"> – externer Link</span></a>.</p>
     <p>Diese Anwendung richtet sich nach den Kriterien der <b>WCAG 2.1 Stufe AA</b>,
        wie sie der Standard <b>eCH-0059 v3.0</b> für Dienste des Bundes verbindlich
        vorgibt. Sie ist mit diesen Anforderungen <b>teilweise vereinbar</b>; die

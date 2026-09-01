@@ -360,6 +360,18 @@
     "it": "Accessibilità",
     "en": "Accessibility"
   },
+  "footer.legal": {
+    "de": "Rechtliches",
+    "fr": "Aspects juridiques",
+    "it": "Basi legali",
+    "en": "Legal framework"
+  },
+  "footer.legalUrl": {
+    "de": "https://www.admin.ch/de/rechtliches",
+    "fr": "https://www.admin.ch/de/rechtliches",
+    "it": "https://www.admin.ch/de/rechtliches",
+    "en": "https://www.admin.ch/de/rechtliches"
+  },
   "footer.i14y": {
     "de": "KBOB Data Dictionary auf I14Y",
     "fr": "KBOB Data Dictionary sur I14Y",
@@ -427,10 +439,10 @@
     "en": "LOIN milestone"
   },
   "facets.selectedCount": {
-    "de": "{titel}, {n} gewählt",
-    "fr": "{titel}, {n} sélectionné(s)",
-    "it": "{titel}, {n} selezionati",
-    "en": "{titel}, {n} selected"
+    "de": "{title}, {n} gewählt",
+    "fr": "{title}, {n} sélectionné(s)",
+    "it": "{title}, {n} selezionati",
+    "en": "{title}, {n} selected"
   },
   "facets.clear": {
     "de": "Auswahl aufheben",
@@ -439,10 +451,10 @@
     "en": "Clear selection"
   },
   "chips.remove": {
-    "de": "Filter entfernen: {art} {wert}",
-    "fr": "Retirer le filtre : {art} {wert}",
-    "it": "Rimuovi il filtro: {art} {wert}",
-    "en": "Remove filter: {art} {wert}"
+    "de": "Filter entfernen: {kind} {value}",
+    "fr": "Retirer le filtre : {kind} {value}",
+    "it": "Rimuovi il filtro: {kind} {value}",
+    "en": "Remove filter: {kind} {value}"
   },
   "chips.reset": {
     "de": "Alle Filter zurücksetzen",
@@ -691,10 +703,10 @@
     "en": "Pagination"
   },
   "paginator.pageOf": {
-    "de": "Seite {seite} von {seiten}",
-    "fr": "Page {seite} sur {seiten}",
-    "it": "Pagina {seite} di {seiten}",
-    "en": "Page {seite} of {seiten}"
+    "de": "Seite {page} von {pages}",
+    "fr": "Page {page} sur {pages}",
+    "it": "Pagina {page} di {pages}",
+    "en": "Page {page} of {pages}"
   },
   "paginator.first": {
     "de": "Erste Seite",
@@ -727,10 +739,10 @@
     "en": "Entries per page"
   },
   "paginator.range": {
-    "de": "{von}–{bis} von {gesamt}",
-    "fr": "{von}–{bis} sur {gesamt}",
-    "it": "{von}–{bis} di {gesamt}",
-    "en": "{von}–{bis} of {gesamt}"
+    "de": "{from}–{to} von {total}",
+    "fr": "{from}–{to} sur {total}",
+    "it": "{from}–{to} di {total}",
+    "en": "{from}–{to} of {total}"
   },
   "status.candidate": {
     "de": "Kandidat — vorgeschlagen, noch nicht verabschiedet",
@@ -781,10 +793,10 @@
     "en": "no LOIN milestone"
   },
   "phases.label": {
-    "de": "LOIN-Meilensteine: {liste}",
-    "fr": "Jalons LOIN : {liste}",
-    "it": "Milestone LOIN: {liste}",
-    "en": "LOIN milestones: {liste}"
+    "de": "LOIN-Meilensteine: {list}",
+    "fr": "Jalons LOIN : {list}",
+    "it": "Milestone LOIN: {list}",
+    "en": "LOIN milestones: {list}"
   },
   "phases.none": {
     "de": "Ohne LOIN-Meilenstein",
@@ -793,10 +805,10 @@
     "en": "No LOIN milestone"
   },
   "phases.declared": {
-    "de": "Deklariert: {liste}",
-    "fr": "Déclarés : {liste}",
-    "it": "Dichiarati: {liste}",
-    "en": "Declared: {liste}"
+    "de": "Deklariert: {list}",
+    "fr": "Déclarés : {list}",
+    "it": "Dichiarati: {list}",
+    "en": "Declared: {list}"
   },
   "phases.noneDeclared": {
     "de": "Kein Meilenstein deklariert",
@@ -817,10 +829,10 @@
     "en": "{p} — not declared"
   },
   "values.count": {
-    "de": "{n} zulässige Werte: {werte}",
-    "fr": "{n} valeurs admises : {werte}",
-    "it": "{n} valori ammessi: {werte}",
-    "en": "{n} permitted values: {werte}"
+    "de": "{n} zulässige Werte: {values}",
+    "fr": "{n} valeurs admises : {values}",
+    "it": "{n} valori ammessi: {values}",
+    "en": "{n} permitted values: {values}"
   },
   "values.warning": {
     "de": "Die Wertelisten konnten nicht geladen werden — Auswahl-Merkmale erscheinen vorerst als «Text».",
@@ -947,6 +959,12 @@
     "fr": "La requête a échoué : {msg}",
     "it": "La query non è riuscita: {msg}",
     "en": "The query failed: {msg}"
+  },
+  "errors.notSparql": {
+    "de": "Die Antwort ist kein SPARQL-Ergebnis — der Endpunkt hat vermutlich eine Fehler- oder Anmeldeseite geliefert.",
+    "fr": "La réponse n'est pas un résultat SPARQL — le point d'accès a probablement renvoyé une page d'erreur ou de connexion.",
+    "it": "La risposta non è un risultato SPARQL: il punto di accesso ha probabilmente restituito una pagina di errore o di accesso.",
+    "en": "The response is not a SPARQL result — the endpoint most likely returned an error or login page."
   },
   "errors.networkShort": {
     "de": "Der Datenserver ist nicht erreichbar — Verbindung prüfen (VPN/Proxy).",

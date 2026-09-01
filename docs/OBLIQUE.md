@@ -73,7 +73,7 @@ Extraktionsbericht): `--pine` → Interaktionsblau, `--rust` →
 | Sortierpfeil | `.mat-sort-header`-Muster: «ArrowUp»-SVG (data-URI, currentColor, 12 px), absteigend rotiert | material/_mat-table.scss |
 | Filter-Pillen | `.ob-chip` (dunkel gefüllt `#2f4356`, weisse Schrift, hover `#46596b`, aktiv `#263645`, Schliess-Icon) | material/_mat-chip.scss |
 | Statusmeldungen/Kacheln | `.ob-alert.ob-alert-info/-success/-warning/-error` — kompletter No-Angular-Block inkl. der vier Base64-Icon-Streifen, verbatim | oblique-alert.scss |
-| Lade-Spinner | `.ob-spinner` > `.ob-overlay.ob-spinner-fade(-in)` > `.ob-spinner-viewport` > SVG-Kreis (stroke `#2F4356`, 4 px, `ob-spin` 1.2 s); kleine Inline-Variante `kbob-spinner-inline` mit denselben Stroke-Werten | lib/spinner |
+| Lade-Spinner | `.ob-spinner` > `.ob-overlay.ob-spinner-fade(-in)` > `.ob-spinner-viewport` > SVG-Kreis (stroke `#2F4356`, 4 px, `ob-spin` 1.2 s); kleine Inline-Variante `app-spinner-inline` mit denselben Stroke-Werten | lib/spinner |
 | Blättern | Paginator-Muster: 36×36-Navigationsknöpfe (first/prev/next/last) mit den vier Chevron-data-URIs, Text `#2f4356`, «Einträge pro Seite»-Select | material/_mat-paginator.scss |
 | Dialoge | `.ob-dialog`-Rollen (`-title` = ob-h2 23/28/700, `-content`, `-actions` rechtsbündig, Padding 24 px, bewusst ohne Schatten); natives `<dialog>` bleibt | material/_mat-dialog.scss |
 | Tooltip (Graph) | `.ob-tooltip`: Grund `#263645`, weiss, `shadow-default` | material/_mat-tooltip.scss |
@@ -87,13 +87,42 @@ Glyphen-Ersetzungen: `▾`→chevron_down_small, `×`→xmark, `▲▼`→ArrowU
 `←`→arrow_left, `↗`→link_external, `›`→chevron_right_small, `+ −`→plus/minus.
 Typografische Zeichen (« », …) bleiben Text.
 
-**App-eigene Bauteile ohne Oblique-Gegenstück** tragen den Präfix `kbob-`
-(englisch, Bindestriche, ausschliesslich `--ob-*`-Token, nie `ob-`):
-`kbob-toolbar`, `kbob-facet(-menu/-option)`, `kbob-view-switch`,
-`kbob-page-header` (Titelblock), `kbob-status`, `kbob-gallery`,
-`kbob-detail`, `kbob-legend`, `kbob-phase(-track)`, `kbob-spinner-inline`,
-`kbob-graph-wrap`. Die SVG-internen Grafikklassen (`g-*`) bleiben als
-dokumentierter interner Namensraum der Fachvisualisierung.
+### Namenskonvention: zwei Klassenschichten, `ob-` und `app-`
+
+**App-eigene Bauteile ohne Oblique-Gegenstück** tragen den Präfix `app-`
+(englisch, Bindestriche, flach `block-element` wie Oblique selbst,
+ausschliesslich `--ob-*`-Token, nie `ob-`): `app-toolbar`,
+`app-facet(-menu/-option)`, `app-view-switch`, `app-page-header`,
+`app-status`, `app-gallery`, `app-detail`, `app-legend`, `app-phase(-track)`,
+`app-spinner-inline`, `app-graph(-panel/-controls)`. Die SVG-internen
+Grafikklassen liegen im Namensraum `app-graph-*` (`-node`, `-edge`, `-dot`,
+`-label`, `-hit`, `-faded`, `-selected`, `-center-*`).
+
+Begründung des Präfixes — drei Punkte, in dieser Reihenfolge:
+
+1. **Ein Präfix ist nötig.** Die App lädt 2528 `--ob-*`-Token und eine
+   `ob-`-Komponentenschicht in *eine* globale Kaskade, und das Design System
+   liefert laufend eigene Komponenten-CSS nach (§7). Unpräfixierte Namen wie
+   `.toolbar`, `.card`, `.legend`, `.field` sind genau die, die eine solche
+   generische Schicht später beansprucht.
+2. **Das Präfix benennt die Schicht, nicht das Produkt.** `kbob-` war der
+   Name der *Daten*: `kbob-toolbar`, `kbob-legend`, `kbob-field` enthielten
+   nichts KBOB-Spezifisches, und dieselbe Anwendung auf einen anderen Katalog
+   gerichtet trüge auf jeder Klasse einen falschen Namen. `ob-` = Designsystem,
+   `app-` = Anwendungsschicht.
+3. **`app-` ist die Oblique-eigene Konvention.** Die Oblique-CLI legt neue
+   Anwendungen mit dem Selektor-Präfix `app` an (`projects/cli/src/new/
+   schema.json`, `prefix.defaultValue = "app"`; ebenso `angular.json` für die
+   Sandbox-Apps). Damit ist die App-Schicht CD-konform benannt, statt einen
+   dritten Namensstil zu erfinden.
+
+**Zustandsklassen** kommen aus dem CD-Vokabular, wo Oblique dasselbe meint:
+`ob-active` (aktive Facette, hervorgehobene Kante, gesetzter Meilenstein),
+sonst `app-is-*` nach Obliques eigenem Muster `ob-has-*`/`ob-is-*`:
+`app-is-visible`, `app-is-dragging`, `app-is-muted`. Nackte globale
+Zustandsklassen (früher `.an`, `.aus`, `.klick`, `.aktiv`, `.on`, `.error`,
+`.rund`, `.eintrag`, `.dragging`) gibt es nicht mehr — sie kollidierten
+potenziell mit jedem Fremd-CSS und waren teils deutsch.
 
 ## 4. Assets und Lizenz
 
@@ -127,14 +156,14 @@ dokumentierter interner Namensraum der Fachvisualisierung.
 | C6 | `.ob-alert`-Kacheln: der «Erneut versuchen»-Knopf steht unter dem Alert (Oblique-Konvention), Ladezustand bleibt Karte+Spinner | |
 | C7 | Kein `@layer` — Kaskade über physische Reihenfolge tokens → (fonts/reset/text in main.css) → Komponenten → App | Zwei-Dateien-Vorgabe des Repos; ohne Material-CSS gibt es keinen Layer-Konflikt. |
 | C8 | forced-colors- und `prefers-reduced-motion`-Blöcke der App bleiben (Oblique bringt keine mit) | dokumentierte Eigenleistung. |
-| C9 | Facetten-Checkbox-Dropdown, Ansichts-Umschalter, LOIN-Kästchen, Graph, Galerie-Raster: kein Oblique-Gegenstück → `kbob-*` im Oblique-Look (Overlay-Karte `#acb4bd`-Rand + Panel-Schatten, MDC-Checkbox-Optik `#2f4356`) | §3, Konvention. |
+| C9 | Facetten-Checkbox-Dropdown, Ansichts-Umschalter, LOIN-Kästchen, Graph, Galerie-Raster: kein Oblique-Gegenstück → `app-*` im Oblique-Look (Overlay-Karte `#acb4bd`-Rand + Panel-Schatten, MDC-Checkbox-Optik `#2f4356`) | §3, Konvention. |
 | C10 | Die 8er-Kategorienpalette des Graphen (`K.FARBEN`) bleibt fachlich unverändert | Datenvisualisierung, kein UI-Chrome; gegen Weiss geprüft. |
 | C11 | **Service-Navigation bleibt unter md sichtbar** (kein Burger); dafür klebt der Kopf dort nicht (`position: static`), und die Markenzeile erhält die CD-Trennlinie | Ohne Navigationsmenü gibt es keinen Ort, hinter dem die Bedienelemente verschwinden könnten; ein klebender Dreizeilen-Kopf frässe ~25 % eines Telefon-Viewports. |
 | C12 | **Tabelle unter lg**: horizontales Scrollen in `.ob-table-scrollable` (fokussierbare Region, Mindestbreite 720 px) statt Obliques `ob-table-collapse`-Stapelmuster | Pragmatisch ohne Markup-Umbau; der Stapel-Umbau (`data-title` je Zelle) ist als Ausbau notiert (docs/CD-REVIEW.md). |
 | C13 | **Fusszeile einzeilig**: Flex (Links links, Quellcode-Hinweis rechts) statt CD-Grid `1fr 1fr` | Redaktioneller Entscheid; unter md weiterhin gestapelt wie im CD. |
 | C14 | **Suchfeld** mit Lupe links im Feld und Lösch-Knopf (×) rechts | Muster von `ob-search-box`, als natives Suchfeld umgesetzt; der native Webkit-Löschknopf ist abgeschaltet. |
 | C15 | **Facetten-Trigger** tragen Filter-Icon + Namen + «(n)» statt separatem Label und «n von m gewählt»; der Ansichts-Umschalter zeigt die Wahl als Interaction-`selected`-Fläche | Redaktioneller Entscheid: der Knopf sagt selbst, welcher Filter wirkt; Zustand ≠ Aktion, darum keine Primärfläche. |
-| C16 | **Graph-Ansicht**: Steuerung (Zoom/Ausschnitt/Vollbild) als Overlay auf der Grafik, Knoten-Details in einem `kbob-graph-panel` (Navigation erst über die Panel-Aktion), Skip-Knopf zur Textfassung | Kein Oblique-Gegenstück; `kbob-*` im Oblique-Look (DS-Icon-Knöpfe, Panel-Schatten, Token-Flächen). Befunde und Begründung: docs/GRAPH-REVIEW.md. |
+| C16 | **Graph-Ansicht**: Steuerung (Zoom/Ausschnitt/Vollbild) als Overlay auf der Grafik, Knoten-Details in einem `app-graph-panel` (Navigation erst über die Panel-Aktion), Skip-Knopf zur Textfassung | Kein Oblique-Gegenstück; `app-*` im Oblique-Look (DS-Icon-Knöpfe, Panel-Schatten, Token-Flächen). Befunde und Begründung: docs/GRAPH-REVIEW.md. |
 
 ## 6. Umbau-Etappen (ausgeführt)
 
@@ -142,13 +171,13 @@ dokumentierter interner Namensraum der Fachvisualisierung.
    Proxy-Whitelist um `assets/` erweitert.
 2. `css/tokens.css` = DS-Tokens verbatim (§2).
 3. `css/main.css` neu: fonts → reset → text-Layer → `ob-`-Komponenten →
-   `kbob-`-App-Bauteile → print/forced-colors.
+   `app-`-App-Bauteile → print/forced-colors.
 4. `index.html` auf das Master-Layout-Gerüst; `#inhalt` → `#content`;
    Brotkrume in den Inhalt; Fusszeile dunkel; Favicon/Logo.
 5. JS: Klassen nachgeführt (`K.knopf` vergibt `ob-button`-Rollen,
    `sr-only` → `ob-screen-reader-only`), Sprite-Injektion + `K.icon()`,
    matchMedia-Layoutklassen, Kopfhöhen-Messung auf `.ob-master-layout-header`.
-6. Abnahme: alle Ansichten im Browser, Tests, Kontraste der kbob-Bauteile
+6. Abnahme: alle Ansichten im Browser, Tests, Kontraste der App-Bauteile
    gegen die neuen Gründe.
 
 ## 7. Aktualisierung bei neuen Oblique-Versionen

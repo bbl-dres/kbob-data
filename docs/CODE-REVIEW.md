@@ -103,7 +103,7 @@ die richtige Architektur.
 
 ### Tests
 
-Neu: **`test/helfer.test.js`** — 11 Tests über die reinen Helfer und
+Neu: **`test/helpers.test.js`** — 11 Tests über die reinen Helfer und
 Query-Invarianten (CSV-Injection-Entschärfung, Quoting, Dateinamen,
 Wertelisten-Kürzung, Sprachketten, Query-Aufbau je Sprache, Katalog-Rang,
 Auswahl-Ableitung samt Ja/Nein-Unterdrückung im Normalisierer). Dafür
@@ -111,7 +111,7 @@ wanderten `csvZelle` und `dateiname` als `K.csvZelle`/`K.dateiname` in die
 DOM-freie data.js. Ausführen ohne Installation:
 
 ```bash
-node --test test/helfer.test.js
+node --test test/helpers.test.js
 ```
 
 ## 4. Bewusst nicht umgesetzt
@@ -204,7 +204,7 @@ umgesetzt; «offen» ist begründet.
   (kein `?sprache`-Bind je Feld) — MISSING-Markierung dort bräuchte
   Query-Erweiterungen; notiert für die Datenpflege.
 - **`node --test test/`** findet unter Windows/Node 24 das Verzeichnis
-  nicht; der dokumentierte Aufruf bleibt `node --test test/helfer.test.js`.
+  nicht; der dokumentierte Aufruf bleibt `node --test test/helpers.test.js`.
 
 ### Nachtrag (31.08.2026, Graph-Runde)
 

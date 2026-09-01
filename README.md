@@ -59,7 +59,7 @@ The **Coordination Conference for Public Sector Construction and Property Servic
 - Static single-page application using vanilla ES5-style JavaScript, HTML and CSS; no framework, dependencies or build step.
 - Overview data loads at startup, object details load on demand, value lists load once, and a single all-details query supports full export.
 - `js/export.js` writes OOXML and ZIP directly in the browser. `lindas-proxy.py` is an optional standard-library same-origin proxy with gzip and Basic authentication.
-- Fourteen dependency-free helper, query, i18n and XLSX tests run with `node --test test/helfer.test.js`.
+- Fourteen dependency-free helper, query, i18n and XLSX tests run with `node --test test/helpers.test.js`.
 - KBOB maintains the official [workbook validator](https://github.com/KBOB-admin/KBOB-data-dictionary), [RDF publication pipeline](https://github.com/KBOB-admin/KBOB-data-dictionary-schemaforge) and [NatDD vocabulary](https://github.com/KBOB-admin/KBOB-data-dictionary-schema); this repository is the read-only browser layer.
 
 ## Run locally
@@ -87,7 +87,7 @@ The proxy serves the app at <http://localhost:8765/> and forwards SPARQL through
 | Service | [I14Y record](https://www.i14y.admin.ch/de/catalog/dataservices/kbob-fm-data-dictionary-sparql/description) · [LINDAS](https://lindas.admin.ch/) |
 | Project | [Live explorer](https://bbl-dres.github.io/kbob-data/) · [source](https://github.com/bbl-dres/kbob-data) · [issues](https://github.com/bbl-dres/kbob-data/issues) |
 | KBOB | [Website](https://www.kbob.admin.ch/) · [official GitHub organisation](https://github.com/KBOB-admin) |
-| Product and code | [`DESIGN.md`](docs/DESIGN.md) · [`REVIEW.md`](docs/REVIEW.md) · [`CODE-REVIEW.md`](docs/CODE-REVIEW.md) |
+| Data and code | [`DATAMODEL.md`](docs/DATAMODEL.md) · [`DESIGN.md`](docs/DESIGN.md) · [`REVIEW.md`](docs/REVIEW.md) · [`CODE-REVIEW.md`](docs/CODE-REVIEW.md) |
 | Interface | [`GRAPH-REVIEW.md`](docs/GRAPH-REVIEW.md) · [`MOBILE-REVIEW.md`](docs/MOBILE-REVIEW.md) · [`OBLIQUE.md`](docs/OBLIQUE.md) · [`CD-REVIEW.md`](docs/CD-REVIEW.md) · [Oblique](https://github.com/oblique-bit/oblique) |
 
 ## License

@@ -1,12 +1,12 @@
-/* Navigation, Filter und Start.
+/* Navigation, filtering and startup.
 
-   Zwei Ebenen statt drei: eine flache, facettierte Liste aller Objekttypen —
-   und darunter die Merkmale eines Objekttyps. Der Katalog ist eine Facette,
-   keine Navigationsstufe: 666 der 719 Objekttypen stammen aus einer einzigen
-   Quelle, eine Gliederung danach wäre eine Hürde statt einer Hilfe.
+   Two levels instead of three: a flat, faceted list of all object types —
+   and below it the attributes of one object type. The catalogue is a facet,
+   not a navigation level: 666 of the 719 object types come from a single
+   source, so structuring by it would be an obstacle rather than a help.
 
-   Der Zustand steht in der URL, damit Ansichten teilbar bleiben und der
-   Zurück-Knopf tut, was er soll. */
+   The state lives in the URL, so that views stay shareable and the back
+   button does what it should. */
 
 var KBOB = window.KBOB || (window.KBOB = {});
 
@@ -14,171 +14,174 @@ var KBOB = window.KBOB || (window.KBOB = {});
   'use strict';
 
   K.state = {
-    /* — gehört data.js (Zwischenspeicher, geschrieben von uebernehmeX/holeDetail) — */
-    elemente: [],
-    werte: {},
-    werteGeladen: false,
+    /* — owned by data.js (cache, written by applyX/fetchDetail) — */
+    entries: [],
+    values: {},
+    valuesLoaded: false,
     detail: {},
-    detailOhneWerte: {}, // Detail geladen, aber Wertelisten-Abfrage scheiterte
+    detailWithoutValues: {}, // detail loaded, but the value-list query failed
 
-    /* — gehört app.js (Bedien- und Navigationszustand) — */
-    kataloge: [],
-    detailFehler: {},    // Fehlermeldung je Objekttyp-URI, falls das Detail scheiterte
-    generation: 1,       // zählt Neuladen; Antworten älterer Generationen werden verworfen
-    verbindung: null,    // beim Laden eingefrorene {endpoint, graph, sprache} —
-                         // Folgeabfragen gehen gegen diesen Stand, nicht gegen das Dialogfeld
-    objekttyp: null,     // offener Objekttyp (URI)
-    merkmal: null,       // offenes Merkmal (URI)
-    sprache: 'de',       // Sprache der Katalogbeschriftungen (nicht der Oberfläche)
-    sort: null,          // { feld, richtung } — null heisst Standardreihenfolge der Ebene
-    ansicht: 'liste',
-    hervor: null,        // hervorgehobenes Property Set im Graphen (flüchtig)
-    allePhasen: [],      // alle im Katalog vorkommenden LOIN-Meilensteine
-    stumm: false,        // true, während die URL gelesen wird
-    facetten: { katalog: [], status: [], phase: [] },
-    seite: 1,
-    proSeite: 50
+    /* — owned by app.js (interaction and navigation state) — */
+    catalogues: [],
+    detailError: {},    // error message per object-type URI if its detail failed
+    generation: 1,       // counts reloads; responses from older generations are discarded
+    connection: null,    // {endpoint, graph, language} frozen at load time —
+                         // follow-up queries run against this state, not against the dialog field
+    objectType: null,     // the open object type (URI)
+    attribute: null,       // the open attribute (URI)
+    language: 'de',       // language of the catalogue labels (not of the interface)
+    sort: null,          // { field, direction } — null means the level's default order
+    view: 'list',
+    highlighted: null,        // highlighted property set in the graph (transient)
+    allMilestones: [],      // every LOIN milestone occurring in the catalogue
+    silent: false,        // true while the URL is being read
+    facets: { catalogue: [], status: [], milestone: [] },
+    page: 1,
+    perPage: 50
   };
 
-  K.SEITENGROESSEN = [50, 100, 200];
-  K.SUCH_DEBOUNCE_MS = 180;  // Neuaufbau im Netz kostet bis zu ~25 ms Layout
+  K.PAGE_SIZES = [50, 100, 200];
+  K.SEARCH_DEBOUNCE_MS = 180;  // rebuilding the network costs up to ~25 ms of layout
 
   var el = K.el = {};
-  ['endpoint', 'graph', 'status', 'krumen', 'toolbar', 'platzhalter',
-   'titelblock', 'titel', 'kennzahlen', 'titel-text',
-   'view-liste', 'view-galerie', 'view-graph', 'view-merkmal', 'galerie',
-   'treffer', 'filter', 'csv', 'netz', 'legende', 'tip', 'graph-hinweis',
-   'graph-text', 'neuladen', 'verbindung', 'barrierefreiheit',
-   'graph-meldung', 'graph-wrap', 'graph-steuerung', 'aktive-filter',
-   'merkmal-detail', 'zoom-plus', 'zoom-minus', 'zoom-reset',
-   'facetten', 'blaettern', 'copy-status', 'sprache',
-   'zurueck', 'graph-panel', 'graph-titel', 'zoom-hinweis',
-   'graph-ueberspringen', 'vollbild'].forEach(function (id) {
+  ['endpoint', 'named-graph', 'status', 'breadcrumb', 'toolbar', 'placeholder',
+   'page-header', 'page-title', 'page-meta', 'page-lead',
+   'view-list', 'view-gallery', 'view-graph', 'view-attribute', 'gallery',
+   'result-count', 'search-input', 'xlsx', 'graph-canvas', 'legend', 'tooltip', 'graph-hint',
+   'graph-text', 'reload', 'connection', 'accessibility-statement',
+   'graph-message', 'graph-frame', 'graph-controls', 'filter-bar',
+   'attribute-detail', 'zoom-in', 'zoom-out', 'zoom-reset',
+   'facets', 'paginator', 'copy-status', 'language',
+   'back', 'graph-panel', 'graph-title', 'zoom-hint',
+   'graph-skip', 'graph-fullscreen'].forEach(function (id) {
     el[id] = document.getElementById(id);
   });
 
-  var dlgVerbindung = document.getElementById('dlg-verbindung');
+  var dlgConnection = document.getElementById('dlg-connection');
   var dlgA11y = document.getElementById('dlg-a11y');
 
-  /* leise = nur für Screenreader (Live-Region), ohne sichtbare Zeile —
-     Fortschrittstexte stünden sonst doppelt neben dem Spinner im Inhalt. */
-  function setStatus(text, isError, leise) {
-    el.status.className = 'kbob-status' + (isError ? ' error' : '') +
-                          (leise ? ' ob-screen-reader-only' : '');
+  /* quiet = for screen readers only (live region), without a visible line —
+     progress texts would otherwise stand twice next to the content spinner. */
+  function setStatus(text, isError, quiet) {
+    el.status.className = 'app-status' + (isError ? ' app-status-error' : '') +
+                          (quiet ? ' ob-screen-reader-only' : '');
     el.status.textContent = text;
   }
   K.setStatus = setStatus;
 
-  /* ---------- Ladeanzeige ---------- */
+  /* ---------- Loading indicator ---------- */
 
-  /* Der Ladezustand dreht als Bogen im Inhaltsbereich (Tabelle, Galerie,
-     Graph, Platzhalter); die Statuszeile ist die Live-Region, über die auch
-     Screenreader vom Ladevorgang erfahren — sichtbar ist sie dabei nicht. */
+  /* The loading state turns as an arc in the content area (table, gallery,
+     graph, placeholder); the status line is the live region through which
+     screen readers learn about loading — it is not visible while doing so. */
   function busy(an, text) {
     if (an && text) setStatus(text, false, true);
   }
 
-  /* ---------- Laden ---------- */
+  /* ---------- Loading ---------- */
 
-  function endpunkt() { return el.endpoint.value.trim(); }
-  function graphUri() { return el.graph.value.trim(); }
+  function endpointUrl() { return el.endpoint.value.trim(); }
+  function namedGraphUri() { return el['named-graph'].value.trim(); }
 
-  /* Übersetzt rohe Fetch-Fehler in eine deutsche Erklärung — für die
-     Fehlerpfade jenseits des Erstladens (Detail, Export). */
-  var NETZFEHLER = /Failed to fetch|NetworkError|CORS/i;
-  function fehlerText(err) {
+  /* Turns raw fetch errors into a readable explanation — for the error
+     paths beyond the initial load (detail, export). */
+  var NETWORK_ERROR = /Failed to fetch|NetworkError|CORS/i;
+  function errorText(err) {
     var m = String(err && err.message || err);
-    return NETZFEHLER.test(m) ? K.t('errors.networkShort') : m;
+    return NETWORK_ERROR.test(m) ? K.t('errors.networkShort') : m;
   }
 
-  function laden() {
-    if (!endpunkt() || !graphUri()) { setStatus(K.t('errors.fillConnection'), true); return; }
-    if (dlgVerbindung.open) dlgVerbindung.close();
+  function load() {
+    if (!endpointUrl() || !namedGraphUri()) { setStatus(K.t('errors.fillConnection'), true); return; }
+    if (dlgConnection.open) dlgConnection.close();
 
-    /* Verbindungsstand zur ANFRAGEzeit einfrieren und die Generation
-       hochzählen: von zwei schnellen Neu-Laden gewinnt so immer das
-       zuletzt angestossene — nicht die zufällig letzte Antwort. Laufende
-       geteilte Versprechen der alten Generation werden verworfen. */
+    /* Freeze the connection state at REQUEST time and bump the generation:
+       of two quick reloads the last one started always wins — not whichever
+       response happens to arrive last. Pending shared promises of the old
+       generation are discarded. */
     var st = K.state;
-    var anfrage = { endpoint: endpunkt(), graph: graphUri(), sprache: st.sprache };
+    var request = { endpoint: endpointUrl(), graph: namedGraphUri(), language: st.language };
     st.generation += 1;
-    K.invalidiereLaufend();
-    var meineGen = st.generation;
+    K.invalidatePending();
+    var myGen = st.generation;
 
-    el.neuladen.disabled = true;
+    el.reload.disabled = true;
 
-    /* Sichtbarer Platzhalter (Erststart, erneuter Versuch nach Fehler) —
-       erst wenn das Wörterbuch da ist, sonst stünde MISSING im Spinner. */
-    K.i18nBereit.then(function () {
-      if (meineGen !== st.generation) return;
-      if (!el.platzhalter.hidden && !st.elemente.length) {
-        meldung(el.platzhalter, { titel: K.t('loading.catalog'), laedt: true });
+    /* Visible placeholder (first start, retry after an error) — only once
+       the dictionary has arrived, otherwise MISSING would sit in the
+       spinner. */
+    K.i18nReady.then(function () {
+      if (myGen !== st.generation) return;
+      if (!el.placeholder.hidden && !st.entries.length) {
+        message(el.placeholder, { title: K.t('loading.catalog'), loading: true });
       }
-      /* Neuladen mit bestehendem Inhalt (Sprach-/Endpunktwechsel): die
-         Oberflaechentexte wechseln sofort, der Inhalt zeigt den EINEN
-         Ladezustand — Spinner in Tabelle, Galerie oder Graph. */
-      if (st.elemente.length) {
-        el.blaettern.hidden = true;
-        if (st.ansicht === 'galerie') {
-          sichtbareAnsicht('galerie');
-          K.zeichneGalerie({ karten: [], leerText: K.t('loading.catalog'), laedt: true });
-        } else if (st.ansicht === 'graph') {
-          sichtbareAnsicht('graph');
-          graphMeldung(K.t('loading.catalog'), '', true);
+      /* Reloading with existing content (language/endpoint switch): the
+         interface texts change immediately, the content shows the ONE
+         loading state — a spinner in the table, gallery or graph. */
+      if (st.entries.length) {
+        el.paginator.hidden = true;
+        if (st.view === 'gallery') {
+          showView('gallery');
+          K.renderGallery({ cards: [], emptyText: K.t('loading.catalog'), loading: true });
+        } else if (st.view === 'graph') {
+          showView('graph');
+          graphMessage(K.t('loading.catalog'), '', true);
         } else {
-          sichtbareAnsicht('liste');
-          K.zeichneListe({ titel: K.t('loading.catalog'), spalten: [{ titel: '' }],
-                           zeilen: [], leerText: K.t('loading.catalog'), laedt: true });
+          showView('list');
+          K.renderList({ title: K.t('loading.catalog'), columns: [{ title: '' }],
+                           rows: [], emptyText: K.t('loading.catalog'), loading: true });
         }
       }
       busy(true, K.t('loading.catalog'));
     });
 
     Promise.all([
-      K.run(anfrage.endpoint, K.uebersichtQuery(anfrage.graph, anfrage.sprache)),
-      K.i18nBereit
+      K.run(request.endpoint, K.overviewQuery(request.graph, request.language)),
+      K.i18nReady
     ]).then(function (res) {
-      if (meineGen !== st.generation) return;   // inzwischen neu geladen
+      if (myGen !== st.generation) return;   // inzwischen next geladen
       var rows = res[0].results.bindings;
       busy(false);
-      el.neuladen.disabled = false;
+      el.reload.disabled = false;
 
       if (!rows.length) {
-        zeigeFehler(K.t('errors.emptyGraph', { graph: anfrage.graph }));
+        showError(K.t('errors.emptyGraph', { graph: request.graph }));
         return;
       }
 
-      /* Neuer Stand heisst neuer Stand: alte Details und Wertelisten
-         verwerfen, sonst mischen sich beim Endpunktwechsel zwei Quellen. */
+      /* A new state means a new state: discard old details and value lists,
+         otherwise two sources mix when the endpoint changes. */
       st.detail = {};
-      st.detailOhneWerte = {};
-      st.detailFehler = {};
-      st.werte = {};
-      st.werteGeladen = false;
-      st.verbindung = anfrage;
+      st.detailWithoutValues = {};
+      st.detailError = {};
+      st.values = {};
+      st.valuesLoaded = false;
+      st.connection = request;
 
-      K.uebernehmeUebersicht(rows);
-      baueKataloge();
+      K.applyOverview(rows);
+      buildCatalogues();
 
-      el.platzhalter.hidden = true;
+      el.placeholder.hidden = true;
       el.toolbar.hidden = false;
-      el.titelblock.hidden = false;
-      el.csv.disabled = false;
+      el['page-header'].hidden = false;
+      el.xlsx.disabled = false;
+      el.xlsx.removeAttribute('aria-busy');
 
-      ausUrl();   // baut auch die Facetten
-      zeichne();
+      readUrl();   // also builds the facets
+      render();
       setStatus('');
     }).catch(function (err) {
-      /* Aufs Wörterbuch warten, sonst zeigt ein sofortiger Netzfehler
-         (CORS, offline) nur MISSING-Marken — i18nBereit erfüllt immer. */
-      K.i18nBereit.then(function () {
-        if (meineGen !== st.generation) return;
+      /* Wait for the dictionary, otherwise an immediate network error
+         (CORS, offline) shows only MISSING markers — i18nReady always
+         resolves. */
+      K.i18nReady.then(function () {
+        if (myGen !== st.generation) return;
         busy(false);
-        el.neuladen.disabled = false;
+        el.reload.disabled = false;
         var msg = String(err && err.message || err);
         var text = K.t('errors.network');
         if (location.protocol === 'file:') text += ' ' + K.t('errors.file');
-        zeigeFehler(NETZFEHLER.test(msg)
+        showError(NETWORK_ERROR.test(msg)
           ? text
           : K.t('errors.queryFailed', { msg: msg }));
       });
@@ -186,275 +189,277 @@ var KBOB = window.KBOB || (window.KBOB = {});
   }
 
 
-  /* Der Ladehinweis darf nicht stehen bleiben, wenn das Laden scheitert —
-     sonst widerspricht die Seite sich selbst. */
-  function zeigeFehler(text) {
+  /* The loading note must not stay up when loading fails — the page would
+     otherwise contradict itself. */
+  function showError(text) {
     setStatus(K.t('errors.loadFailed'), true);
-    el.titelblock.hidden = true;
+    el['page-header'].hidden = true;
     el.toolbar.hidden = true;
-    el['aktive-filter'].hidden = true;
-    el.blaettern.hidden = true;
-    el.csv.disabled = true;
-    ['view-liste', 'view-galerie', 'view-graph', 'view-merkmal'].forEach(function (v) {
+    el['filter-bar'].hidden = true;
+    el.paginator.hidden = true;
+    el.xlsx.disabled = true;
+    el.xlsx.removeAttribute('aria-busy');
+    ['view-list', 'view-gallery', 'view-graph', 'view-attribute'].forEach(function (v) {
       el[v].hidden = true;
     });
 
-    el.platzhalter.hidden = false;
-    el.platzhalter.className = 'kbob-message';
-    meldung(el.platzhalter, {
-      titel: K.t('errors.catalogTitle'),
+    el.placeholder.hidden = false;
+    el.placeholder.className = 'app-message';
+    message(el.placeholder, {
+      title: K.t('errors.catalogTitle'),
       text: text,
-      typ: 'error',
-      aktion: { text: K.t('common.retry'), onClick: laden, fokus: true }
+      type: 'error',
+      action: { text: K.t('common.retry'), onClick: load, fokus: true }
     });
   }
 
-  function baueKataloge() {
+  function buildCatalogues() {
     var map = {};
-    K.state.elemente.forEach(function (e) {
-      var q = map[e.quelle];
-      if (!q) q = map[e.quelle] = { name: e.quelle, objekttypen: 0, dok: false };
-      q.objekttypen++;
-      if (e.istDokument) q.dok = true;
+    K.state.entries.forEach(function (e) {
+      var q = map[e.source];
+      if (!q) q = map[e.source] = { name: e.source, objectTypes: 0, doc: false };
+      q.objectTypes++;
+      if (e.isDocument) q.doc = true;
     });
-    /* Redaktionelle Reihenfolge (K.KATALOG_PRIORITAET): die allgemeinen
-       Kataloge zuerst, der Dokumenttypenkatalog zuletzt. */
-    K.state.kataloge = Object.keys(map).map(function (n) { return map[n]; })
+    /* Editorial order (K.CATALOGUE_PRIORITY): the general catalogues
+       first, the document-type catalogue last. */
+    K.state.catalogues = Object.keys(map).map(function (n) { return map[n]; })
       .sort(function (a, b) {
-        var ra = K.katalogRang(a.name, a.dok);
-        var rb = K.katalogRang(b.name, b.dok);
+        var ra = K.catalogueRank(a.name, a.doc);
+        var rb = K.catalogueRank(b.name, b.doc);
         if (ra !== rb) return ra - rb;
-        return b.objekttypen - a.objekttypen;
+        return b.objectTypes - a.objectTypes;
       });
   }
 
-  /* ---------- Facetten ---------- */
+  /* ---------- Facets ---------- */
 
-  /* Facetten aus den Daten. Mehrfachauswahl innerhalb einer Gruppe (ODER),
-     zwischen den Gruppen wird geschnitten (UND). Nichts angekreuzt heisst
-     «alle» — ausser bei der Art, die einen sinnvollen Standard braucht. */
-  function baueFacetten() {
+  /* Facets derived from the data. Multiple choice within a group (OR),
+     intersected between groups (AND). Nothing ticked means «all». */
+  function buildFacets() {
     var st = K.state;
-    var phasen = {}, status = {};
+    var milestones = {}, status = {};
 
-    st.elemente.forEach(function (e) {
-      e.phasen.forEach(function (p) { phasen[p] = true; });
+    st.entries.forEach(function (e) {
+      e.milestones.forEach(function (p) { milestones[p] = true; });
       if (e.status) status[e.status] = (status[e.status] || 0) + 1;
     });
 
-    el.facetten.innerHTML = '';
+    el.facets.innerHTML = '';
 
-    gruppe(K.t('facets.catalog'), 'katalog', st.kataloge.map(function (q) {
-      return { wert: q.name, text: q.name, n: q.objekttypen };
+    group(K.t('facets.catalog'), 'catalogue', st.catalogues.map(function (q) {
+      return { value: q.name, text: q.name, n: q.objectTypes };
     }));
 
-    st.allePhasen = Object.keys(phasen).sort();
+    st.allMilestones = Object.keys(milestones).sort();
 
-    var statusListe = Object.keys(status).sort();
-    if (statusListe.length > 1) {
-      gruppe(K.t('facets.status'), 'status', statusListe.map(function (w) {
-        return { wert: w, text: w, n: status[w] };
+    var statusList = Object.keys(status).sort();
+    if (statusList.length > 1) {
+      group(K.t('facets.status'), 'status', statusList.map(function (w) {
+        return { value: w, text: w, n: status[w] };
       }));
     }
 
-    /* Nur ein Bruchteil der Merkmale deklariert einen Meilenstein. Die Gruppe
-       erscheint darum nur, wenn es überhaupt etwas auszuwählen gibt.
-       «LOIN-Meilenstein» ist das Label des Feldes im KBOB-Schema
-       (dd:loinMilestone) — «Projektphase» wäre mit SIA 112 verwechselbar. */
-    var phasenListe = Object.keys(phasen).sort();
-    if (phasenListe.length) {
-      gruppe(K.t('facets.milestone'), 'phase', phasenListe.map(function (p) {
-        return { wert: p, text: p };
+    /* Only a fraction of the attributes declare a milestone, so the group
+       appears only when there is something to choose at all.
+       «LOIN milestone» is the label of the field in the KBOB schema
+       (dd:loinMilestone) — «project phase» could be confused with SIA 112. */
+    var milestoneList = Object.keys(milestones).sort();
+    if (milestoneList.length) {
+      group(K.t('facets.milestone'), 'milestone', milestoneList.map(function (p) {
+        return { value: p, text: p };
       }));
     }
   }
 
-  /* Auf tieferen Ebenen wirken nicht alle Facetten — die wirkungslosen
-     werden ausgeblendet statt totgestellt (ehrliche Filter, E7). */
-  function facettenSichtbar(schluessel) {
-    Array.prototype.forEach.call(el.facetten.children, function (box) {
-      box.hidden = schluessel.indexOf(box.getAttribute('data-facette')) === -1;
+  /* Not every facet applies on the deeper levels — the ineffective ones are
+     hidden rather than shown dead (honest filters, E7). */
+  function showFacets(key) {
+    Array.prototype.forEach.call(el.facets.children, function (box) {
+      box.hidden = key.indexOf(box.getAttribute('data-facet')) === -1;
     });
   }
 
-  /* Auswahlfeld mit Mehrfachauswahl. Kein natives <select multiple> — das ist
-     mit der Maus kaum bedienbar und zeigt den Zustand nicht an. */
-  function gruppe(titel, schluessel, eintraege) {
-    var id = 'fac-' + schluessel;
+  /* A multi-select field. Not a native <select multiple> — that is barely
+     operable with a mouse and does not show its state. */
+  function group(title, key, items) {
+    var id = 'fac-' + key;
 
     var box = document.createElement('div');
-    box.className = 'kbob-field kbob-facet';
-    box.setAttribute('data-facette', schluessel);
+    box.className = 'app-field app-facet';
+    box.setAttribute('data-facet', key);
 
-    /* Der Knopf trägt den Filternamen selbst — «Katalog (2)» sagt auf einen
-       Blick, WELCHER Filter wirkt; ein separates Beschriftungszeilchen und
-       «n von m gewählt» braucht es dann nicht. */
-    var knopf = document.createElement('button');
-    knopf.type = 'button';
-    knopf.className = 'ob-button ob-button-secondary kbob-facet-toggle';
-    knopf.setAttribute('aria-expanded', 'false');
+    /* The button carries the filter name itself — «Katalog (2)» says at a
+       glance WHICH filter applies; a separate label line and «n of m
+       selected» are then unnecessary. */
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ob-button ob-button-secondary app-facet-toggle';
+    button.setAttribute('aria-expanded', 'false');
 
-    knopf.appendChild(K.icon('filter'));
-    var wert = document.createElement('span');
-    wert.className = 'kbob-facet-value';
-    wert.id = id + '-wert';
-    knopf.appendChild(wert);
-    knopf.appendChild(K.icon('chevron_down_small'));
-    box.appendChild(knopf);
+    button.appendChild(K.icon('filter'));
+    var value = document.createElement('span');
+    value.className = 'app-facet-value';
+    value.id = id + '-value';
+    button.appendChild(value);
+    button.appendChild(K.icon('chevron_down_small'));
+    box.appendChild(button);
 
     var menu = document.createElement('div');
-    menu.className = 'kbob-facet-menu';
+    menu.className = 'app-facet-menu';
     menu.id = id + '-menu';
     menu.hidden = true;
     menu.setAttribute('role', 'group');
-    menu.setAttribute('aria-label', titel);
-    /* tabindex=-1: Beim Mousedown auf eine Zeile schickt Chrome den Fokus
-       zum nächsten fokussierbaren VORFAHREN. Ohne dieses Attribut ist das
-       main#content — der focusout-Wächter unten hielt das für «ausserhalb»
-       und schloss das Menü ZWISCHEN Mousedown und Mouseup; der Klick fiel
-       auf die Seite dahinter durch («Zeile tut nichts»). Mit tabindex=-1
-       bleibt der Fokus im Menü, und die Zeile schaltet zuverlässig. */
+    menu.setAttribute('aria-label', title);
+    /* tabindex=-1: on mousedown over a row Chrome sends focus to the next
+       focusable ANCESTOR. Without this attribute that is main#content — the
+       focusout guard below took it for «outside» and closed the menu BETWEEN
+       mousedown and mouseup; the click fell through to the page behind
+       («the row does nothing»). With tabindex=-1 focus stays inside the menu
+       and the row toggles reliably. */
     menu.tabIndex = -1;
-    knopf.setAttribute('aria-controls', menu.id);
+    button.setAttribute('aria-controls', menu.id);
 
-    var reset = null;   // wird unten gebaut; beschrifte() hält ihn aktuell
+    var reset = null;   // built below; relabel() keeps it up to date
 
-    function beschrifte() {
-      var n = K.state.facetten[schluessel].length;
-      wert.textContent = titel + (n ? ' (' + n + ')' : '');
-      wert.className = 'kbob-facet-value' + (n ? ' aktiv' : '');
-      knopf.setAttribute('aria-label', n ? K.t('facets.selectedCount', { titel: titel, n: n }) : titel);
+    function relabel() {
+      var n = K.state.facets[key].length;
+      value.textContent = title + (n ? ' (' + n + ')' : '');
+      value.className = 'app-facet-value' + (n ? ' ob-active' : '');
+      button.setAttribute('aria-label', n ? K.t('facets.selectedCount', { title: title, n: n }) : title);
       if (reset) reset.disabled = n === 0;
     }
 
-    eintraege.forEach(function (e, idx) {
-      /* BEWUSST kein <label>: die native Label-Weiterleitung erzeugte je
-         nach Engine trotz preventDefault einen zweiten Klick auf die
-         Checkbox — Toggle plus Rück-Toggle sah aus wie «Zeile tut nichts».
-         Ein neutraler Container mit EINEM expliziten Handler ist in jedem
-         Browser eindeutig; den zugänglichen Namen liefert aria-labelledby. */
-      var zeile = document.createElement('div');
-      zeile.className = 'kbob-facet-option';
+    items.forEach(function (e, idx) {
+      /* DELIBERATELY not a <label>: depending on the engine the native
+         label forwarding produced a second click on the checkbox despite
+         preventDefault — toggle plus un-toggle looked like «the row does
+         nothing». A neutral container with ONE explicit handler is
+         unambiguous in every browser; the accessible name comes from
+         aria-labelledby. */
+      var row = document.createElement('div');
+      row.className = 'app-facet-option';
 
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.className = 'ob-checkbox';
-      cb.value = e.wert;
-      cb.checked = K.state.facetten[schluessel].indexOf(e.wert) !== -1;
+      cb.value = e.value;
+      cb.checked = K.state.facets[key].indexOf(e.value) !== -1;
 
       var textId = id + '-opt-' + idx;
       cb.setAttribute('aria-labelledby', textId);
       cb.addEventListener('change', function () {
-        var auswahl = K.state.facetten[schluessel];
-        var i = auswahl.indexOf(e.wert);
-        if (cb.checked && i === -1) auswahl.push(e.wert);
-        if (!cb.checked && i !== -1) auswahl.splice(i, 1);
-        beschrifte();
-        neuAuswerten();
+        var selection = K.state.facets[key];
+        var i = selection.indexOf(e.value);
+        if (cb.checked && i === -1) selection.push(e.value);
+        if (!cb.checked && i !== -1) selection.splice(i, 1);
+        relabel();
+        reevaluate();
       });
 
-      zeile.addEventListener('click', function (ev) {
+      row.addEventListener('click', function (ev) {
         if (ev.target === cb) return;   // direkter Checkbox-Klick: nativer Weg
         cb.checked = !cb.checked;
         cb.dispatchEvent(new Event('change'));
       });
 
-      zeile.appendChild(cb);
-      zeile.appendChild(K.e('span', '', e.text)).id = textId;
-      menu.appendChild(zeile);
+      row.appendChild(cb);
+      row.appendChild(K.e('span', '', e.text)).id = textId;
+      menu.appendChild(row);
     });
 
-    var fuss = document.createElement('div');
-    fuss.className = 'kbob-facet-footer';
+    var footer = document.createElement('div');
+    footer.className = 'app-facet-footer';
     reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'ob-button ob-button-tertiary';
     reset.textContent = K.t('facets.clear');
     reset.addEventListener('click', function () {
-      K.state.facetten[schluessel] = [];
+      K.state.facets[key] = [];
       Array.prototype.forEach.call(menu.querySelectorAll('input'), function (cb) {
         cb.checked = false;
       });
-      beschrifte();
-      neuAuswerten();
+      relabel();
+      reevaluate();
     });
-    fuss.appendChild(reset);
-    menu.appendChild(fuss);
+    footer.appendChild(reset);
+    menu.appendChild(footer);
 
     box.appendChild(menu);
-    beschrifte();
+    relabel();
 
     function auf(zustand) {
       menu.hidden = !zustand;
-      knopf.setAttribute('aria-expanded', String(zustand));
+      button.setAttribute('aria-expanded', String(zustand));
     }
-    knopf.addEventListener('click', function () { auf(menu.hidden); });
+    button.addEventListener('click', function () { auf(menu.hidden); });
     box.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape' && !menu.hidden) { auf(false); knopf.focus(); }
+      if (ev.key === 'Escape' && !menu.hidden) { auf(false); button.focus(); }
     });
-    /* focusout nur mit bekanntem Ziel auswerten: Safari und Firefox/macOS
-       fokussieren angeklickte Checkboxen nicht (relatedTarget = null) —
-       das Menü klappte sonst beim ersten Klick auf eine Option zu.
-       Klicks ausserhalb schliesst der Sammel-Listener in verdrahten(). */
+    /* Only act on focusout with a known target: Safari and Firefox/macOS do
+       not focus clicked checkboxes (relatedTarget = null) — the menu would
+       otherwise close on the first click on an option. Clicks outside are
+       handled by the collective listener in wire(). */
     box.addEventListener('focusout', function (ev) {
       if (ev.relatedTarget && !box.contains(ev.relatedTarget)) auf(false);
     });
 
-    el.facetten.appendChild(box);
+    el.facets.appendChild(box);
   }
 
-  /* Was gerade eingrenzt, gehört sichtbar über die Liste — sonst sucht man
-     den Grund für eine kurze Trefferliste in den zugeklappten Auswahlfeldern. */
-  var FACETTEN_TITEL = { katalog: 'facets.catalog', status: 'facets.status', phase: 'facets.milestone' };
+  /* Whatever is narrowing the result belongs visibly above the list —
+     otherwise one hunts for the reason behind a short result list inside
+     the collapsed selection fields. */
+  var FACET_TITLES = { catalogue: 'facets.catalog', status: 'facets.status', milestone: 'facets.milestone' };
 
-  function zeichneAktiveFilter() {
+  function renderFilterBar() {
     var st = K.state;
-    var box = el['aktive-filter'];
+    var box = el['filter-bar'];
     box.innerHTML = '';
 
-    /* Auf der Objekttyp-Ebene wirken nur Meilenstein-Filter und Suche —
-       Pillen für Katalog und Reifegrad würden dort einen Filter behaupten,
-       der nicht greift. Der Zustand bleibt erhalten und erscheint wieder
-       auf der Übersicht. */
-    var wirksam = st.objekttyp ? ['phase'] : Object.keys(FACETTEN_TITEL);
+    /* On the object-type level only the milestone filter and the search
+       apply — chips for catalogue and maturity would claim a filter that
+       does not bite there. The state is kept and reappears on the
+       overview. */
+    var effective = st.objectType ? ['milestone'] : Object.keys(FACET_TITLES);
 
-    var pillen = [];
-    wirksam.forEach(function (schluessel) {
-      (st.facetten[schluessel] || []).forEach(function (wert) {
-        pillen.push({ art: K.t(FACETTEN_TITEL[schluessel]), wert: wert, schluessel: schluessel });
+    var chips = [];
+    effective.forEach(function (key) {
+      (st.facets[key] || []).forEach(function (value) {
+        chips.push({ kind: K.t(FACET_TITLES[key]), value: value, key: key });
       });
     });
-    if (el.filter.value.trim()) {
-      pillen.push({ art: K.t('search.label'), wert: el.filter.value.trim(), schluessel: 'suche' });
+    if (el['search-input'].value.trim()) {
+      chips.push({ kind: K.t('search.label'), value: el['search-input'].value.trim(), key: 'search' });
     }
 
-    box.hidden = !pillen.length;
-    if (!pillen.length) return;
+    box.hidden = !chips.length;
+    if (!chips.length) return;
 
-    pillen.forEach(function (p) {
+    chips.forEach(function (p) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'ob-chip';
-      b.setAttribute('aria-label', K.t('chips.remove', { art: p.art, wert: p.wert }));
+      b.setAttribute('aria-label', K.t('chips.remove', { kind: p.kind, value: p.value }));
 
-      var art = document.createElement('span');
-      art.className = 'kbob-chip-kind';
-      art.textContent = p.art + ':';
-      b.appendChild(art);
-      b.appendChild(K.e('span', 'kbob-chip-value', p.wert));
+      var kind = document.createElement('span');
+      kind.className = 'app-chip-kind';
+      kind.textContent = p.kind + ':';
+      b.appendChild(kind);
+      b.appendChild(K.e('span', 'app-chip-value', p.value));
       b.appendChild(K.icon('xmark', 'ob-chip-trailing-icon'));
 
       b.addEventListener('click', function () {
-        if (p.schluessel === 'suche') {
-          el.filter.value = '';
+        if (p.key === 'search') {
+          el['search-input'].value = '';
         } else {
-          var liste = st.facetten[p.schluessel];
-          var i = liste.indexOf(p.wert);
-          if (i !== -1) liste.splice(i, 1);
+          var list = st.facets[p.key];
+          var i = list.indexOf(p.value);
+          if (i !== -1) list.splice(i, 1);
         }
-        baueFacetten();
-        neuAuswerten();
-        fokusNachPille();
+        buildFacets();
+        reevaluate();
+        focusAfterChip();
       });
 
       box.appendChild(b);
@@ -465,337 +470,338 @@ var KBOB = window.KBOB || (window.KBOB = {});
     reset.className = 'ob-button ob-button-tertiary';
     reset.textContent = K.t('chips.reset');
     reset.addEventListener('click', function () {
-      Object.keys(FACETTEN_TITEL).forEach(function (k) { st.facetten[k] = []; });
-      el.filter.value = '';
-      baueFacetten();
-      neuAuswerten();
-      fokusNachPille();
+      Object.keys(FACET_TITLES).forEach(function (k) { st.facets[k] = []; });
+      el['search-input'].value = '';
+      buildFacets();
+      reevaluate();
+      focusAfterChip();
     });
     box.appendChild(reset);
   }
 
-  /* Beim Entfernen einer Pille verschwindet das fokussierte Element —
-     der Fokus soll nicht still auf <body> fallen. */
-  function fokusNachPille() {
-    var naechste = el['aktive-filter'].querySelector('.ob-chip');
-    (naechste || el.filter).focus();
+  /* Removing a chip removes the focused element — focus must not fall
+     silently onto <body>. */
+  function focusAfterChip() {
+    var nextChip = el['filter-bar'].querySelector('.ob-chip');
+    (nextChip || el['search-input']).focus();
   }
 
-  /* Die Meilensteinspalte lohnt sich erst, wenn sie etwas unterscheidet. Bei
-     6 von 719 Zeilen mit Meilenstein wären es 713 leere Kästchenreihen. */
-  function phasenspalteLohnt(liste, hatPhasen) {
-    if (!K.state.allePhasen || !K.state.allePhasen.length) return false;
-    if (K.state.facetten.phase.length) return true;
-    var mit = liste.filter(hatPhasen).length;
-    return mit > 0 && mit >= liste.length / 3;
+  /* The milestone column only earns its place once it distinguishes
+     something. With 6 of 719 rows carrying a milestone it would be 713 empty
+     rows of boxes. */
+  function milestoneColumnPaysOff(list, hasMilestones) {
+    if (!K.state.allMilestones || !K.state.allMilestones.length) return false;
+    if (K.state.facets.milestone.length) return true;
+    var withMilestone = list.filter(hasMilestones).length;
+    return withMilestone > 0 && withMilestone >= list.length / 3;
   }
 
-  /* ---------- Sortieren ---------- */
+  /* ---------- Sorting ---------- */
 
-  /* Felder je Ebene — ein t=-Parameter mit einem Feld der falschen Ebene
-     würde sonst still umsortieren, ohne dass ein Spaltenkopf es anzeigt. */
-  var SORT_UEBERSICHT = ['name', 'anzahl', 'status', 'quelle'];
-  var SORT_MERKMALE   = ['name', 'pset', 'typ', 'status'];
+  /* Fields per level — a t= parameter carrying a field of the wrong level
+     would otherwise resort silently, without any column header showing it. */
+  var SORT_OVERVIEW = ['name', 'count', 'status', 'source'];
+  var SORT_ATTRIBUTES   = ['name', 'pset', 'type', 'status'];
 
-  /* Klick auf denselben Spaltenkopf kehrt die Richtung um; eine neue Spalte
-     startet aufsteigend — Zahlenspalten absteigend (das Grosse zuerst). */
-  function sortiere(feld, start) {
+  /* Clicking the same column header reverses the direction; a new column
+     starts ascending — numeric columns descending (the large first). */
+  function sortBy(field, start) {
     var st = K.state;
-    if (st.sort && st.sort.feld === feld) {
-      st.sort.richtung = -st.sort.richtung;
+    if (st.sort && st.sort.field === field) {
+      st.sort.direction = -st.sort.direction;
     } else {
-      st.sort = { feld: feld, richtung: start || 1 };
+      st.sort = { field: field, direction: start || 1 };
     }
-    st.seite = 1;
-    inUrl(true);
-    zeichne();
+    st.page = 1;
+    writeUrl(true);
+    render();
   }
 
-  function vergleicher(feld, richtung) {
+  function comparator(field, direction) {
     return function (a, b) {
-      var x = a[feld], y = b[feld], r;
+      var x = a[field], y = b[field], r;
       if (typeof x === 'number' || typeof y === 'number') r = (x || 0) - (y || 0);
       else r = String(x || '').localeCompare(String(y || ''), 'de');
-      /* stabiler Zweitschlüssel, damit gleiche Werte nicht springen */
-      if (r === 0 && feld !== 'name') {
+      /* stable secondary key, so equal values do not jump around */
+      if (r === 0 && field !== 'name') {
         r = String(a.name || '').localeCompare(String(b.name || ''), 'de');
       }
-      return r * richtung;
+      return r * direction;
     };
   }
 
-  function sortiert(liste) {
+  function sorted(list) {
     var s = K.state.sort;
-    return s ? liste.slice().sort(vergleicher(s.feld, s.richtung)) : liste;
+    return s ? list.slice().sort(comparator(s.field, s.direction)) : list;
   }
 
-  /* Filteränderung wechselt die Ebene nicht: wer im Objekttyp den
-     Meilenstein-Filter anfasst, bleibt im Objekttyp. */
-  function neuAuswerten() {
-    K.state.hervor = null;
-    K.state.seite = 1;
-    inUrl(true);
-    zeichne();
+  /* Changing a filter does not change the level: whoever touches the
+     milestone filter inside an object type stays inside it. */
+  function reevaluate() {
+    K.state.highlighted = null;
+    K.state.page = 1;
+    writeUrl(true);
+    render();
   }
 
-  function suchbegriff() { return el.filter.value.trim().toLowerCase(); }
+  function searchTerm() { return el['search-input'].value.trim().toLowerCase(); }
 
-  /* ---------- Auswahl ---------- */
+  /* ---------- Selection ---------- */
 
-  function objekttypVon(uri) {
-    var t = K.state.elemente.filter(function (e) { return e.uri === uri; });
+  function objectTypeByUri(uri) {
+    var t = K.state.entries.filter(function (e) { return e.uri === uri; });
     return t.length ? t[0] : null;
   }
 
-  function sichtbareObjekttypen() {
-    var s = suchbegriff();
-    var f = K.state.facetten;
+  function visibleObjectTypes() {
+    var s = searchTerm();
+    var f = K.state.facets;
 
-    return K.state.elemente.filter(function (e) {
-      if (f.katalog.length && f.katalog.indexOf(e.quelle) === -1) return false;
+    return K.state.entries.filter(function (e) {
+      if (f.catalogue.length && f.catalogue.indexOf(e.source) === -1) return false;
       if (f.status.length && f.status.indexOf(e.status) === -1) return false;
-      if (f.phase.length && !e.phasen.some(function (p) { return f.phase.indexOf(p) !== -1; })) {
+      if (f.milestone.length && !e.milestones.some(function (p) { return f.milestone.indexOf(p) !== -1; })) {
         return false;
       }
       if (!s) return true;
       if (e.name.toLowerCase().indexOf(s) !== -1) return true;
-      if (e.beschreibung && e.beschreibung.toLowerCase().indexOf(s) !== -1) return true;
+      if (e.description && e.description.toLowerCase().indexOf(s) !== -1) return true;
       return e.psets.some(function (p) { return p.name.toLowerCase().indexOf(s) !== -1; });
     });
   }
 
-  function sichtbareMerkmale(uri) {
-    var merkmale = K.state.detail[uri];
-    if (!merkmale) return null;
-    var s = suchbegriff();
-    var f = K.state.facetten;
-    return merkmale.filter(function (m) {
-      if (f.phase.length && !m.phasen.some(function (p) { return f.phase.indexOf(p) !== -1; })) {
+  function visibleAttributes(uri) {
+    var attributes = K.state.detail[uri];
+    if (!attributes) return null;
+    var s = searchTerm();
+    var f = K.state.facets;
+    return attributes.filter(function (m) {
+      if (f.milestone.length && !m.milestones.some(function (p) { return f.milestone.indexOf(p) !== -1; })) {
         return false;
       }
       if (!s) return true;
-      var heu = (m.name + ' ' + m.pset + ' ' + m.beschreibung + ' ' + m.ifcTyp).toLowerCase();
+      var heu = (m.name + ' ' + m.pset + ' ' + m.description + ' ' + m.ifcTyp).toLowerCase();
       return heu.indexOf(s) !== -1;
     });
   }
 
-  function merkmalVon() {
+  function attributeByUri() {
     var st = K.state;
-    var liste = st.objekttyp ? st.detail[st.objekttyp] : null;
-    if (!liste) return null;
-    var t = liste.filter(function (m) { return m.uri === st.merkmal; });
+    var list = st.objectType ? st.detail[st.objectType] : null;
+    if (!list) return null;
+    var t = list.filter(function (m) { return m.uri === st.attribute; });
     return t.length ? t[0] : null;
   }
 
-  /* ---------- Zustand in der URL ---------- */
+  /* ---------- State in the URL ---------- */
 
-  /* ersetzen=true schreibt den Zustand ohne History-Eintrag (replaceState):
-     Suchtippen, Blättern und Filter-Feinjustage sollen den Zurück-Knopf
-     nicht mit Zwischenständen fluten — Ebenen- und Ansichtswechsel schon. */
-  function inUrl(ersetzen) {
-    if (K.state.stumm) return;
+  /* replaceState=true writes the state without a history entry: typing in
+     the search box, paging and fine-tuning filters must not flood the back
+     button with intermediate states — changing level or view should. */
+  function writeUrl(replaceState) {
+    if (K.state.silent) return;
     var st = K.state, p = [];
 
-    if (st.objekttyp) p.push('o=' + encodeURIComponent(st.objekttyp));
-    if (st.merkmal)   p.push('m=' + encodeURIComponent(st.merkmal));
-    if (st.ansicht !== 'liste') p.push('v=' + st.ansicht);
-    if (st.sprache !== 'de') p.push('l=' + st.sprache);
-    if (st.sort) p.push('t=' + st.sort.feld + (st.sort.richtung < 0 ? '.d' : ''));
-    /* Schreib- und Leseseite müssen synchron bleiben: ein neuer Parameter
-       gehört HIER und in ausUrl() — beide kodieren symmetrisch. */
-    if (st.facetten.katalog.length) {
-      p.push('k=' + st.facetten.katalog.map(encodeURIComponent).join(','));
+    if (st.objectType) p.push('o=' + encodeURIComponent(st.objectType));
+    if (st.attribute)   p.push('m=' + encodeURIComponent(st.attribute));
+    if (st.view !== 'list') p.push('v=' + st.view);
+    if (st.language !== 'de') p.push('l=' + st.language);
+    if (st.sort) p.push('t=' + st.sort.field + (st.sort.direction < 0 ? '.d' : ''));
+    /* The writing and reading sides must stay in step: a new parameter
+       belongs HERE and in readUrl() — both encode symmetrically. */
+    if (st.facets.catalogue.length) {
+      p.push('k=' + st.facets.catalogue.map(encodeURIComponent).join(','));
     }
-    if (st.facetten.status.length) {
-      p.push('r=' + st.facetten.status.map(encodeURIComponent).join(','));
+    if (st.facets.status.length) {
+      p.push('r=' + st.facets.status.map(encodeURIComponent).join(','));
     }
-    if (st.facetten.phase.length) {
-      p.push('p=' + st.facetten.phase.map(encodeURIComponent).join(','));
+    if (st.facets.milestone.length) {
+      p.push('p=' + st.facets.milestone.map(encodeURIComponent).join(','));
     }
-    if (el.filter.value.trim()) p.push('q=' + encodeURIComponent(el.filter.value.trim()));
-    if (st.seite > 1) p.push('s=' + st.seite);
-    if (st.proSeite !== 50) p.push('n=' + st.proSeite);
+    if (el['search-input'].value.trim()) p.push('q=' + encodeURIComponent(el['search-input'].value.trim()));
+    if (st.page > 1) p.push('s=' + st.page);
+    if (st.perPage !== 50) p.push('n=' + st.perPage);
 
-    var neu = p.length ? '#' + p.join('&') : '#';
-    /* location.hash liefert bei nacktem «#» einen Leerstring — ohne den
-       Ausgleich entstünden tote History-Einträge im Grundzustand. */
-    if (neu !== (location.hash || '#')) {
-      if (ersetzen) history.replaceState(null, '', neu);
-      else history.pushState(null, '', neu);
+    var next = p.length ? '#' + p.join('&') : '#';
+    /* location.hash returns an empty string for a bare «#» — without this
+       compensation the base state would produce dead history entries. */
+    if (next !== (location.hash || '#')) {
+      if (replaceState) history.replaceState(null, '', next);
+      else history.pushState(null, '', next);
     }
   }
 
-  /* Leseseite zu inUrl() — jeder Parameter erscheint in beiden Funktionen.
-     Kaputtes Prozent-Encoding (abgeschnittene geteilte Links) darf die App
-     nicht lahmlegen: dec() fällt auf den Rohwert zurück. */
+  /* The reading side of writeUrl() — every parameter appears in both
+     functions. Broken percent encoding (truncated shared links) must not
+     paralyse the application: dec() falls back to the raw value. */
   function dec(s) {
     try { return decodeURIComponent(s); } catch (e) { return s; }
   }
 
-  /* Gibt true zurück, wenn ein Neuladen angestossen wurde (Sprachwechsel
-     in der URL) — der Aufrufer soll dann nicht mit altem Stand zeichnen. */
-  function ausUrl() {
+  /* Returns true when a reload was started (a language change in the URL) —
+     the caller should then not render with the old state. */
+  function readUrl() {
     var st = K.state, p = {};
-    /* Aus href lesen, nicht aus location.hash: manche Browser dekodieren
-       hash beim Lesen und zerlegten kodierte &/= in Suchbegriffen. */
-    var roh = location.href.split('#')[1] || '';
-    roh.split('&').forEach(function (teil) {
-      var i = teil.indexOf('=');
-      if (i > 0) p[teil.slice(0, i)] = teil.slice(i + 1);
+    /* Read from href, not from location.hash: some browsers decode the hash
+       on read and broke encoded &/= inside search terms. */
+    var raw = location.href.split('#')[1] || '';
+    raw.split('&').forEach(function (part) {
+      var i = part.indexOf('=');
+      if (i > 0) p[part.slice(0, i)] = part.slice(i + 1);
     });
 
-    function liste(wert) {
-      return wert ? wert.split(',').map(dec).filter(Boolean) : [];
+    function list(value) {
+      return value ? value.split(',').map(dec).filter(Boolean) : [];
     }
 
-    st.stumm = true;
-    st.facetten.katalog = liste(p.k);
-    st.facetten.status  = liste(p.r);
-    st.facetten.phase   = liste(p.p);
-    el.filter.value = p.q ? dec(p.q) : '';
-    st.ansicht = (p.v === 'galerie' || p.v === 'graph') ? p.v : 'liste';
-    ansichtKnoepfe(st.ansicht);
-    st.objekttyp = p.o ? dec(p.o) : null;
-    st.merkmal   = p.m ? dec(p.m) : null;
-    st.seite     = Math.max(1, parseInt(p.s, 10) || 1);
-    st.proSeite  = K.SEITENGROESSEN.indexOf(parseInt(p.n, 10)) !== -1
-                     ? parseInt(p.n, 10) : K.SEITENGROESSEN[0];
-    st.sprache   = K.SPRACHEN.indexOf(p.l) !== -1 ? p.l : 'de';
-    el.sprache.value = st.sprache;
-    st.hervor = null;   // flüchtiger Grafikzustand überlebt keine Navigation
+    st.silent = true;
+    st.facets.catalogue = list(p.k);
+    st.facets.status  = list(p.r);
+    st.facets.milestone   = list(p.p);
+    el['search-input'].value = p.q ? dec(p.q) : '';
+    st.view = (p.v === 'gallery' || p.v === 'graph') ? p.v : 'list';
+    updateViewButtons(st.view);
+    st.objectType = p.o ? dec(p.o) : null;
+    st.attribute   = p.m ? dec(p.m) : null;
+    st.page     = Math.max(1, parseInt(p.s, 10) || 1);
+    st.perPage  = K.PAGE_SIZES.indexOf(parseInt(p.n, 10)) !== -1
+                     ? parseInt(p.n, 10) : K.PAGE_SIZES[0];
+    st.language   = K.LANGUAGES.indexOf(p.l) !== -1 ? p.l : 'de';
+    el.language.value = st.language;
+    st.highlighted = null;   // transient graph state does not survive navigation
     st.sort = null;
     if (p.t) {
       var t = p.t.split('.');
-      var erlaubt = p.o ? SORT_MERKMALE : SORT_UEBERSICHT;
-      if (erlaubt.indexOf(t[0]) !== -1) {
-        st.sort = { feld: t[0], richtung: t[1] === 'd' ? -1 : 1 };
+      var allowed = p.o ? SORT_ATTRIBUTES : SORT_OVERVIEW;
+      if (allowed.indexOf(t[0]) !== -1) {
+        st.sort = { field: t[0], direction: t[1] === 'd' ? -1 : 1 };
       }
     }
-    st.stumm = false;
+    st.silent = false;
 
-    /* Andere Sprache in der URL (Zurück-Knopf, geteilter Link):
-       Oberfläche nachführen, Katalog in dieser Sprache neu laden. */
-    if (st.verbindung && st.verbindung.sprache !== st.sprache) {
-      K.uebersetzeStatisch();
-      laden();
+    /* A different language in the URL (back button, shared link): update
+       the interface and reload the catalogue in that language. */
+    if (st.connection && st.connection.language !== st.language) {
+      K.translateStatic();
+      load();
       return true;
     }
 
-    /* Ein geteilter Link kann auf einen Eintrag zeigen, den dieser Katalog
-       nicht kennt — das darf nicht still auf der Übersicht enden. Vor der
-       Datenankunft (popstate während des Erstladens) wird nicht geprüft,
-       sonst würde ein gültiger Deep-Link fälschlich getilgt. */
-    if (st.elemente.length && st.objekttyp && !objekttypVon(st.objekttyp)) {
+    /* A shared link may point at an entry this catalogue does not know —
+       that must not end silently on the overview. Nothing is checked before
+       the data arrives (popstate during the initial load), otherwise a valid
+       deep link would be wrongly erased. */
+    if (st.entries.length && st.objectType && !objectTypeByUri(st.objectType)) {
       setStatus(K.t('errors.unknownType'), true);
-      st.objekttyp = null;
-      st.merkmal = null;
-      inUrl(true);
+      st.objectType = null;
+      st.attribute = null;
+      writeUrl(true);
     }
 
-    /* Dieselbe Prüfung für das Merkmal, wenn das Detail schon im Cache
-       liegt — sonst bliebe eine «…»-Krume für ein Phantom-Merkmal stehen. */
-    if (st.merkmal && st.objekttyp && st.detail[st.objekttyp] && !merkmalVon()) {
+    /* The same check for the attribute once the detail is in the cache —
+       otherwise a «…» crumb would stay up for a phantom attribute. */
+    if (st.attribute && st.objectType && st.detail[st.objectType] && !attributeByUri()) {
       setStatus(K.t('errors.unknownAttr'), true);
-      st.merkmal = null;
-      inUrl(true);
+      st.attribute = null;
+      writeUrl(true);
     }
 
-    baueFacetten();
-    if (st.objekttyp && !st.detail[st.objekttyp]) ladeDetail(st.objekttyp);
+    buildFacets();
+    if (st.objectType && !st.detail[st.objectType]) loadDetail(st.objectType);
   }
 
   /* ---------- Navigation ---------- */
 
-  /* Gedrückt-Zustand der drei Ansichtsknöpfe — einzige Schreibstelle */
-  function ansichtKnoepfe(name) {
-    ['liste', 'galerie', 'graph'].forEach(function (v) {
+  /* Pressed state of the three view buttons — the only writing site */
+  function updateViewButtons(name) {
+    ['list', 'gallery', 'graph'].forEach(function (v) {
       document.getElementById('v-' + v).setAttribute('aria-pressed', String(v === name));
     });
   }
 
-  K.geheZuUebersicht = function () {
-    K.state.objekttyp = null;
-    K.state.merkmal = null;
-    K.state.hervor = null;
+  K.goToOverview = function () {
+    K.state.objectType = null;
+    K.state.attribute = null;
+    K.state.highlighted = null;
     K.state.sort = null;   // jede Ebene startet in ihrer Standardreihenfolge
-    inUrl();
-    zeichne(true);
+    writeUrl();
+    render(true);
   };
 
-  K.geheZuObjekttyp = function (uri) {
-    if (!objekttypVon(uri)) return;
-    /* Rückkehr vom Merkmal zum selben Objekttyp behält die Sortierung —
-       nur ein echter Wechsel startet in der Standardreihenfolge. */
-    if (K.state.objekttyp !== uri) K.state.sort = null;
-    K.state.objekttyp = uri;
-    K.state.merkmal = null;
-    /* Die Hervorhebung reist mit, wenn der Zieltyp dieses Property Set
-       fuehrt — die Radialansicht oeffnet dann mit der Gruppe im Fokus. */
-    var ziel = objekttypVon(uri);
-    if (!(K.state.hervor && ziel && ziel.psets.some(function (p) {
-      return p.name === K.state.hervor;
-    }))) K.state.hervor = null;
-    inUrl();
-    zeichne(true);
-    if (!K.state.detail[uri]) ladeDetail(uri);
+  K.goToObjectType = function (uri) {
+    if (!objectTypeByUri(uri)) return;
+    /* Returning from an attribute to the same object type keeps the sort —
+       only a real change starts in the default order. */
+    if (K.state.objectType !== uri) K.state.sort = null;
+    K.state.objectType = uri;
+    K.state.attribute = null;
+    /* The highlight travels along if the target type carries that property
+       set — the radial view then opens with the group in focus. */
+    var target = objectTypeByUri(uri);
+    if (!(K.state.highlighted && target && target.psets.some(function (p) {
+      return p.name === K.state.highlighted;
+    }))) K.state.highlighted = null;
+    writeUrl();
+    render(true);
+    if (!K.state.detail[uri]) loadDetail(uri);
   };
 
-  K.geheZuMerkmal = function (uri) {
-    K.state.merkmal = uri;
-    inUrl();
-    zeichne(true);
+  K.goToAttribute = function (uri) {
+    K.state.attribute = uri;
+    writeUrl();
+    render(true);
   };
 
-  /* Folgeabfragen gehen gegen den beim Laden eingefrorenen Stand — nicht
-     gegen das Dialogfeld, das inzwischen anders ausgefüllt sein kann. */
-  function verbindung() {
-    return K.state.verbindung ||
-           { endpoint: endpunkt(), graph: graphUri(), sprache: K.state.sprache };
+  /* Follow-up queries run against the state frozen at load time — not
+     against the dialog field, which may have been changed since. */
+  function connection() {
+    return K.state.connection ||
+           { endpoint: endpointUrl(), graph: namedGraphUri(), language: K.state.language };
   }
 
-  function ladeDetail(uri) {
-    var e = objekttypVon(uri);
-    var v = verbindung();
+  function loadDetail(uri) {
+    var e = objectTypeByUri(uri);
+    var v = connection();
     var gen = K.state.generation;
-    delete K.state.detailFehler[uri];
+    delete K.state.detailError[uri];
     busy(true, K.t('loading.attrsOf', { name: e ? e.name : '…' }));
-    K.holeDetail(v, uri).then(function () {
+    K.fetchDetail(v, uri).then(function () {
       busy(false);
-      if (gen !== K.state.generation) return;   // inzwischen neu geladen
-      if (K.state.objekttyp !== uri) return;
-      /* Ein per Link angefordertes Merkmal kann sich als unbekannt erweisen */
-      if (K.state.merkmal && !merkmalVon()) {
+      if (gen !== K.state.generation) return;   // inzwischen next geladen
+      if (K.state.objectType !== uri) return;
+      /* An attribute requested by link may turn out to be unknown */
+      if (K.state.attribute && !attributeByUri()) {
         setStatus(K.t('errors.unknownAttr'), true);
-        K.state.merkmal = null;
-        inUrl(true);
-        zeichne();
+        K.state.attribute = null;
+        writeUrl(true);
+        render();
         return;
       }
-      setStatus(K.state.detailOhneWerte[uri] ? K.t('values.warning') : '',
-                !!K.state.detailOhneWerte[uri]);
-      /* Bei einem Deep-Link auf ein Merkmal erscheint die Zielansicht erst
-         jetzt — der Fokus soll dorthin, sonst bleibt der Wechsel unbemerkt. */
-      zeichne(!!K.state.merkmal);
+      setStatus(K.state.detailWithoutValues[uri] ? K.t('values.warning') : '',
+                !!K.state.detailWithoutValues[uri]);
+      /* With a deep link to an attribute the target view only appears now —
+         focus should move there, or the change goes unnoticed. */
+      render(!!K.state.attribute);
     }).catch(function (err) {
       busy(false);
       if (gen !== K.state.generation) return;
-      K.state.detailFehler[uri] = fehlerText(err);
+      K.state.detailError[uri] = errorText(err);
       setStatus(K.t('errors.attrsFailed'), true);
-      if (K.state.objekttyp === uri) zeichne();
+      if (K.state.objectType === uri) render();
     });
   }
 
-  /* ---------- Brotkrumen ---------- */
+  /* ---------- Breadcrumbs ---------- */
 
-  /* Die aktuelle Ebene ist keine Aktion — sie wird als <span> gerendert,
-     nicht als deaktivierter Knopf (den Screenreader als «nicht verfügbar»
-     ansagen oder überspringen würden). */
-  function krume(text, onClick, aktuell, sprache) {
+  /* The current level is not an action — it is rendered as a <span>, not as
+     a disabled button (which screen readers would announce as
+     «unavailable» or skip). */
+  function crumb(text, onClick, current, language) {
     var li = document.createElement('li');
-    var b = document.createElement(aktuell ? 'span' : 'button');
+    var b = document.createElement(current ? 'span' : 'button');
     b.className = 'ob-breadcrumb-label';
-    b.appendChild(K.text(text, sprache));
-    if (aktuell) {
+    b.appendChild(K.text(text, language));
+    if (current) {
       b.setAttribute('aria-current', 'page');
     } else {
       b.type = 'button';
@@ -805,7 +811,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return li;
   }
 
-  function trenner() {
+  function separator() {
     var li = document.createElement('li');
     var s = document.createElement('span');
     s.className = 'ob-breadcrumb-separator';
@@ -815,204 +821,211 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return li;
   }
 
-  function zeichneKrumen() {
+  function renderBreadcrumb() {
     var st = K.state;
-    el.krumen.innerHTML = '';
+    el.breadcrumb.innerHTML = '';
 
-    /* Die Krume steht auf jeder Ebene — auch auf der Übersicht (stabiler
-       Ankerpunkt, redaktioneller Entscheid). */
-    el.krumen.parentNode.hidden = false;
-    el.krumen.appendChild(krume(K.t('overview.title'), K.geheZuUebersicht, !st.objekttyp));
+    /* The crumb appears on every level — including the overview (a stable
+       anchor point, an editorial decision). */
+    el.breadcrumb.parentNode.hidden = false;
+    el.breadcrumb.appendChild(crumb(K.t('overview.title'), K.goToOverview, !st.objectType));
 
-    if (st.objekttyp) {
-      var e = objekttypVon(st.objekttyp);
-      el.krumen.appendChild(trenner());
-      el.krumen.appendChild(krume(e ? e.name : '…',
-        function () { K.geheZuObjekttyp(st.objekttyp); }, !st.merkmal,
-        e && e.sprache));
+    if (st.objectType) {
+      var e = objectTypeByUri(st.objectType);
+      el.breadcrumb.appendChild(separator());
+      el.breadcrumb.appendChild(crumb(e ? e.name : '…',
+        function () { K.goToObjectType(st.objectType); }, !st.attribute,
+        e && e.language));
     }
-    if (st.merkmal) {
-      var m = merkmalVon();
-      el.krumen.appendChild(trenner());
-      el.krumen.appendChild(krume(m ? m.name : '…', null, true, m && m.sprache));
+    if (st.attribute) {
+      var m = attributeByUri();
+      el.breadcrumb.appendChild(separator());
+      el.breadcrumb.appendChild(crumb(m ? m.name : '…', null, true, m && m.language));
     }
   }
 
-  /* ---------- Titelblock ---------- */
+  /* ---------- Page header ---------- */
 
-  function titel(text, kennzahlen, beschreibung, sprache) {
-    el.titel.textContent = text;
-    /* lang-Auszeichnung relativ zur OBERFLÄCHENsprache: auch ein deutsches
-       Datenlabel braucht sie, wenn die Oberfläche französisch spricht. */
-    if (sprache && sprache !== K.state.sprache) el.titel.setAttribute('lang', sprache);
-    else el.titel.removeAttribute('lang');
-    el.kennzahlen.textContent = kennzahlen || '';
-    el['titel-text'].hidden = !beschreibung;
-    el['titel-text'].textContent = beschreibung || '';
+  function title(text, kennzahlen, description, language) {
+    el['page-title'].textContent = text;
+    /* lang markup relative to the INTERFACE language: even a German data
+       label needs it when the interface speaks French. */
+    if (language && language !== K.state.language) el['page-title'].setAttribute('lang', language);
+    else el['page-title'].removeAttribute('lang');
+    el['page-meta'].textContent = kennzahlen || '';
+    el['page-lead'].hidden = !description;
+    el['page-lead'].textContent = description || '';
     document.title = text + ' – KBOB Data Dictionary';
   }
 
-  /* ---------- Zeichnen ---------- */
+  /* ---------- Rendering ---------- */
 
-  function zeichne(fokussieren) {
-    if (!K.state.elemente.length) return;
+  function render(focus) {
+    if (!K.state.entries.length) return;
     var st = K.state;
 
-    /* Loesch-Knopf im Suchfeld folgt dem Feldinhalt — auch wenn der Wert
-       programmatisch gesetzt wurde (URL, Chip entfernt) */
-    var leerKnopf = document.getElementById('filter-leeren');
-    if (leerKnopf) leerKnopf.hidden = !el.filter.value;
+    /* The clear button in the search field follows the field content — also
+       when the value was set programmatically (URL, chip removed) */
+    var clearButton = document.getElementById('search-clear');
+    if (clearButton) {
+      var hasValue = !!el['search-input'].value;
+      clearButton.hidden = !hasValue;
+      /* Oblique gates the clear button on the wrapper class rather than on
+         [hidden] — carrying it means a future Oblique text-control stylesheet
+         drops straight onto this markup (core/_text-control.scss). */
+      clearButton.parentNode.classList.toggle('ob-text-control-clear-has-value', hasValue);
+    }
 
-    zeichneKrumen();
+    renderBreadcrumb();
 
-    var aufMerkmal = !!(st.merkmal && merkmalVon());
+    var onAttribute = !!(st.attribute && attributeByUri());
 
-    /* Sichtbarer Rückweg eine Ebene hoch — die Brotkrume ist klein,
-       der Knopf trägt das Ziel im zugänglichen Namen. */
-    el.zurueck.hidden = !st.objekttyp;
-    if (st.objekttyp) {
-      var elternName = aufMerkmal
-        ? (objekttypVon(st.objekttyp) || {}).name || K.t('col.type')
+    /* A visible way back one level up — the breadcrumb is small, and the
+       button carries the destination in its accessible name. */
+    el.back.hidden = !st.objectType;
+    if (st.objectType) {
+      var parentName = onAttribute
+        ? (objectTypeByUri(st.objectType) || {}).name || K.t('col.type')
         : K.t('overview.title');
-      el.zurueck.setAttribute('aria-label', K.t('common.backTo', { name: elternName }));
-      el.zurueck.title = K.t('common.backTo', { name: elternName });
+      el.back.setAttribute('aria-label', K.t('common.backTo', { name: parentName }));
+      el.back.title = K.t('common.backTo', { name: parentName });
     }
 
-    /* Auf der Merkmal-Ebene gibt es nichts zu suchen, zu filtern oder
-       umzuschalten — die Werkzeugleiste würde nur so tun als ob. */
-    el.toolbar.hidden = aufMerkmal;
-    if (aufMerkmal) el['aktive-filter'].hidden = true;
-    else zeichneAktiveFilter();
+    /* On the attribute level there is nothing to search, filter or switch —
+       the toolbar would only be pretending. */
+    el.toolbar.hidden = onAttribute;
+    if (onAttribute) el['filter-bar'].hidden = true;
+    else renderFilterBar();
 
-    /* Grundzustand je Renderdurchlauf: die zeige*-Funktionen setzen nur
-       noch, was auf ihrer Ebene tatsächlich etwas anzeigt. */
-    el.treffer.textContent = '';
+    /* Base state per render pass: the show* functions then set only what
+       actually displays something on their level. */
+    el['result-count'].textContent = '';
 
-    if (aufMerkmal)        zeigeMerkmal();
-    else if (st.objekttyp) zeigeObjekttyp();
-    else                   zeigeUebersicht();
+    if (onAttribute)        showAttribute();
+    else if (st.objectType) showObjectType();
+    else                   showOverview();
 
-    /* Nach einem Ebenenwechsel steht der Fokus auf der neuen Überschrift —
-       sonst landet er beim Neuaufbau still auf <body>. */
-    if (fokussieren) el.titel.focus();
+    /* After a level change focus sits on the new heading — otherwise the
+       rebuild drops it silently onto <body>. */
+    if (focus) el['page-title'].focus();
   }
-  K.zeichne = zeichne;
+  K.render = render;
 
-  /* Schneidet die Liste auf die aktuelle Seite zu und zeichnet die Bedienung.
-     Der Graph blättert nicht — er zeigt immer die ganze Auswahl. */
-  function blaettere(gesamt) {
+  /* Trims the list to the current page and renders the controls. The graph
+     does not paginate — it always shows the whole selection. */
+  function pageSlice(total) {
     var st = K.state;
-    var seiten = Math.max(1, Math.ceil(gesamt / st.proSeite));
-    if (st.seite > seiten) {
-      st.seite = seiten;
-      inUrl(true);   // die URL soll nicht auf einer Phantomseite stehen bleiben
+    var pages = Math.max(1, Math.ceil(total / st.perPage));
+    if (st.page > pages) {
+      st.page = pages;
+      writeUrl(true);   // the URL must not stay on a phantom page
     }
 
-    var von = (st.seite - 1) * st.proSeite;
-    var bis = Math.min(von + st.proSeite, gesamt);
+    var from = (st.page - 1) * st.perPage;
+    var to = Math.min(from + st.perPage, total);
 
-    el.blaettern.hidden = (st.ansicht === 'graph') || gesamt === 0;
-    if (el.blaettern.hidden) return { von: von, bis: bis };
+    el.paginator.hidden = (st.view === 'graph') || total === 0;
+    if (el.paginator.hidden) return { from: from, to: to };
 
-    el.blaettern.innerHTML = '';
+    el.paginator.innerHTML = '';
 
-    var bereich = document.createElement('span');
-    bereich.className = 'kbob-paginator-range';
-    bereich.textContent = gesamt <= st.proSeite
-      ? K.zahl(gesamt) + ' ' + K.plural(gesamt, K.t('unit.entry'), K.t('unit.entries'))
-      : K.t('paginator.range', { von: K.zahl(von + 1), bis: K.zahl(bis), gesamt: K.zahl(gesamt) });
-    el.blaettern.appendChild(bereich);
+    var rangeLabel = document.createElement('span');
+    rangeLabel.className = 'app-paginator-range';
+    rangeLabel.textContent = total <= st.perPage
+      ? K.formatNumber(total) + ' ' + K.plural(total, K.t('unit.entry'), K.t('unit.entries'))
+      : K.t('paginator.range', { from: K.formatNumber(from + 1), to: K.formatNumber(to), total: K.formatNumber(total) });
+    el.paginator.appendChild(rangeLabel);
 
-    /* Bei einer einzigen Seite gibt es nichts zu blättern — «Seite 1 von 1»
-       mit toten Knöpfen wäre nur Inventar. Die Eintragszahl bleibt. */
-    if (seiten > 1) {
+    /* With a single page there is nothing to page through — «page 1 of 1»
+       with dead buttons would be pure inventory. The entry count stays. */
+    if (pages > 1) {
       var nav = document.createElement('span');
-      nav.className = 'kbob-paginator-nav';
+      nav.className = 'app-paginator-nav';
 
-      /* Vier Icon-Knöpfe wie im Oblique-Paginator (erste/vorherige/
-         nächste/letzte Seite); das Icon kommt aus dem Sprite in
-         currentColor, der zugängliche Name per aria-label. */
-      var knopf = function (klasse, icon, beschriftung, ziel, aus) {
+      /* Four icon buttons as in the Oblique paginator (first/previous/
+         next/last page); the icon comes from the sprite in currentColor,
+         the accessible name from aria-label. */
+      var button = function (classUri, icon, label, target, off) {
         var b = document.createElement('button');
         b.type = 'button';
-        b.className = 'kbob-paginator-button ' + klasse;
-        b.setAttribute('aria-label', beschriftung);
-        b.disabled = aus;
+        b.className = 'app-paginator-button ' + classUri;
+        b.setAttribute('aria-label', label);
+        b.disabled = off;
         b.appendChild(K.icon(icon));
         b.addEventListener('click', function () {
-          st.seite = ziel;
-          inUrl(true);
-          zeichne();
-          el.titel.focus();
+          st.page = target;
+          writeUrl(true);
+          render();
+          el['page-title'].focus();
         });
         return b;
       };
 
-      nav.appendChild(knopf('kbob-page-first', 'chevron_left_double', K.t('paginator.first'), 1, st.seite <= 1));
-      nav.appendChild(knopf('kbob-page-prev', 'chevron_left', K.t('paginator.prev'), st.seite - 1, st.seite <= 1));
+      nav.appendChild(button('app-paginator-first', 'chevron_left_double', K.t('paginator.first'), 1, st.page <= 1));
+      nav.appendChild(button('app-paginator-prev', 'chevron_left', K.t('paginator.prev'), st.page - 1, st.page <= 1));
       var stand = document.createElement('span');
-      stand.textContent = K.t('paginator.pageOf', { seite: st.seite, seiten: seiten });
+      stand.textContent = K.t('paginator.pageOf', { page: st.page, pages: pages });
       nav.appendChild(stand);
-      nav.appendChild(knopf('kbob-page-next', 'chevron_right', K.t('paginator.next'), st.seite + 1, st.seite >= seiten));
-      nav.appendChild(knopf('kbob-page-last', 'chevron_right_double', K.t('paginator.last'), seiten, st.seite >= seiten));
-      el.blaettern.appendChild(nav);
+      nav.appendChild(button('app-paginator-next', 'chevron_right', K.t('paginator.next'), st.page + 1, st.page >= pages));
+      nav.appendChild(button('app-paginator-last', 'chevron_right_double', K.t('paginator.last'), pages, st.page >= pages));
+      el.paginator.appendChild(nav);
     }
 
-    if (gesamt > K.SEITENGROESSEN[0]) {
-      var feld = document.createElement('div');
-      feld.className = 'kbob-paginator-size';
+    if (total > K.PAGE_SIZES[0]) {
+      var field = document.createElement('div');
+      field.className = 'app-paginator-size';
       var lab = document.createElement('label');
-      lab.className = 'kbob-field-label';
-      lab.setAttribute('for', 'pro-seite');
+      lab.className = 'app-field-label';
+      lab.setAttribute('for', 'pro-page');
       lab.textContent = K.t('paginator.perPage');
       var sel = document.createElement('select');
-      sel.id = 'pro-seite';
+      sel.id = 'pro-page';
       sel.className = 'ob-select';
-      K.SEITENGROESSEN.forEach(function (n) {
+      K.PAGE_SIZES.forEach(function (n) {
         var o = document.createElement('option');
         o.value = n; o.textContent = n;
-        if (n === st.proSeite) o.selected = true;
+        if (n === st.perPage) o.selected = true;
         sel.appendChild(o);
       });
       sel.addEventListener('change', function () {
-        st.proSeite = parseInt(sel.value, 10);
-        st.seite = 1;
-        inUrl(true);
-        zeichne();
+        st.perPage = parseInt(sel.value, 10);
+        st.page = 1;
+        writeUrl(true);
+        render();
       });
-      feld.appendChild(lab);
-      feld.appendChild(sel);
-      el.blaettern.appendChild(feld);
+      field.appendChild(lab);
+      field.appendChild(sel);
+      el.paginator.appendChild(field);
     }
 
-    return { von: von, bis: bis };
+    return { from: from, to: to };
   }
 
-  /* Einzige Stelle, die die vier View-Container kennt */
-  function sichtbareAnsicht(name) {
-    if (name !== 'graph') schliesseGraphPanel(false);
-    ['liste', 'galerie', 'graph', 'merkmal'].forEach(function (v) {
+  /* The only place that knows the four view containers */
+  function showView(name) {
+    if (name !== 'graph') closeGraphPanel(false);
+    ['list', 'gallery', 'graph', 'attribute'].forEach(function (v) {
       el['view-' + v].hidden = (v !== name);
     });
   }
 
-  /* Meldungskachel — ein Bauplan für alle: Ladezustände als Spinner-Fläche,
-     alles andere als Oblique-Alert (typ: info | warning | error). Der
-     Aktionsknopf steht NACH dem Alert (Abweichung C6 in docs/OBLIQUE.md):
-     Oblique sieht im Alert selbst keine Bedienelemente vor. */
-  function meldung(ziel, opt) {
-    ziel.innerHTML = '';
-    if (opt.laedt) {
-      var lade = K.e('div', 'kbob-loading');
-      lade.appendChild(K.spinner());
-      lade.appendChild(document.createTextNode(opt.titel));
-      ziel.appendChild(lade);
+  /* Message tile — one blueprint for all of them: loading states as a
+     spinner area, everything else as an Oblique alert (type: info | warning
+     | error). The action button sits AFTER the alert (deviation C6 in
+     docs/OBLIQUE.md): Oblique foresees no controls inside the alert. */
+  function message(target, opt) {
+    target.innerHTML = '';
+    if (opt.loading) {
+      var loadingBox = K.e('div', 'app-loading');
+      loadingBox.appendChild(K.spinner());
+      loadingBox.appendChild(document.createTextNode(opt.title));
+      target.appendChild(loadingBox);
       return;
     }
-    var alert = K.e('div', 'ob-alert ob-alert-' + (opt.typ || 'info'));
+    var alert = K.e('div', 'ob-alert ob-alert-' + (opt.type || 'info'));
     var h = document.createElement('p');
     var bt = document.createElement('b');
-    bt.textContent = opt.titel;
+    bt.textContent = opt.title;
     h.appendChild(bt);
     alert.appendChild(h);
     if (opt.text) {
@@ -1020,178 +1033,179 @@ var KBOB = window.KBOB || (window.KBOB = {});
       p.textContent = opt.text;
       alert.appendChild(p);
     }
-    ziel.appendChild(alert);
-    if (opt.aktion) {
-      var b = K.knopf('ob-button ob-button-primary', opt.aktion.text, opt.aktion.onClick);
-      ziel.appendChild(b);
-      if (opt.aktion.fokus) b.focus();
+    target.appendChild(alert);
+    if (opt.action) {
+      var b = K.button('ob-button ob-button-primary', opt.action.text, opt.action.onClick);
+      target.appendChild(b);
+      if (opt.action.fokus) b.focus();
     }
   }
 
-  /* --- Übersicht: alle Objekttypen, flach und facettiert --- */
+  /* --- Overview: all object types, flat and faceted --- */
 
-  /* Grenzen Suche oder Facetten die Sicht gerade ein? */
-  function istGefiltert() {
-    var f = K.state.facetten;
-    return !!(suchbegriff() || f.katalog.length || f.status.length || f.phase.length);
+  /* Are the search or the facets currently narrowing the view? */
+  function isFiltered() {
+    var f = K.state.facets;
+    return !!(searchTerm() || f.catalogue.length || f.status.length || f.milestone.length);
   }
 
-  function zeigeUebersicht() {
+  function showOverview() {
     var st = K.state;
-    facettenSichtbar(['katalog', 'status', 'phase']);
-    el.filter.placeholder = K.t('search.phOverview');
+    showFacets(['catalogue', 'status', 'milestone']);
+    el['search-input'].placeholder = K.t('search.phOverview');
 
-    var liste = sortiert(sichtbareObjekttypen());
-    var merkmale = liste.reduce(function (s, e) { return s + e.anzahl; }, 0);
+    var list = sorted(visibleObjectTypes());
+    var attributes = list.reduce(function (s, e) { return s + e.count; }, 0);
 
-    /* Alle drei Kennzahlen beschreiben die sichtbare Auswahl — eine
-       konstante Katalogzahl neben gefilterten Werten wäre eine
-       Eigenschaft des Gesamtbestands im falschen Satz. */
-    var quellen = {};
-    liste.forEach(function (e) { quellen[e.quelle] = true; });
-    var nQuellen = Object.keys(quellen).length;
+    /* All three figures describe the visible selection — a constant
+       catalogue number next to filtered values would be a property of the
+       whole holding stated in the wrong sentence. */
+    var sources = {};
+    list.forEach(function (e) { sources[e.source] = true; });
+    var nQuellen = Object.keys(sources).length;
 
-    titel(K.t('overview.title'),
-      K.zahl(liste.length) + ' ' + K.plural(liste.length, K.t('unit.type'), K.t('unit.types')) +
-      ' · ' + K.zahl(merkmale) + ' ' + K.plural(merkmale, K.t('unit.attr'), K.t('unit.attrs')) +
-      ' · ' + K.zahl(nQuellen) + ' ' + K.plural(nQuellen, K.t('unit.catalog'), K.t('unit.catalogs')),
+    title(K.t('overview.title'),
+      K.formatNumber(list.length) + ' ' + K.plural(list.length, K.t('unit.type'), K.t('unit.types')) +
+      ' · ' + K.formatNumber(attributes) + ' ' + K.plural(attributes, K.t('unit.attr'), K.t('unit.attrs')) +
+      ' · ' + K.formatNumber(nQuellen) + ' ' + K.plural(nQuellen, K.t('unit.catalog'), K.t('unit.catalogs')),
       K.t('overview.lead'));
 
-    /* Der Zähler trägt nur bei aktivem Filter etwas bei — ungefiltert stünde
-       dieselbe Zahl bereits in den Kennzahlen. Die Live-Region bleibt. */
-    el.treffer.textContent = istGefiltert()
-      ? K.t('common.nOfTotal', { n: K.zahl(liste.length), total: K.zahl(st.elemente.length) })
+    /* The counter only adds something while a filter is active — unfiltered,
+       the same number already stands in the figures. The live region
+       stays. */
+    el['result-count'].textContent = isFiltered()
+      ? K.t('common.nOfTotal', { n: K.formatNumber(list.length), total: K.formatNumber(st.entries.length) })
       : '';
 
-    var aus = blaettere(liste.length);
-    var seite = liste.slice(aus.von, aus.bis);
-    var mitPhase = phasenspalteLohnt(liste, function (e) { return e.phasen.length; });
+    var off = pageSlice(list.length);
+    var page = list.slice(off.from, off.to);
+    var mitPhase = milestoneColumnPaysOff(list, function (e) { return e.milestones.length; });
 
-    if (st.ansicht === 'liste') {
-      sichtbareAnsicht('liste');
-      var spalten = [
-        { titel: K.t('col.type'), breite: '22%', sort: 'name' },
-        { titel: K.t('col.description') },
-        { titel: K.t('col.attrs'), breite: '90px', rechts: true, sort: 'anzahl', sortStart: -1 },
-        { titel: K.t('col.status'), breite: '100px', sort: 'status' }
+    if (st.view === 'list') {
+      showView('list');
+      var columns = [
+        { title: K.t('col.type'), width: '22%', sort: 'name' },
+        { title: K.t('col.description') },
+        { title: K.t('col.attrs'), width: '90px', alignEnd: true, sort: 'count', sortStart: -1 },
+        { title: K.t('col.status'), width: '100px', sort: 'status' }
       ];
-      if (mitPhase) spalten.push({ titel: K.t('col.milestone'), breite: '130px' });
-      spalten.push({ titel: K.t('col.catalog'), breite: '18%', sort: 'quelle' });
+      if (mitPhase) columns.push({ title: K.t('col.milestone'), width: '130px' });
+      columns.push({ title: K.t('col.catalog'), width: '18%', sort: 'source' });
 
-      K.zeichneListe({
-        titel: K.t('table.captionOverview'),
-        spalten: spalten,
+      K.renderList({
+        title: K.t('table.captionOverview'),
+        columns: columns,
         sort: st.sort,
-        onSort: sortiere,
-        zeilen: seite.map(function (e) {
-          var zellen = [
+        onSort: sortBy,
+        rows: page.map(function (e) {
+          var cells = [
             function () {
-              return K.zeilenKnopf(e.name, e.sprache,
-                function () { K.geheZuObjekttyp(e.uri); });
+              return K.rowButton(e.name, e.language,
+                function () { K.goToObjectType(e.uri); });
             },
             function () {
-              if (!e.beschreibung) return K.leer(K.t('empty.description'));
+              if (!e.description) return K.emptyValue(K.t('empty.description'));
               var s = document.createElement('span');
-              s.className = 'kbob-desc-text';
-              s.textContent = e.beschreibung;
+              s.className = 'app-desc';
+              s.textContent = e.description;
               return s;
             },
-            function () { return String(e.anzahl); },
-            function () { return statusText(e.status) || K.leer(K.t('empty.status')); }
+            function () { return String(e.count); },
+            function () { return statusText(e.status) || K.emptyValue(K.t('empty.status')); }
           ];
-          if (mitPhase) zellen.push(function () { return K.phasen(e.phasen, st.allePhasen); });
-          zellen.push(function () { return e.quelle; });
+          if (mitPhase) cells.push(function () { return K.milestones(e.milestones, st.allMilestones); });
+          cells.push(function () { return e.source; });
           return {
-            onClick: function () { K.geheZuObjekttyp(e.uri); },
-            zellen: zellen
+            onClick: function () { K.goToObjectType(e.uri); },
+            cells: cells
           };
         })
       });
-    } else if (st.ansicht === 'galerie') {
-      sichtbareAnsicht('galerie');
-      K.zeichneGalerie({ karten: seite.map(function (e) {
+    } else if (st.view === 'gallery') {
+      showView('gallery');
+      K.renderGallery({ cards: page.map(function (e) {
         return {
-          name: e.name, sprache: e.sprache,
-          zahl: e.anzahl, zahlText: K.t('unit.attrs'),
-          text: e.beschreibung,
-          marken: e.status ? [{ name: e.status, title: statusErklaerung(e.status) }] : [],
-          fuss: e.quelle,
-          onClick: function () { K.geheZuObjekttyp(e.uri); }
+          name: e.name, language: e.language,
+          count: e.count, countText: K.t('unit.attrs'),
+          text: e.description,
+          tags: e.status ? [{ name: e.status, title: statusExplanation(e.status) }] : [],
+          footer: e.source,
+          onClick: function () { K.goToObjectType(e.uri); }
         };
       }) });
     } else {
-      sichtbareAnsicht('graph');
-      uebersichtsGraph(liste);
+      showView('graph');
+      overviewGraph(list);
     }
   }
 
-  /* Netz nur, solange es lesbar bleibt. Die Dokumenttypen bleiben draussen —
-     sie würden das Netz fluten und führen alle dasselbe kleine Merkmalschema.
-     Wer ausdrücklich nach ihnen filtert, bekommt sie trotzdem. */
-  /* ---------- Graph: Seitenpanel, Hervorhebung, Signatur ----------
-     Klick auf einen Knoten zeigt Details im Panel; navigiert wird erst
-     ueber die Aktion im Panel. Die Hervorhebung laeuft als reine
-     DOM-Operation (kein Neulayout), und ein unveraenderter Knotenbestand
-     wird gar nicht neu gebaut — Ausschnitt und Zoom bleiben stehen. */
+  /* A network only as long as it stays readable. Document types are left
+     out — they would flood the network and all carry the same small
+     attribute schema. Whoever explicitly filters for them still gets them. */
+  /* ---------- Graph: side panel, highlighting, signature ----------
+     Clicking a node shows its details in the panel; navigation happens only
+     through the action inside the panel. Highlighting runs as a pure DOM
+     operation (no relayout), and an unchanged set of nodes is not rebuilt at
+     all — viewBox and zoom stay put. */
 
-  var netzPsetDaten = {};     // Schluessel -> {name, objekttypen, merkmale}
-  var netzLegendeBauen = null;
+  var networkPsetData = {};     // Schluessel -> {name, objectTypes, attributes}
+  var buildNetworkLegend = null;
   var letzteNetzSig = '';
   var letzteRadialSig = '';
 
-  function sucheKnoten(id) {
-    var alle = el.netz.querySelectorAll('.g-knoten');
-    for (var i = 0; i < alle.length; i++) {
-      if (alle[i].getAttribute('data-id') === id) return alle[i];
+  function searchNodes(id) {
+    var all = el['graph-canvas'].querySelectorAll('.app-graph-node');
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].getAttribute('data-id') === id) return all[i];
     }
     return null;
   }
 
-  function schliesseGraphPanel(fokusZurueck) {
+  function closeGraphPanel(fokusZurueck) {
     var panel = el['graph-panel'];
     if (panel.hidden) return;
-    var auswahl = K.state.graphAuswahl;
+    var selection = K.state.graphAuswahl;
     panel.hidden = true;
     panel.innerHTML = '';
     K.state.graphAuswahl = null;
-    K.graphAuswahlMarkieren(null);
-    if (fokusZurueck && auswahl && auswahl.knotenId) {
-      var g = sucheKnoten(auswahl.knotenId);
-      (g || el.netz).focus();
+    K.markGraphSelection(null);
+    if (fokusZurueck && selection && selection.knotenId) {
+      var g = searchNodes(selection.knotenId);
+      (g || el['graph-canvas']).focus();
     }
   }
 
-  /* Ein Bauplan fuer alle Panel-Arten: Kopf (Art, Name, Schliessen),
-     optionale Beschreibung, Kennzeilen, Aktionen. Fokus wandert auf den
-     Titel; Escape und der Schliessen-Knopf geben ihn an den Knoten zurueck. */
-  function zeigeGraphPanel(daten) {
+  /* One blueprint for every kind of panel: head (kind, name, close),
+     optional description, key rows, actions. Focus moves to the title;
+     Escape and the close button hand it back to the node. */
+  function showGraphPanel(data) {
     var panel = el['graph-panel'];
     panel.innerHTML = '';
     panel.hidden = false;
-    K.state.graphAuswahl = daten.merker;
-    K.graphAuswahlMarkieren(daten.merker.knotenId || null);
+    K.state.graphAuswahl = data.merker;
+    K.markGraphSelection(data.merker.knotenId || null);
 
-    var kopf = K.e('div', 'kbob-graph-panel-head');
-    var titelbox = K.e('div', 'kbob-graph-panel-title');
-    titelbox.appendChild(K.e('span', 'kbob-graph-panel-kind', daten.art));
+    var head = K.e('div', 'app-graph-panel-head');
+    var titleBox = K.e('div', 'app-graph-panel-title');
+    titleBox.appendChild(K.e('span', 'app-graph-panel-kind', data.kind));
     var h = K.e('h2', '', null);
     h.tabIndex = -1;
-    h.appendChild(K.text(daten.name, daten.sprache));
-    titelbox.appendChild(h);
-    kopf.appendChild(titelbox);
-    var zu = K.knopf('kbob-graph-panel-close', null, function () { schliesseGraphPanel(true); });
+    h.appendChild(K.text(data.name, data.language));
+    titleBox.appendChild(h);
+    head.appendChild(titleBox);
+    var zu = K.button('app-graph-panel-close', null, function () { closeGraphPanel(true); });
     zu.setAttribute('aria-label', K.t('common.close'));
     zu.appendChild(K.icon('xmark'));
-    kopf.appendChild(zu);
-    panel.appendChild(kopf);
+    head.appendChild(zu);
+    panel.appendChild(head);
 
-    if (daten.beschreibung) {
-      panel.appendChild(K.e('p', 'kbob-graph-panel-desc', K.gekuerzt(daten.beschreibung, 280)));
+    if (data.description) {
+      panel.appendChild(K.e('p', 'app-graph-panel-desc', K.truncate(data.description, 280)));
     }
 
-    if (daten.zeilen && daten.zeilen.length) {
-      var dl = K.e('dl', 'kbob-graph-panel-data');
-      daten.zeilen.forEach(function (z) {
+    if (data.rows && data.rows.length) {
+      var dl = K.e('dl', 'app-graph-panel-data');
+      data.rows.forEach(function (z) {
         if (!z[1]) return;
         dl.appendChild(K.e('dt', '', z[0]));
         var dd = K.e('dd', '');
@@ -1202,523 +1216,524 @@ var KBOB = window.KBOB || (window.KBOB = {});
       panel.appendChild(dl);
     }
 
-    var aktionen = K.e('div', 'kbob-graph-panel-actions');
-    (daten.aktionen || []).forEach(function (a) {
-      var b = K.knopf('ob-button ' + (a.primaer ? 'ob-button-primary' : 'ob-button-secondary'),
+    var actions = K.e('div', 'app-graph-panel-actions');
+    (data.actions || []).forEach(function (a) {
+      var b = K.button('ob-button ' + (a.primaer ? 'ob-button-primary' : 'ob-button-secondary'),
                       a.text, a.onClick);
       if (a.gedrueckt !== undefined) b.setAttribute('aria-pressed', String(a.gedrueckt));
-      if (a.name) b.setAttribute('data-aktion', a.name);
-      aktionen.appendChild(b);
+      if (a.name) b.setAttribute('data-action', a.name);
+      actions.appendChild(b);
     });
-    panel.appendChild(aktionen);
+    panel.appendChild(actions);
 
-    panel.addEventListener('keydown', panelEscape);
-    if (daten.fokus !== false) h.focus();
+    panel.addEventListener('keydown', onPanelEscape);
+    if (data.fokus !== false) h.focus();
   }
 
-  function panelEscape(ev) {
-    if (ev.key === 'Escape') { ev.stopPropagation(); schliesseGraphPanel(true); }
+  function onPanelEscape(ev) {
+    if (ev.key === 'Escape') { ev.stopPropagation(); closeGraphPanel(true); }
   }
 
-  function zeigePanelTyp(e, knotenId, fokus) {
-    zeigeGraphPanel({
-      merker: { art: 'typ', uri: e.uri, knotenId: knotenId },
-      art: K.t('graph.legendType'), name: e.name, sprache: e.sprache,
-      beschreibung: e.beschreibung,
-      zeilen: [
-        [K.t('col.attrs'), K.zahl(e.anzahl)],
-        [K.t('col.psets'), K.zahl(e.psets.length)],
+  function showPanelObjectType(e, knotenId, fokus) {
+    showGraphPanel({
+      merker: { kind: 'type', uri: e.uri, knotenId: knotenId },
+      kind: K.t('graph.legendType'), name: e.name, language: e.language,
+      description: e.description,
+      rows: [
+        [K.t('col.attrs'), K.formatNumber(e.count)],
+        [K.t('col.psets'), K.formatNumber(e.psets.length)],
         [K.t('col.status'), e.status || ''],
-        [K.t('col.catalog'), e.quelle]
+        [K.t('col.catalog'), e.source]
       ],
-      aktionen: [
+      actions: [
         { text: K.t('common.open'), primaer: true, name: 'oeffnen',
-          onClick: function () { K.geheZuObjekttyp(e.uri); } }
+          onClick: function () { K.goToObjectType(e.uri); } }
       ],
       fokus: fokus
     });
   }
 
-  function zeigePanelPset(schluessel, knotenId, fokus) {
-    var d = netzPsetDaten[schluessel];
+  function showPanelPset(key, knotenId, fokus) {
+    var d = networkPsetData[key];
     if (!d) return;
-    var aktiv = K.state.hervor === d.name;
-    zeigeGraphPanel({
-      merker: { art: 'pset', schluessel: schluessel, knotenId: knotenId },
-      art: K.t('graph.legendPset'), name: d.name,
-      zeilen: [
-        [K.t('overview.title'), K.zahl(d.objekttypen)],
-        [K.t('col.attrs'), K.zahl(d.merkmale)]
+    var active = K.state.highlighted === d.name;
+    showGraphPanel({
+      merker: { kind: 'pset', key: key, knotenId: knotenId },
+      kind: K.t('graph.legendPset'), name: d.name,
+      rows: [
+        [K.t('overview.title'), K.formatNumber(d.objectTypes)],
+        [K.t('col.attrs'), K.formatNumber(d.attributes)]
       ],
-      aktionen: [
-        { text: aktiv ? K.t('graph.highlightOff') : K.t('graph.highlightOn'),
-          gedrueckt: aktiv, name: 'hervor',
-          onClick: function () { toggleNetzHervor(d.name, schluessel, knotenId); } },
-        { text: K.t('graph.showInList'), name: 'liste',
+      actions: [
+        { text: active ? K.t('graph.highlightOff') : K.t('graph.highlightOn'),
+          gedrueckt: active, name: 'highlighted',
+          onClick: function () { toggleNetworkHighlight(d.name, key, knotenId); } },
+        { text: K.t('graph.showInList'), name: 'list',
           onClick: function () {
-            el.filter.value = d.name;
-            K.state.seite = 1;
-            setzeAnsicht('liste');
+            el['search-input'].value = d.name;
+            K.state.page = 1;
+            setView('list');
           } }
       ],
       fokus: fokus
     });
   }
 
-  function toggleNetzHervor(name, schluessel, knotenId) {
-    K.state.hervor = (K.state.hervor === name) ? null : name;
-    K.hervorhebungNetz();
-    if (netzLegendeBauen) netzLegendeBauen();
-    /* Panel neu beschriften, Fokus bleibt auf dem Umschaltknopf */
-    zeigePanelPset(schluessel, knotenId, false);
-    var knopf = el['graph-panel'].querySelector('[data-aktion="hervor"]');
-    if (knopf) knopf.focus();
-    K.setStatus(K.state.hervor
+  function toggleNetworkHighlight(name, key, knotenId) {
+    K.state.highlighted = (K.state.highlighted === name) ? null : name;
+    K.networkHighlight();
+    if (buildNetworkLegend) buildNetworkLegend();
+    /* Relabel the panel, focus stays on the toggle button */
+    showPanelPset(key, knotenId, false);
+    var button = el['graph-panel'].querySelector('[data-action="highlighted"]');
+    if (button) button.focus();
+    K.setStatus(K.state.highlighted
       ? K.t('graph.highlighted', { name: name })
       : K.t('graph.highlightCleared'));
   }
 
-  function hebeNetzHervorAuf() {
-    K.state.hervor = null;
-    K.hervorhebungNetz();
-    if (netzLegendeBauen) netzLegendeBauen();
+  function clearNetworkHighlight() {
+    K.state.highlighted = null;
+    K.networkHighlight();
+    if (buildNetworkLegend) buildNetworkLegend();
     var offen = K.state.graphAuswahl;
-    if (offen && offen.art === 'pset') zeigePanelPset(offen.schluessel, offen.knotenId, false);
+    if (offen && offen.kind === 'pset') showPanelPset(offen.key, offen.knotenId, false);
     K.setStatus(K.t('graph.highlightCleared'));
   }
 
-  function zeigePanelMerkmal(m, e, knotenId, fokus) {
-    zeigeGraphPanel({
-      merker: { art: 'merkmal', uri: m.uri, knotenId: knotenId },
-      art: K.t('col.attr'), name: m.name, sprache: m.sprache,
-      beschreibung: (m.beschreibung && m.beschreibung !== m.name) ? m.beschreibung : '',
-      zeilen: [
+  function showPanelAttribute(m, e, knotenId, fokus) {
+    showGraphPanel({
+      merker: { kind: 'attribute', uri: m.uri, knotenId: knotenId },
+      kind: K.t('col.attr'), name: m.name, language: m.language,
+      description: (m.description && m.description !== m.name) ? m.description : '',
+      rows: [
         [K.t('col.pset'), m.pset],
-        [K.t('col.datatype'), m.typ || ''],
-        [K.t('col.unit'), m.einheit || ''],
+        [K.t('col.datatype'), m.type || ''],
+        [K.t('col.unit'), m.unit || ''],
         [K.t('col.status'), m.status || ''],
-        [K.t('col.values'), m.liste && m.liste.anzahl
-          ? K.zahl(m.liste.anzahl) + ': ' + K.kurzListe(m.liste.werte, 90) : '']
+        [K.t('col.values'), m.list && m.list.count
+          ? K.formatNumber(m.list.count) + ': ' + K.truncateList(m.list.values, 90) : '']
       ],
-      aktionen: [
+      actions: [
         { text: K.t('common.open'), primaer: true, name: 'oeffnen',
-          onClick: function () { K.geheZuMerkmal(m.uri); } }
+          onClick: function () { K.goToAttribute(m.uri); } }
       ],
       fokus: fokus
     });
   }
 
-  /* Netz nur, solange es lesbar bleibt. Die Dokumenttypen bleiben draussen —
-     sie wuerden das Netz fluten und fuehren alle dasselbe kleine
-     Merkmalschema. Wer nach ihnen filtert, bekommt sie trotzdem. */
-  function uebersichtsGraph(liste) {
-    el['graph-titel'].textContent = K.t('graph.titleOverview');
+  /* A network only as long as it stays readable. Document types are left
+     out — they would flood the network and all carry the same small
+     attribute schema. Whoever filters for them still gets them. */
+  function overviewGraph(list) {
+    el['graph-title'].textContent = K.t('graph.titleOverview');
 
-    if (!liste.length) {
-      graphMeldung(K.t('graph.emptyTitle'), K.t('graph.emptyTypes'), false, 'leer');
+    if (!list.length) {
+      graphMessage(K.t('graph.emptyTitle'), K.t('graph.emptyTypes'), false, 'emptyValue');
       return;
     }
 
-    var netzListe = liste.filter(function (e) { return !e.istDokument; });
-    if (!netzListe.length) netzListe = liste;   // Auswahl besteht nur aus Dokumenttypen
-    var ausgeblendet = liste.length - netzListe.length;
+    var networkList = list.filter(function (e) { return !e.isDocument; });
+    if (!networkList.length) networkList = list;   // the selection consists of document types only
+    var hidden = list.length - networkList.length;
 
-    if (netzListe.length > K.NETZ_MAX) {
-      graphMeldung(K.t('graph.tooManyTitle'),
-                   K.t('graph.tooMany', { n: K.zahl(netzListe.length), max: K.NETZ_MAX }));
+    if (networkList.length > K.NETWORK_MAX) {
+      graphMessage(K.t('graph.tooManyTitle'),
+                   K.t('graph.tooMany', { n: K.formatNumber(networkList.length), max: K.NETWORK_MAX }));
       return;
     }
-    graphMeldung(null);
+    graphMessage(null);
 
-    var hinweisText = K.t('graph.overviewHint') + ' ' +
-      (ausgeblendet ? K.t('graph.docsHidden', { n: K.zahl(ausgeblendet) }) + ' ' : '') +
+    var hintText = K.t('graph.overviewHint') + ' ' +
+      (hidden ? K.t('graph.docsHidden', { n: K.formatNumber(hidden) }) + ' ' : '') +
       K.t('graph.controls');
 
-    /* Unveraenderter Knotenbestand: nichts neu bauen — Hervorhebung und
-       Legende nachfuehren, Ausschnitt der Nutzenden respektieren. */
-    var v = verbindung();
-    var sig = [v.graph, K.state.sprache]
-      .concat(netzListe.map(function (e) { return e.uri; })).join('|');
-    if (sig === letzteNetzSig && el.netz.getAttribute('data-modus') === 'netz') {
-      el['graph-hinweis'].textContent = hinweisText;
-      K.hervorhebungNetz();
-      if (netzLegendeBauen) netzLegendeBauen();
+    /* Unchanged set of nodes: build nothing anew — update the highlight and
+       the legend, and respect the user's viewBox. */
+    var v = connection();
+    var sig = [v.graph, K.state.language]
+      .concat(networkList.map(function (e) { return e.uri; })).join('|');
+    if (sig === letzteNetzSig && el['graph-canvas'].getAttribute('data-modus') === 'netz') {
+      el['graph-hint'].textContent = hintText;
+      K.networkHighlight();
+      if (buildNetworkLegend) buildNetworkLegend();
       return;
     }
     letzteNetzSig = sig;
-    schliesseGraphPanel(false);
+    closeGraphPanel(false);
 
-    var knoten = [], kanten = [], nachPset = {};
-    netzPsetDaten = {};
-    netzListe.forEach(function (e) {
+    var nodes = [], edges = [], nachPset = {};
+    networkPsetData = {};
+    networkList.forEach(function (e) {
       var k = {
-        id: 'o:' + e.uri, name: e.name, art: 'typ', klasse: 'g-dot-typ',
-        farbe: '#2379a4' /* ob interaction-state */, form: 'kreis',
-        r: 4 + Math.sqrt(e.anzahl) * 1.5,
-        vorlesen: e.name + ', ' + e.anzahl + ' ' +
-                  K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs')) + ', ' + e.quelle,
-        zeilen: [e.quelle, e.anzahl + ' ' +
-                 K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs'))],
-        onClick: function () { zeigePanelTyp(e, 'o:' + e.uri); }
+        id: 'o:' + e.uri, name: e.name, kind: 'type', classUri: 'app-graph-dot-type',
+        color: '#2379a4' /* ob interaction-state */, form: 'kreis',
+        r: 4 + Math.sqrt(e.count) * 1.5,
+        announce: e.name + ', ' + e.count + ' ' +
+                  K.plural(e.count, K.t('unit.attr'), K.t('unit.attrs')) + ', ' + e.source,
+        rows: [e.source, e.count + ' ' +
+                 K.plural(e.count, K.t('unit.attr'), K.t('unit.attrs'))],
+        onClick: function () { showPanelObjectType(e, 'o:' + e.uri); }
       };
-      knoten.push(k);
+      nodes.push(k);
       e.psets.forEach(function (p) {
-        /* Schluessel = URI (namensgleiche Sets verschiedener Kataloge
-           bleiben eigene Knoten); die Hervorhebung matcht den NAMEN —
-           dort geht es um den fachlichen Begriff. */
-        var schluessel = p.uri || 'name:' + p.name;
-        var pk = nachPset[schluessel];
+        /* Key = URI (identically named sets from different catalogues stay
+           separate nodes); the highlight matches the NAME — there it is the
+           domain term that matters. */
+        var key = p.uri || 'name:' + p.name;
+        var pk = nachPset[key];
         if (!pk) {
-          pk = nachPset[schluessel] = {
-            id: 'p:' + schluessel, name: p.name, art: 'pset', klasse: 'g-dot-pset',
-            farbe: '#46596b' /* ob secondary-hover */, form: 'quadrat',
-            r: 5, stark: true, objekttypen: 0, merkmale: 0,
+          pk = nachPset[key] = {
+            id: 'p:' + key, name: p.name, kind: 'pset', classUri: 'app-graph-dot-pset',
+            color: '#46596b' /* ob secondary-hover */, form: 'quadrat',
+            r: 5, stark: true, objectTypes: 0, attributes: 0,
             onClick: (function (s, kid) {
-              return function () { zeigePanelPset(s, kid); };
-            })(schluessel, 'p:' + schluessel)
+              return function () { showPanelPset(s, kid); };
+            })(key, 'p:' + key)
           };
-          knoten.push(pk);
+          nodes.push(pk);
         }
-        pk.objekttypen++;
-        pk.merkmale += p.n;
-        kanten.push({ a: k, b: pk, n: p.n });
+        pk.objectTypes++;
+        pk.attributes += p.n;
+        edges.push({ a: k, b: pk, n: p.n });
       });
     });
 
     Object.keys(nachPset).forEach(function (s) {
       var pk = nachPset[s];
-      pk.r = 5 + Math.sqrt(pk.objekttypen) * 2.2;
-      pk.vorlesen = K.t('graph.psetVorlesen', { name: pk.name, t: pk.objekttypen, a: pk.merkmale });
-      pk.zeilen = [K.t('graph.legendPset'),
-                   K.t('graph.psetIn', { t: pk.objekttypen, a: pk.merkmale })];
-      netzPsetDaten[s] = { name: pk.name, objekttypen: pk.objekttypen, merkmale: pk.merkmale };
+      pk.r = 5 + Math.sqrt(pk.objectTypes) * 2.2;
+      pk.announce = K.t('graph.psetVorlesen', { name: pk.name, t: pk.objectTypes, a: pk.attributes });
+      pk.rows = [K.t('graph.legendPset'),
+                   K.t('graph.psetIn', { t: pk.objectTypes, a: pk.attributes })];
+      networkPsetData[s] = { name: pk.name, objectTypes: pk.objectTypes, attributes: pk.attributes };
     });
 
-    netzLegendeBauen = function () {
-      K.zeichneLegende([
-        { name: K.t('graph.legendType'), n: netzListe.length, farbe: '#2379a4' },
+    buildNetworkLegend = function () {
+      K.renderLegend([
+        { name: K.t('graph.legendType'), n: networkList.length, color: '#2379a4' },
         { name: K.t('graph.legendPset'), n: Object.keys(nachPset).length,
-          farbe: '#46596b', form: 'quadrat' },
-        K.state.hervor
-          ? { hinweis: K.t('graph.highlighted', { name: K.state.hervor }),
-              onDismiss: hebeNetzHervorAuf,
+          color: '#46596b', form: 'quadrat' },
+        K.state.highlighted
+          ? { hint: K.t('graph.highlighted', { name: K.state.highlighted }),
+              onDismiss: clearNetworkHighlight,
               ariaLabel: K.t('graph.highlightOff') }
-          : { hinweis: K.t('graph.dotSize') }
+          : { hint: K.t('graph.dotSize') }
       ]);
     };
 
-    K.zeichneNetz(knoten, kanten, null, hinweisText, K.t('graph.contentTitle'));
-    netzLegendeBauen();
+    K.renderNetwork(nodes, edges, null, hintText, K.t('graph.contentTitle'));
+    buildNetworkLegend();
   }
 
-  /* --- Ein Objekttyp und seine Merkmale --- */
+  /* --- One object type and its attributes --- */
 
-  function zeigeObjekttyp() {
+  function showObjectType() {
     var st = K.state;
-    var e = objekttypVon(st.objekttyp);
-    if (!e) { K.geheZuUebersicht(); return; }
+    var e = objectTypeByUri(st.objectType);
+    if (!e) { K.goToOverview(); return; }
 
-    /* Katalog und Reifegrad wirken hier nicht — nur zeigen, was filtert */
-    facettenSichtbar(['phase']);
-    el.filter.placeholder = K.t('search.phType');
+    /* Catalogue and maturity do not apply here — show only what filters */
+    showFacets(['milestone']);
+    el['search-input'].placeholder = K.t('search.phType');
 
-    var merkmale = sichtbareMerkmale(e.uri);
-    if (merkmale) merkmale = sortiert(merkmale);
+    var attributes = visibleAttributes(e.uri);
+    if (attributes) attributes = sorted(attributes);
 
-    if (merkmale === null && st.detailFehler[e.uri]) {
-      zeigeDetailFehler(e);
+    if (attributes === null && st.detailError[e.uri]) {
+      showDetailError(e);
       return;
     }
 
-    if (merkmale === null) {
-      /* Kennzahlenzeile bleibt leer — der Spinner im Inhalt sagt es schon */
-      titel(e.name, '', e.beschreibung, e.sprache);
-      el.blaettern.hidden = true;
-      sichtbareAnsicht(st.ansicht);
-      /* Der Ladezustand dreht dort, wo der Blick ist: im Inhaltsbereich */
-      if (st.ansicht === 'liste') {
-        K.zeichneListe({ titel: e.name, spalten: [{ titel: K.t('col.attr') }], zeilen: [],
-                         leerText: K.t('loading.attrs'), laedt: true });
-      } else if (st.ansicht === 'galerie') {
-        K.zeichneGalerie({ karten: [], leerText: K.t('loading.attrs'), laedt: true });
+    if (attributes === null) {
+      /* The figures line stays empty — the content spinner already says it */
+      title(e.name, '', e.description, e.language);
+      el.paginator.hidden = true;
+      showView(st.view);
+      /* The loading state turns where the eye is: in the content area */
+      if (st.view === 'list') {
+        K.renderList({ title: e.name, columns: [{ title: K.t('col.attr') }], rows: [],
+                         emptyText: K.t('loading.attrs'), loading: true });
+      } else if (st.view === 'gallery') {
+        K.renderGallery({ cards: [], emptyText: K.t('loading.attrs'), loading: true });
       } else {
-        graphMeldung(K.t('loading.attrs'), '', true);
+        graphMessage(K.t('loading.attrs'), '', true);
       }
       return;
     }
 
     var psets = {};
-    merkmale.forEach(function (m) { psets[m.pset] = true; });
+    attributes.forEach(function (m) { psets[m.pset] = true; });
     var nPsets = Object.keys(psets).length;
 
-    titel(e.name,
-      K.zahl(merkmale.length) +
-      (merkmale.length === e.anzahl ? ''
-        : ' ' + K.t('common.ofTotal', { total: K.zahl(e.anzahl) })) +
-      ' ' + K.plural(e.anzahl, K.t('unit.attr'), K.t('unit.attrs')) + ' · ' +
-      nPsets + ' ' + K.plural(nPsets, K.t('unit.pset'), K.t('unit.psets')) + ' · ' + e.quelle,
-      e.beschreibung, e.sprache);
+    title(e.name,
+      K.formatNumber(attributes.length) +
+      (attributes.length === e.count ? ''
+        : ' ' + K.t('common.ofTotal', { total: K.formatNumber(e.count) })) +
+      ' ' + K.plural(e.count, K.t('unit.attr'), K.t('unit.attrs')) + ' · ' +
+      nPsets + ' ' + K.plural(nPsets, K.t('unit.pset'), K.t('unit.psets')) + ' · ' + e.source,
+      e.description, e.language);
 
-    el.treffer.textContent = (suchbegriff() || st.facetten.phase.length)
-      ? K.t('common.nOfTotal', { n: K.zahl(merkmale.length), total: K.zahl(e.anzahl) })
+    el['result-count'].textContent = (searchTerm() || st.facets.milestone.length)
+      ? K.t('common.nOfTotal', { n: K.formatNumber(attributes.length), total: K.formatNumber(e.count) })
       : '';
 
-    var aus = blaettere(merkmale.length);
-    var seite = merkmale.slice(aus.von, aus.bis);
-    var mitPhase = phasenspalteLohnt(merkmale, function (m) { return m.phasen.length; });
+    var off = pageSlice(attributes.length);
+    var page = attributes.slice(off.from, off.to);
+    var mitPhase = milestoneColumnPaysOff(attributes, function (m) { return m.milestones.length; });
 
-    if (st.ansicht === 'liste') {
-      sichtbareAnsicht('liste');
-      /* Beschreibung als eigene Spalte (wie in der Übersicht);
-         Marken-Reihenfolge wie im Merkmaldetail: Property Set, Datentyp, Reifegrad */
-      var spalten = [
-        { titel: K.t('col.attr'), breite: '18%', sort: 'name' },
-        { titel: K.t('col.description') },
-        { titel: K.t('col.pset'), breite: '16%', sort: 'pset' },
-        { titel: K.t('col.datatype'), breite: '90px', sort: 'typ' },
-        { titel: K.t('col.status'), breite: '90px', sort: 'status' }
+    if (st.view === 'list') {
+      showView('list');
+      /* Description as its own column (as in the overview); tag order as in
+         the attribute detail: property set, datatype, maturity */
+      var columns = [
+        { title: K.t('col.attr'), width: '18%', sort: 'name' },
+        { title: K.t('col.description') },
+        { title: K.t('col.pset'), width: '16%', sort: 'pset' },
+        { title: K.t('col.datatype'), width: '90px', sort: 'type' },
+        { title: K.t('col.status'), width: '90px', sort: 'status' }
       ];
-      if (mitPhase) spalten.push({ titel: K.t('col.milestone'), breite: '130px' });
-      spalten.push({ titel: K.t('col.unitValues'), breite: '18%' });
+      if (mitPhase) columns.push({ title: K.t('col.milestone'), width: '130px' });
+      columns.push({ title: K.t('col.unitValues'), width: '18%' });
 
-      K.zeichneListe({
-        titel: K.t('table.captionType', { name: e.name }),
-        spalten: spalten,
+      K.renderList({
+        title: K.t('table.captionType', { name: e.name }),
+        columns: columns,
         sort: st.sort,
-        onSort: sortiere,
-        zeilen: seite.map(function (m) {
-          var zellen = [
+        onSort: sortBy,
+        rows: page.map(function (m) {
+          var cells = [
             function () {
-              return K.zeilenKnopf(m.name, m.sprache,
-                function () { K.geheZuMerkmal(m.uri); });
+              return K.rowButton(m.name, m.language,
+                function () { K.goToAttribute(m.uri); });
             },
             function () {
-              if (!m.beschreibung || m.beschreibung === m.name) {
-                return K.leer(K.t('empty.description'));
+              if (!m.description || m.description === m.name) {
+                return K.emptyValue(K.t('empty.description'));
               }
               var s = document.createElement('span');
-              s.className = 'kbob-desc-text';
-              s.textContent = m.beschreibung;
+              s.className = 'app-desc';
+              s.textContent = m.description;
               return s;
             },
-            function () { return psetZelle(e, m); },
-            function () { return m.typ || K.leer(K.t('empty.type')); },
-            function () { return statusText(m.status) || K.leer(K.t('empty.status')); }
+            function () { return psetCell(e, m); },
+            function () { return m.type || K.emptyValue(K.t('empty.type')); },
+            function () { return statusText(m.status) || K.emptyValue(K.t('empty.status')); }
           ];
-          if (mitPhase) zellen.push(function () { return K.phasen(m.phasen, st.allePhasen); });
-          zellen.push(function () { return werteZelle(m); });
-          return { onClick: function () { K.geheZuMerkmal(m.uri); }, zellen: zellen };
+          if (mitPhase) cells.push(function () { return K.milestones(m.milestones, st.allMilestones); });
+          cells.push(function () { return valuesCell(m); });
+          return { onClick: function () { K.goToAttribute(m.uri); }, cells: cells };
         })
       });
-    } else if (st.ansicht === 'galerie') {
-      sichtbareAnsicht('galerie');
-      K.zeichneGalerie({ karten: seite.map(function (m) {
+    } else if (st.view === 'gallery') {
+      showView('gallery');
+      K.renderGallery({ cards: page.map(function (m) {
         return {
-          name: m.name, sprache: m.sprache,
-          text: (m.beschreibung && m.beschreibung !== m.name) ? m.beschreibung : '',
-          marken: [{ name: m.pset, farbe: e.farbe[m.pset] }]
-            .concat(m.typ ? [{ name: m.typ }] : [])
-            .concat(m.status ? [{ name: m.status, title: statusErklaerung(m.status) }] : []),
-          fuss: [m.einheit, m.ifcTyp,
-                 m.liste && m.liste.anzahl ? m.liste.anzahl + ' ' + K.t('col.values') : '']
+          name: m.name, language: m.language,
+          text: (m.description && m.description !== m.name) ? m.description : '',
+          tags: [{ name: m.pset, color: e.color[m.pset] }]
+            .concat(m.type ? [{ name: m.type }] : [])
+            .concat(m.status ? [{ name: m.status, title: statusExplanation(m.status) }] : []),
+          footer: [m.unit, m.ifcTyp,
+                 m.list && m.list.count ? m.list.count + ' ' + K.t('col.values') : '']
                  .filter(Boolean).join(' · '),
-          onClick: function () { K.geheZuMerkmal(m.uri); }
+          onClick: function () { K.goToAttribute(m.uri); }
         };
       }) });
     } else {
-      sichtbareAnsicht('graph');
-      if (!merkmale.length) {
-        graphMeldung(K.t('graph.emptyTitle'), K.t('graph.emptyAttrs'), false, 'leer');
+      showView('graph');
+      if (!attributes.length) {
+        graphMessage(K.t('graph.emptyTitle'), K.t('graph.emptyAttrs'), false, 'emptyValue');
         return;
       }
-      graphMeldung(null);
-      el['graph-titel'].textContent = K.t('graph.attrsOf', { name: e.name });
-      var radialSig = [verbindung().graph, st.sprache, e.uri]
-        .concat(merkmale.map(function (m) { return m.uri; })).join('|');
-      if (radialSig !== letzteRadialSig) schliesseGraphPanel(false);
-      letzteRadialSig = radialSig;
-      K.zeichneRadial(e, merkmale,
+      graphMessage(null);
+      el['graph-title'].textContent = K.t('graph.attrsOf', { name: e.name });
+      var radialSignature = [connection().graph, st.language, e.uri]
+        .concat(attributes.map(function (m) { return m.uri; })).join('|');
+      if (radialSignature !== letzteRadialSig) closeGraphPanel(false);
+      letzteRadialSig = radialSignature;
+      K.renderRadial(e, attributes,
         K.t('graph.typeHint', { name: e.name }) + ' ' + K.t('graph.controls'),
         function (uri) {
           var m = null;
           (st.detail[e.uri] || []).forEach(function (kand) { if (kand.uri === uri) m = kand; });
-          if (m) zeigePanelMerkmal(m, e, 'm:' + uri);
-        }, radialSig);
+          if (m) showPanelAttribute(m, e, 'm:' + uri);
+        }, radialSignature);
     }
   }
 
-  /* Scheitert die Detailabfrage, darf «wird geladen …» nicht stehen bleiben —
-     dieselbe Regel wie beim Erstladen (Befund K1), eine Ebene tiefer. */
-  function zeigeDetailFehler(e) {
-    titel(e.name, K.t('errors.attrsLoadFailedMeta'), null, e.sprache);
-    el.blaettern.hidden = true;
-    /* Die Fehlerkachel steht im Listencontainer — Zustand und
-       aria-pressed der Umschalter ziehen mit, statt zu widersprechen. */
-    K.state.ansicht = 'liste';
-    ansichtKnoepfe('liste');
-    inUrl(true);
-    sichtbareAnsicht('liste');
+  /* If the detail query fails, «loading …» must not stay up — the same rule
+     as for the initial load (finding K1), one level down. */
+  function showDetailError(e) {
+    title(e.name, K.t('errors.attrsLoadFailedMeta'), null, e.language);
+    el.paginator.hidden = true;
+    /* The error tile sits in the list container — the switch state and
+       aria-pressed follow along instead of contradicting it. */
+    K.state.view = 'list';
+    updateViewButtons('list');
+    writeUrl(true);
+    showView('list');
 
-    el['view-liste'].innerHTML = '';
-    var box = K.e('div', 'kbob-message');
-    meldung(box, {
-      titel: K.t('errors.attrsTitle'),
-      text: K.state.detailFehler[e.uri],
-      typ: 'error',
-      aktion: { text: K.t('common.retry'), onClick: function () { ladeDetail(e.uri); } }
+    el['view-list'].innerHTML = '';
+    var box = K.e('div', 'app-message');
+    message(box, {
+      title: K.t('errors.attrsTitle'),
+      text: K.state.detailError[e.uri],
+      type: 'error',
+      action: { text: K.t('common.retry'), onClick: function () { loadDetail(e.uri); } }
     });
-    el['view-liste'].appendChild(box);
+    el['view-list'].appendChild(box);
   }
 
-  /* ---------- Domänen-Zellen: KBOB-spezifische DOM-Bausteine ----------
-     Bewusst in app.js, nicht in views.js: sie kennen Katalogsemantik
-     (Reifegrad-Erklärungen, IFC-Psets, Wertelisten) und werden von
-     Tabelle, Galerie und Merkmaldetail geteilt. */
+  /* ---------- Domain cells: KBOB-specific DOM building blocks ----------
+     Deliberately in app.js, not in views.js: they know catalogue semantics
+     (maturity explanations, IFC psets, value lists) and are shared by the
+     table, the gallery and the attribute detail. */
 
-  /* Reifegrad. Der Katalog kennt bisher nur Candidate und Preview —
-     verabschiedet ist nichts. Das gehört an jeden Eintrag.
-     Nur bekannte Werte werden erklärt: ein künftiger Status «Approved»
-     dürfte nicht als «noch nicht verabschiedet» beschriftet werden. */
-  var STATUS_ERKLAERUNG = { Candidate: 'status.candidate', Preview: 'status.preview' };
-  function statusErklaerung(wert) {
-    return STATUS_ERKLAERUNG[wert] ? K.t(STATUS_ERKLAERUNG[wert]) : '';
+  /* Maturity. So far the catalogue only knows Candidate and Preview —
+     nothing is adopted. That belongs on every entry. Only known values are
+     explained: a future status «Approved» must not be labelled «not yet
+     adopted». */
+  var STATUS_EXPLANATION = { Candidate: 'status.candidate', Preview: 'status.preview' };
+  function statusExplanation(value) {
+    return STATUS_EXPLANATION[value] ? K.t(STATUS_EXPLANATION[value]) : '';
   }
 
-  function statusMarke(wert) {
-    if (!wert) return null;
+  function statusTag(value) {
+    if (!value) return null;
     var t = document.createElement('span');
-    t.className = 'kbob-tag';
-    t.appendChild(K.text(wert, 'en'));   // Datenwerte sind englisch
-    if (STATUS_ERKLAERUNG[wert]) t.title = statusErklaerung(wert);
+    t.className = 'app-tag';
+    t.appendChild(K.text(value, 'en'));   // data values are English
+    if (STATUS_EXPLANATION[value]) t.title = statusExplanation(value);
     return t;
   }
 
-  /* In Tabellenzellen schlichter Text — der Spaltenkopf beschriftet schon,
-     eine Pillenform je Zeile wäre nur Rahmenwerk (eine Zeilenschrift). */
-  function statusText(wert) {
-    if (!wert) return null;
-    var s = K.text(wert, 'en');
-    if (STATUS_ERKLAERUNG[wert]) s.title = statusErklaerung(wert);
+  /* Plain text in table cells — the column header already labels it, and a
+     chip shape per row would be pure framing (one text style). */
+  function statusText(value) {
+    if (!value) return null;
+    var s = K.text(value, 'en');
+    if (STATUS_EXPLANATION[value]) s.title = statusExplanation(value);
     return s;
   }
 
-  /* Statt einer leeren Zeichenfläche: sagen, was zu tun ist —
-     beziehungsweise mit drehendem Ring, dass etwas unterwegs ist. */
-  function graphMeldung(titel, text, laedt, stil) {
-    var zeigen = !!titel;
-    el['graph-meldung'].hidden = !zeigen;
-    el['graph-wrap'].hidden = zeigen;
-    el['graph-hinweis'].hidden = zeigen;
+  /* Instead of an empty canvas: say what to do — or, with a turning ring,
+     that something is on its way. */
+  function graphMessage(title, text, loading, stil) {
+    var zeigen = !!title;
+    el['graph-message'].hidden = !zeigen;
+    el['graph-frame'].hidden = zeigen;
+    el['graph-hint'].hidden = zeigen;
     if (!zeigen) return;
-    /* Die Textfassung darf den vorigen Graphen nicht ueberleben, und ein
-       offenes Panel gehoert zu einem Graphen, der nicht mehr da ist. */
+    /* The text version must not outlive the previous graph, and an open
+       panel belongs to a graph that is no longer there. */
     el['graph-text'].innerHTML = '';
-    schliesseGraphPanel(false);
-    if (!laedt && stil === 'leer') {
-      /* Leere Auswahl ist kein Alarm: dieselbe stille Zeile wie in Liste
-         und Galerie statt einer blauen Alert-Kachel. */
-      el['graph-meldung'].innerHTML = '';
-      var z = K.e('p', 'kbob-no-results', titel + (text ? ' ' + text : ''));
-      el['graph-meldung'].appendChild(z);
+    closeGraphPanel(false);
+    if (!loading && stil === 'emptyValue') {
+      /* An empty selection is not an alarm: the same quiet line as in the
+         list and the gallery instead of a blue alert tile. */
+      el['graph-message'].innerHTML = '';
+      var z = K.e('p', 'app-no-results', title + (text ? ' ' + text : ''));
+      el['graph-message'].appendChild(z);
       return;
     }
-    meldung(el['graph-meldung'], { titel: titel, text: text, laedt: laedt });
+    message(el['graph-message'], { title: title, text: text, loading: loading });
   }
 
-  function typMarke(m) {
-    if (!m.typ) return K.leer(K.t('empty.type'));
-    return K.e('span', 'kbob-tag', m.typ);
+  function typeTag(m) {
+    if (!m.type) return K.emptyValue(K.t('empty.type'));
+    return K.e('span', 'app-tag', m.type);
   }
 
-  /* Ohne Farbtupfer: in der Tabelle trägt der Name die Aussage — die
-     Property-Set-Farben bleiben der Grafik und der Galerie vorbehalten. */
-  function psetZelle(e, m) {
+  /* Without a colour dot: in the table the name carries the meaning — the
+     property-set colours stay reserved for the graphic and the gallery. */
+  function psetCell(e, m) {
     var box = document.createElement('span');
-    box.className = 'kbob-pset';
+    box.className = 'app-pset';
     var pn = document.createElement('span');
     pn.textContent = m.pset;
     if (m.ifcPset) {
       var ip = document.createElement('span');
-      ip.className = 'kbob-pset-ifc';
-      ip.textContent = 'IFC: ' + m.ifcPset;
+      ip.className = 'app-pset-ifc';
+      ip.appendChild(document.createTextNode('IFC: '));
+      ip.appendChild(K.breakable(m.ifcPset));
       pn.appendChild(ip);
     }
     box.appendChild(pn);
     return box;
   }
 
-  function werteZelle(m) {
+  function valuesCell(m) {
     var box = document.createDocumentFragment();
     var etwas = false;
-    if (m.einheit) {
+    if (m.unit) {
       var eh = document.createElement('span');
-      eh.className = 'kbob-unit';
-      eh.textContent = m.einheit;
+      eh.className = 'app-unit';
+      eh.textContent = m.unit;
       box.appendChild(eh);
       etwas = true;
     }
-    if (m.liste && m.liste.anzahl) {
+    if (m.list && m.list.count) {
       var w = document.createElement('span');
-      w.className = 'kbob-values';
-      w.textContent = K.t('values.count', { n: m.liste.anzahl, werte: K.kurzListe(m.liste.werte, 70) });
+      w.className = 'app-values';
+      w.textContent = K.t('values.count', { n: m.list.count, values: K.truncateList(m.list.values, 70) });
       box.appendChild(w);
       etwas = true;
     }
-    return etwas ? box : K.leer(K.t('empty.unitValues'));
+    return etwas ? box : K.emptyValue(K.t('empty.unitValues'));
   }
 
-  /* --- Ein Merkmal --- */
+  /* --- One attribute --- */
 
-  function zeigeMerkmal() {
-    var e = objekttypVon(K.state.objekttyp);
-    var m = merkmalVon();
-    if (!e || !m) { K.state.merkmal = null; zeichne(); return; }
+  function showAttribute() {
+    var e = objectTypeByUri(K.state.objectType);
+    var m = attributeByUri();
+    if (!e || !m) { K.state.attribute = null; render(); return; }
 
-    sichtbareAnsicht('merkmal');
-    el.blaettern.hidden = true;   // die Blätterleiste gehört zur Liste darüber
+    showView('attribute');
+    el.paginator.hidden = true;   // the paginator belongs to the list above it
 
-    titel(m.name, e.name + ' · ' + m.pset + ' · ' + e.quelle, null, m.sprache);
+    title(m.name, e.name + ' · ' + m.pset + ' · ' + e.source, null, m.language);
 
-    /* Abschnittsgliederung nach dem Muster der I14Y-Detailseiten:
-       H2-Abschnitte, darunter fette Beschriftung über schlichtem Wert. */
-    var ziel = el['merkmal-detail'];
-    ziel.innerHTML = '';
+    /* Section structure following the I14Y detail pages: H2 sections, below
+       them a bold label over a plain value. */
+    var target = el['attribute-detail'];
+    target.innerHTML = '';
 
-    function abschnitt(name) {
-      var s = K.e('section', 'kbob-detail-section');
+    function section(name) {
+      var s = K.e('section', 'app-detail-section');
       s.appendChild(K.e('h2', '', name));
-      ziel.appendChild(s);
+      target.appendChild(s);
       return s;
     }
 
-    /* Mit leerBedeutung erscheint die Zeile auch ohne Wert — als ehrliches
-       «—» wie in der Tabelle. Ohne leerBedeutung entfällt sie ganz. */
-    function zeile(dl, t, wert, leerBedeutung) {
-      if (!wert && !leerBedeutung) return;
+    /* With emptyMeaning the row appears even without a value — as an honest
+       «—» like in the table. Without emptyMeaning it is dropped entirely. */
+    function row(dl, t, value, emptyMeaning) {
+      if (!value && !emptyMeaning) return;
       var dt = document.createElement('dt');
       dt.textContent = t;
       var dd = document.createElement('dd');
-      if (!wert) dd.appendChild(K.leer(leerBedeutung));
-      else if (typeof wert === 'string') dd.textContent = wert;
-      else dd.appendChild(wert);
+      if (!value) dd.appendChild(K.emptyValue(emptyMeaning));
+      else if (typeof value === 'string') dd.textContent = value;
+      else dd.appendChild(value);
       dl.appendChild(dt); dl.appendChild(dd);
     }
 
-    var allg = abschnitt(K.t('detail.general'));
-    var dlA = K.e('dl', 'kbob-data');
+    var allg = section(K.t('detail.general'));
+    var dlA = K.e('dl', 'app-data-list');
     allg.appendChild(dlA);
-    zeile(dlA, K.t('col.description'),
-          (m.beschreibung && m.beschreibung !== m.name) ? m.beschreibung : null,
+    row(dlA, K.t('col.description'),
+          (m.description && m.description !== m.name) ? m.description : null,
           K.t('empty.description'));
-    zeile(dlA, K.t('col.type'), K.text(e.name, e.sprache));
-    zeile(dlA, K.t('col.pset'), psetZelle(e, m));
-    zeile(dlA, K.t('col.catalog'), e.quelle);
-    zeile(dlA, K.t('col.status'), statusMarke(m.status), K.t('empty.status'));
+    row(dlA, K.t('col.type'), K.text(e.name, e.language));
+    row(dlA, K.t('col.pset'), psetCell(e, m));
+    row(dlA, K.t('col.catalog'), e.source);
+    row(dlA, K.t('col.status'), statusTag(m.status), K.t('empty.status'));
 
-    /* IRI mit Kopierknopf, wie das I14Y-Permalink-Feld */
-    var iri = K.e('span', 'kbob-copy');
-    iri.appendChild(K.e('span', 'kbob-mono', m.uri));
-    var kopier = K.knopf('ob-button ob-button-secondary ob-icon-button', null, function () {
+    /* IRI with a copy button, like the I14Y permalink field */
+    var iri = K.e('span', 'app-copy');
+    iri.appendChild(K.e('span', 'app-mono', m.uri));
+    var kopier = K.button('ob-button ob-button-secondary ob-icon-button', null, function () {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(m.uri).then(
           function () { setStatus(K.t('detail.copied')); },
@@ -1731,48 +1746,48 @@ var KBOB = window.KBOB || (window.KBOB = {});
     kopier.title = K.t('detail.copyTitle');
     kopier.appendChild(K.icon('copy'));
     iri.appendChild(kopier);
-    zeile(dlA, K.t('detail.iri'), iri);
+    row(dlA, K.t('detail.iri'), iri);
 
-    var typ = abschnitt(K.t('detail.typeUnit'));
-    var dlT = K.e('dl', 'kbob-data');
-    typ.appendChild(dlT);
-    zeile(dlT, K.t('col.datatype'), typMarke(m));
-    zeile(dlT, K.t('col.unit'), m.einheit, K.t('empty.unit'));
-    zeile(dlT, K.t('col.ifcType'), m.ifcTyp);
-    zeile(dlT, K.t('col.ifcPset'), m.ifcPset);
+    var type = section(K.t('detail.typeUnit'));
+    var dlT = K.e('dl', 'app-data-list');
+    type.appendChild(dlT);
+    row(dlT, K.t('col.datatype'), typeTag(m));
+    row(dlT, K.t('col.unit'), m.unit, K.t('empty.unit'));
+    row(dlT, K.t('col.ifcType'), m.ifcTyp);
+    row(dlT, K.t('col.ifcPset'), m.ifcPset);
 
-    var werte = abschnitt(K.t('col.values') +
-      (m.liste && m.liste.anzahl ? ' (' + m.liste.anzahl + ')' : ''));
-    if (m.liste && m.liste.anzahl) {
-      werte.appendChild(K.e('p', 'kbob-values-list', m.liste.werte));
+    var values = section(K.t('col.values') +
+      (m.list && m.list.count ? ' (' + m.list.count + ')' : ''));
+    if (m.list && m.list.count) {
+      values.appendChild(K.e('p', 'app-values-list', m.list.values));
     } else {
-      werte.appendChild(K.e('p', '', K.t('detail.noValues')));
+      values.appendChild(K.e('p', '', K.t('detail.noValues')));
     }
 
-    if (K.state.allePhasen && K.state.allePhasen.length) {
-      var loin = abschnitt(K.t('detail.milestones'));
-      if (m.phasen.length) loin.appendChild(K.phasen(m.phasen, K.state.allePhasen));
+    if (K.state.allMilestones && K.state.allMilestones.length) {
+      var loin = section(K.t('detail.milestones'));
+      if (m.milestones.length) loin.appendChild(K.milestones(m.milestones, K.state.allMilestones));
       else loin.appendChild(K.e('p', '', K.t('detail.noMilestone')));
     }
   }
 
-  /* ---------- Ansicht ---------- */
+  /* ---------- View ---------- */
 
-  function setzeAnsicht(name) {
-    K.state.ansicht = name;
-    ansichtKnoepfe(name);
-    if (K.state.merkmal) K.state.merkmal = null;
-    /* fluechtig heisst fluechtig: die Hervorhebung uebersteht keinen
-       Ansichtswechsel — wie beim Zurueck-Knopf (ausUrl) */
-    K.state.hervor = null;
-    inUrl();
-    zeichne();
+  function setView(name) {
+    K.state.view = name;
+    updateViewButtons(name);
+    if (K.state.attribute) K.state.attribute = null;
+    /* transient means transient: the highlight does not survive a view
+       change — as with the back button (readUrl) */
+    K.state.highlighted = null;
+    writeUrl();
+    render();
   }
-  K.setzeAnsicht = setzeAnsicht;
+  K.setView = setView;
 
-  /* ---------- Excel-Export (XLSX, js/export.js) ---------- */
+  /* ---------- Excel export (XLSX, js/export.js) ---------- */
 
-  function speichereBlob(blob, name) {
+  function saveBlob(blob, name) {
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
     a.href = url;
@@ -1781,205 +1796,233 @@ var KBOB = window.KBOB || (window.KBOB = {});
     URL.revokeObjectURL(url);
   }
 
-  /* Arbeitsmappe mit drei Blättern: Objekttypen (eine Zeile je Objekttyp),
-     Merkmale (eine Zeile je Merkmal und Objekttyp) und Info (Quelle, Stand,
-     angewandte Filter). «Datentyp» ist der übersetzte Anzeigewert (Auswahl,
-     Ja/Nein …), «Datentyp (Katalog)» der Rohwert aus dem Graphen (STRING,
-     REAL …) — ein Integrator braucht beide. Wertetrennzeichen der Spalte
-     «Zulässige Werte» ist « · ». */
-  function objektBlattKopf() {
+  /* A workbook with three sheets: object types (one row per object type),
+     attributes (one row per attribute and object type) and info (source,
+     date, applied filters). «Datentyp» is the translated display value
+     (Auswahl, Ja/Nein …), «Datentyp (Katalog)» the raw value from the graph
+     (STRING, REAL …) — an integrator needs both. The value separator in the
+     «Zulässige Werte» column is « · ». */
+  function objectSheetHeader() {
     return [K.t('col.type'), K.t('col.description'), K.t('col.status'), K.t('col.catalog'),
             K.t('col.attrCount'), K.t('col.psets'), K.t('col.milestones'), K.t('col.typeUri')];
   }
-  var OBJEKT_BREITEN = [32, 70, 12, 30, 16, 44, 22, 56];
+  var OBJECT_WIDTHS = [32, 70, 12, 30, 16, 44, 22, 56];
 
-  function merkmalBlattKopf() {
+  function attributeSheetHeader() {
     return [K.t('col.type'), K.t('col.attr'), K.t('col.description'), K.t('col.pset'),
             K.t('col.datatype'), K.t('col.datatypeRaw'), K.t('col.unit'), K.t('col.values'),
             K.t('col.status'), K.t('col.ifcPset'), K.t('col.ifcType'), K.t('col.milestones'),
             K.t('col.attrUri')];
   }
-  var MERKMAL_BREITEN = [30, 30, 70, 24, 12, 17, 9, 56, 12, 24, 16, 22, 56];
+  var ATTRIBUTE_WIDTHS = [30, 30, 70, 24, 12, 17, 9, 56, 12, 24, 16, 22, 56];
 
-  function objektZeile(e) {
-    return [e.name, e.beschreibung, e.status, e.quelle, e.anzahl,
+  function objectRow(e) {
+    return [e.name, e.description, e.status, e.source, e.count,
             e.psets.map(function (p) { return p.name; }).join(' · '),
-            e.phasen.join(' '), e.uri];
+            e.milestones.join(' '), e.uri];
   }
 
-  function merkmalZeile(e, m) {
-    return [e.name, m.name, m.beschreibung, m.pset, m.typ, m.typRaw, m.einheit,
-            m.liste ? m.liste.werte : '', m.status, m.ifcPset, m.ifcTyp,
-            m.phasen.join(' '), m.uri];
+  function attributeRow(e, m) {
+    return [e.name, m.name, m.description, m.pset, m.type, m.typeRaw, m.unit,
+            m.list ? m.list.values : '', m.status, m.ifcPset, m.ifcTyp,
+            m.milestones.join(' '), m.uri];
   }
 
-  function infoBlatt(nObjekte, nMerkmale) {
+  function infoSheet(nObjekte, nMerkmale) {
     var st = K.state;
-    var v = verbindung();
-    var zeilen = [
+    var v = connection();
+    var rows = [
       [K.t('export.source'), K.t('export.sourceValue')],
       [K.t('connection.endpoint'), v.endpoint],
       [K.t('connection.graph'), v.graph],
-      [K.t('export.language'), v.sprache.toUpperCase()],
+      [K.t('export.language'), v.language.toUpperCase()],
       [K.t('export.date'), new Date().toLocaleDateString(K.locale())],
       [K.t('overview.title'), nObjekte],
       [K.t('col.attrs'), nMerkmale]
     ];
-    if (el.filter.value.trim()) zeilen.push([K.t('export.filterSearch'), el.filter.value.trim()]);
-    if (st.facetten.katalog.length) zeilen.push([K.t('export.filterCatalog'), st.facetten.katalog.join(', ')]);
-    if (st.facetten.status.length) zeilen.push([K.t('export.filterStatus'), st.facetten.status.join(', ')]);
-    if (st.facetten.phase.length) zeilen.push([K.t('export.filterMilestone'), st.facetten.phase.join(', ')]);
-    zeilen.push([K.t('export.app'), 'https://github.com/bbl-dres/kbob-data']);
-    return { name: K.t('export.sheetInfo'), kopf: [K.t('export.key'), K.t('export.value')],
-             zeilen: zeilen, breiten: [28, 70] };
+    if (el['search-input'].value.trim()) rows.push([K.t('export.filterSearch'), el['search-input'].value.trim()]);
+    if (st.facets.catalogue.length) rows.push([K.t('export.filterCatalog'), st.facets.catalogue.join(', ')]);
+    if (st.facets.status.length) rows.push([K.t('export.filterStatus'), st.facets.status.join(', ')]);
+    if (st.facets.milestone.length) rows.push([K.t('export.filterMilestone'), st.facets.milestone.join(', ')]);
+    rows.push([K.t('export.app'), 'https://github.com/bbl-dres/kbob-data']);
+    return { name: K.t('export.sheetInfo'), header: [K.t('export.key'), K.t('export.value')],
+             rows: rows, widths: [28, 70] };
   }
 
-  function speichereMappe(objekte, dateiname) {
+  function saveWorkbook(objects, fileName) {
     var st = K.state;
-    var merkmalZeilen = [];
-    var ohneWerte = false;
-    objekte.forEach(function (e) {
-      if (st.detailOhneWerte[e.uri]) ohneWerte = true;
-      var merkmale = (st.objekttyp === e.uri ? sichtbareMerkmale(e.uri) : st.detail[e.uri]) || [];
-      merkmale.forEach(function (m) { merkmalZeilen.push(merkmalZeile(e, m)); });
+    var attributeRows = [];
+    var withoutValues = false;
+    objects.forEach(function (e) {
+      if (st.detailWithoutValues[e.uri]) withoutValues = true;
+      var attributes = (st.objectType === e.uri ? visibleAttributes(e.uri) : st.detail[e.uri]) || [];
+      attributes.forEach(function (m) { attributeRows.push(attributeRow(e, m)); });
     });
 
-    speichereBlob(K.xlsxBlob([
-      { name: K.t('export.sheetTypes'), kopf: objektBlattKopf(), breiten: OBJEKT_BREITEN,
-        zeilen: objekte.map(objektZeile) },
-      { name: K.t('export.sheetAttrs'), kopf: merkmalBlattKopf(), breiten: MERKMAL_BREITEN,
-        zeilen: merkmalZeilen },
-      infoBlatt(objekte.length, merkmalZeilen.length)
-    ]), dateiname);
+    saveBlob(K.xlsxBlob([
+      { name: K.t('export.sheetTypes'), header: objectSheetHeader(), widths: OBJECT_WIDTHS,
+        rows: objects.map(objectRow) },
+      { name: K.t('export.sheetAttrs'), header: attributeSheetHeader(), widths: ATTRIBUTE_WIDTHS,
+        rows: attributeRows },
+      infoSheet(objects.length, attributeRows.length)
+    ]), fileName);
 
     setStatus(K.t('export.done', {
-                types: K.zahl(objekte.length) + ' ' +
-                       K.plural(objekte.length, K.t('unit.type'), K.t('unit.types')),
-                attrs: K.zahl(merkmalZeilen.length)
-              }) + (ohneWerte ? ' ' + K.t('export.doneNoValues') : ''),
-              ohneWerte);
+                types: K.formatNumber(objects.length) + ' ' +
+                       K.plural(objects.length, K.t('unit.type'), K.t('unit.types')),
+                attrs: K.formatNumber(attributeRows.length)
+              }) + (withoutValues ? ' ' + K.t('export.doneNoValues') : ''),
+              withoutValues);
   }
 
-  /* Ein Objekttyp: sofort aus dem Zwischenspeicher. Die ganze Auswahl: alle
-     Merkmale kommen in EINER Abfrage (K.holeAlleDetails) — ein Limit braucht
-     der Export darum nicht mehr. */
-  function exportiereExcel() {
+  /* An export takes up to a few seconds (one bulk query plus building the
+     XLSX). For that whole time the CD spinner arc turns INSIDE the button:
+     the feedback sits where the click happened, not only in the status line.
+     aria-busy is the single source for both the visuals and the spoken
+     state; the button stays disabled so a second click cannot start a
+     parallel export. */
+  function setExportBusy(busyState) {
+    el.xlsx.disabled = busyState;
+    if (busyState) el.xlsx.setAttribute('aria-busy', 'true');
+    else el.xlsx.removeAttribute('aria-busy');
+  }
+
+  /* Building the workbook is synchronous and blocks the frame. Deferring it
+     by one turn lets the browser paint the spinner first — otherwise the
+     button would only start turning after the work was already done. */
+  function saveWorkbookBusy(entries, fileName) {
+    setExportBusy(true);
+    setTimeout(function () {
+      try {
+        saveWorkbook(entries, fileName);
+      } catch (err) {
+        setStatus(K.t('export.abort', { err: errorText(err) }), true);
+      }
+      setExportBusy(false);
+    }, 0);
+  }
+
+  /* One object type: straight from the cache. The whole selection: every
+     attribute arrives in ONE query (K.fetchAllDetails) — which is why the
+     export no longer needs a limit. */
+  function exportExcel() {
     var st = K.state;
 
-    /* Auf der Objekttyp-Ebene wird genau dieser Objekttyp exportiert —
-       fehlt sein Detail noch, wird es erst geholt, statt still in den
-       Gesamtkatalog-Zweig zu fallen. */
-    if (st.objekttyp) {
-      var e = objekttypVon(st.objekttyp);
+    /* On the object-type level exactly that object type is exported — if its
+       detail is still missing it is fetched first, instead of quietly
+       falling into the whole-catalogue branch. */
+    if (st.objectType) {
+      var e = objectTypeByUri(st.objectType);
       if (!e) return;
       if (st.detail[e.uri]) {
-        speichereMappe([e], 'kbob-' + K.dateiname(e.name) + '.xlsx');
+        saveWorkbookBusy([e], 'kbob-' + K.fileName(e.name) + '.xlsx');
         return;
       }
-      el.csv.disabled = true;
+      setExportBusy(true);
       busy(true, K.t('loading.attrsOf', { name: e.name }));
-      var genTyp = st.generation;
-      K.holeDetail(verbindung(), e.uri).then(function () {
-        el.csv.disabled = false;
-        if (genTyp !== st.generation) return;
-        speichereMappe([e], 'kbob-' + K.dateiname(e.name) + '.xlsx');
+      var typeGen = st.generation;
+      K.fetchDetail(connection(), e.uri).then(function () {
+        if (typeGen !== st.generation) { setExportBusy(false); return; }
+        saveWorkbookBusy([e], 'kbob-' + K.fileName(e.name) + '.xlsx');
       }).catch(function (err) {
-        el.csv.disabled = false;
-        if (genTyp !== st.generation) return;
-        setStatus(K.t('export.abort', { err: fehlerText(err) }), true);
+        setExportBusy(false);
+        if (typeGen !== st.generation) return;
+        setStatus(K.t('export.abort', { err: errorText(err) }), true);
       });
       return;
     }
 
-    var auswahl = sichtbareObjekttypen();
-    if (!auswahl.length) {
+    var selection = visibleObjectTypes();
+    if (!selection.length) {
       setStatus(K.t('export.empty'), true);
       return;
     }
 
-    var fehlt = auswahl.some(function (e) { return !st.detail[e.uri]; });
-    if (!fehlt) {
-      speichereMappe(auswahl, 'kbob-' + K.dateiname('data-dictionary') + '.xlsx');
+    var missing = selection.some(function (e) { return !st.detail[e.uri]; });
+    if (!missing) {
+      saveWorkbookBusy(selection, 'kbob-' + K.fileName('data-dictionary') + '.xlsx');
       return;
     }
 
-    el.csv.disabled = true;
+    setExportBusy(true);
     busy(true, K.t('export.loading'));
     var gen = st.generation;
 
-    K.holeAlleDetails(verbindung()).then(function () {
-      el.csv.disabled = false;
+    K.fetchAllDetails(connection()).then(function () {
       if (gen !== st.generation) {
+        setExportBusy(false);
         setStatus(K.t('export.abortReload'), true);
         return;
       }
-      speichereMappe(auswahl, 'kbob-' + K.dateiname('data-dictionary') + '.xlsx');
+      saveWorkbookBusy(selection, 'kbob-' + K.fileName('data-dictionary') + '.xlsx');
     }).catch(function (err) {
-      el.csv.disabled = false;
+      setExportBusy(false);
       if (gen !== st.generation) return;
-      setStatus(K.t('export.abort', { err: fehlerText(err) }), true);
+      setStatus(K.t('export.abort', { err: errorText(err) }), true);
     });
   }
 
-  /* ---------- Abfragen zeigen ---------- */
+  /* ---------- Showing the queries ---------- */
 
-  function zeigeAbfrage(welche) {
-    ['uebersicht', 'detail', 'werte'].forEach(function (w) {
-      document.getElementById('tab-' + w).setAttribute('aria-pressed', String(w === welche));
+  function showQuery(which) {
+    ['overview', 'detail', 'values'].forEach(function (w) {
+      document.getElementById('tab-' + w).setAttribute('aria-pressed', String(w === which));
     });
-    var g = graphUri();
-    var l = K.state.sprache;
-    var beispiel = K.state.objekttyp ||
-                   (K.state.elemente.length ? K.state.elemente[0].uri : 'https://beispiel/klasse');
+    var g = namedGraphUri();
+    var l = K.state.language;
+    var beispiel = K.state.objectType ||
+                   (K.state.entries.length ? K.state.entries[0].uri : 'https://beispiel/classUri');
     document.getElementById('query-text').value =
-      welche === 'uebersicht' ? K.uebersichtQuery(g, l)
-      : welche === 'detail'   ? K.detailQuery(g, beispiel, l)
-      :                         K.werteQuery(g, l);
+      which === 'overview' ? K.overviewQuery(g, l)
+      : which === 'detail'   ? K.detailQuery(g, beispiel, l)
+      :                         K.valuesQuery(g, l);
   }
 
-  /* ---------- Verdrahtung ---------- */
+  /* ---------- Wiring ---------- */
 
-  function verdrahten() {
-    /* Frühe, benannte Diagnose statt spätem «Cannot read properties of null» */
+  function wire() {
+    /* An early, named diagnosis instead of a late «Cannot read properties of null» */
     Object.keys(el).forEach(function (id) {
       if (!el[id]) throw new Error('index.html: Element #' + id + ' fehlt');
     });
 
-    /* Der lokale Proxy gibt sein Abfrageziel per Marker mit — robuster als
-       ein Byte-Replace auf dem value-Attribut (siehe lindas-proxy.py). */
+    /* The local proxy passes its query target along as a marker — more
+       robust than a byte replacement on the value attribute (see
+       lindas-proxy.py). */
     if (window.KBOB_PROXY) el.endpoint.value = window.KBOB_PROXY;
 
-    el.neuladen.addEventListener('click', laden);
+    el.reload.addEventListener('click', load);
 
-    el.zurueck.addEventListener('click', function () {
-      if (K.state.merkmal) K.geheZuObjekttyp(K.state.objekttyp);
-      else K.geheZuUebersicht();
-    });
-
-    /* Sprachwahl betrifft die Katalogbeschriftungen: neue Sprache heisst
-       neue Abfragen — der Katalog wird neu geladen. */
-    el.sprache.addEventListener('change', function () {
-      K.state.sprache = el.sprache.value;
-      K.uebersetzeStatisch();
-      inUrl();
-      laden();
+    el.back.addEventListener('click', function () {
+      if (K.state.attribute) K.goToObjectType(K.state.objectType);
+      else K.goToOverview();
     });
 
-    ['liste', 'galerie', 'graph'].forEach(function (v) {
-      document.getElementById('v-' + v).addEventListener('click', function () { setzeAnsicht(v); });
+    /* The language choice affects the catalogue labels: a new language
+       means new queries — the catalogue is reloaded. */
+    el.language.addEventListener('change', function () {
+      K.state.language = el.language.value;
+      K.translateStatic();
+      writeUrl();
+      load();
     });
 
-    el.verbindung.addEventListener('click', function () {
-      zeigeAbfrage('uebersicht');
-      dlgVerbindung.showModal();
+    ['list', 'gallery', 'graph'].forEach(function (v) {
+      document.getElementById('v-' + v).addEventListener('click', function () { setView(v); });
     });
-    ['uebersicht', 'detail', 'werte'].forEach(function (w) {
-      document.getElementById('tab-' + w).addEventListener('click', function () { zeigeAbfrage(w); });
+
+    el.connection.addEventListener('click', function () {
+      showQuery('overview');
+      dlgConnection.showModal();
     });
-    document.getElementById('close-verbindung')
-      .addEventListener('click', function () { dlgVerbindung.close(); });
-    /* Erfolg nur melden, wenn wirklich kopiert wurde — und im Dialog selbst:
-       die Statuszeile im Kopf ist bei offenem Modal inert und unsichtbar. */
+    ['overview', 'detail', 'values'].forEach(function (w) {
+      document.getElementById('tab-' + w).addEventListener('click', function () { showQuery(w); });
+    });
+    document.getElementById('close-connection')
+      .addEventListener('click', function () { dlgConnection.close(); });
+    /* Only report success if something was really copied — and inside the
+       dialog itself: with a modal open the status line in the header is
+       inert and invisible. */
     document.getElementById('copy-query').addEventListener('click', function () {
       var ta = document.getElementById('query-text');
       function ok() {
@@ -1999,57 +2042,57 @@ var KBOB = window.KBOB || (window.KBOB = {});
       }
     });
 
-    el.barrierefreiheit.addEventListener('click', function () { dlgA11y.showModal(); });
+    el['accessibility-statement'].addEventListener('click', function () { dlgA11y.showModal(); });
     document.getElementById('close-a11y')
       .addEventListener('click', function () { dlgA11y.close(); });
 
-    el.csv.addEventListener('click', exportiereExcel);
+    el.xlsx.addEventListener('click', exportExcel);
 
-    /* Entprellt: im Netz kostet ein Neuaufbau bis zu 200 ms.
-       Wie bei den Facetten: Seite und Hervorhebung zurücksetzen —
-       und die History nicht mit Tippfragmenten fluten (replaceState). */
-    var sucheTimer = null;
-    el.filter.addEventListener('input', function () {
-      clearTimeout(sucheTimer);
-      sucheTimer = setTimeout(function () {
-        K.state.seite = 1;
-        K.state.hervor = null;
-        inUrl(true);
-        zeichne();
-      }, K.SUCH_DEBOUNCE_MS);
+    /* Debounced: in the network a rebuild costs up to 200 ms. As with the
+       facets: reset the page and the highlight — and do not flood the
+       history with typing fragments (replaceState). */
+    var searchTimer = null;
+    el['search-input'].addEventListener('input', function () {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () {
+        K.state.page = 1;
+        K.state.highlighted = null;
+        writeUrl(true);
+        render();
+      }, K.SEARCH_DEBOUNCE_MS);
     });
 
-    /* Loesch-Knopf im Suchfeld: leert sofort, Fokus bleibt im Feld */
-    document.getElementById('filter-leeren').addEventListener('click', function () {
-      el.filter.value = '';
-      clearTimeout(sucheTimer);
-      K.state.seite = 1;
-      K.state.hervor = null;
-      inUrl(true);
-      zeichne();
-      el.filter.focus();
+    /* Clear button in the search field: clears at once, focus stays in the field */
+    document.getElementById('search-clear').addEventListener('click', function () {
+      el['search-input'].value = '';
+      clearTimeout(searchTimer);
+      K.state.page = 1;
+      K.state.highlighted = null;
+      writeUrl(true);
+      render();
+      el['search-input'].focus();
     });
 
-    /* Klick ausserhalb schliesst offene Facetten-Menüs — focusout allein
-       trägt nicht (Safari/Firefox fokussieren angeklickte Checkboxen nicht). */
+    /* A click outside closes open facet menus — focusout alone does not
+       carry (Safari/Firefox do not focus clicked checkboxes). */
     document.addEventListener('pointerdown', function (ev) {
-      Array.prototype.forEach.call(el.facetten.querySelectorAll('.kbob-facet-menu'), function (menu) {
+      Array.prototype.forEach.call(el.facets.querySelectorAll('.app-facet-menu'), function (menu) {
         if (menu.hidden) return;
         var box = menu.parentNode;
         if (!box.contains(ev.target)) {
           menu.hidden = true;
-          box.querySelector('.kbob-facet-toggle').setAttribute('aria-expanded', 'false');
+          box.querySelector('.app-facet-toggle').setAttribute('aria-expanded', 'false');
         }
       });
     });
 
     window.addEventListener('popstate', function () {
-      if (!ausUrl()) zeichne();   // bei Sprachwechsel zeichnet laden() selbst
+      if (!readUrl()) render();   // bei Sprachwechsel zeichnet load() selbst
     });
 
-    /* Oblique-Layoutzustand: oberhalb 905px expanded (grosses Logo,
-       Kopf einzeilig), darunter collapsed + mobile Token-Dichte —
-       dieselbe Schwelle wie im ob-master-layout. */
+    /* Oblique layout state: above 905px expanded (large logo, single-row
+       header), below it collapsed + the mobile token density — the same
+       threshold as in ob-master-layout. */
     var mq = window.matchMedia('(min-width: 905px)');
     function layoutKlassen() {
       var breit = mq.matches;
@@ -2061,51 +2104,51 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (mq.addEventListener) mq.addEventListener('change', layoutKlassen);
     else if (mq.addListener) mq.addListener(layoutKlassen);
 
-    /* Die Kopfzeile klebt — die Tabellenköpfe müssen wissen, wie hoch sie ist */
-    var kopf = document.querySelector('.ob-master-layout-header');
-    function messeKopf() {
-      document.documentElement.style.setProperty('--kopf-gesamt', kopf.offsetHeight + 'px');
+    /* The header sticks — the table headers need to know how tall it is */
+    var head = document.querySelector('.ob-master-layout-header');
+    function measureHeader() {
+      document.documentElement.style.setProperty('--app-header-height', head.offsetHeight + 'px');
     }
-    messeKopf();
+    measureHeader();
     if (window.ResizeObserver) {
-      var beobachter = new ResizeObserver(messeKopf);
-      beobachter.observe(kopf);
+      var observer = new ResizeObserver(measureHeader);
+      observer.observe(head);
     } else {
-      window.addEventListener('resize', messeKopf);
+      window.addEventListener('resize', measureHeader);
     }
 
-    /* Zum-Seitenanfang-Reiter: erscheint nach einer halben Fensterhöhe */
-    var nachOben = document.getElementById('nach-oben');
+    /* Back-to-top tab: appears after half a window height */
+    var toTop = document.getElementById('to-top');
     window.addEventListener('scroll', function () {
-      nachOben.hidden = window.scrollY < window.innerHeight / 2;
+      toTop.hidden = window.scrollY < window.innerHeight / 2;
     }, { passive: true });
-    nachOben.addEventListener('click', function () {
+    toTop.addEventListener('click', function () {
       var ruhig = window.matchMedia &&
                   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       window.scrollTo({ top: 0, behavior: ruhig ? 'auto' : 'smooth' });
-      el.titel.focus();
+      el['page-title'].focus();
     });
 
-    /* Graph-Hooks: Klick auf freie Flaeche schliesst das Panel; Escape
-       schliesst Panel oder hebt die Hervorhebung auf. */
-    K.graphHintergrund = function () { schliesseGraphPanel(false); };
-    K.graphEscape = function () {
-      if (!el['graph-panel'].hidden) { schliesseGraphPanel(true); return true; }
-      if (K.state.hervor && !K.state.objekttyp) { hebeNetzHervorAuf(); return true; }
+    /* Graph hooks: a click on empty space closes the panel; Escape closes
+       the panel or clears the highlight. */
+    K.onGraphBackground = function () { closeGraphPanel(false); };
+    K.onGraphEscape = function () {
+      if (!el['graph-panel'].hidden) { closeGraphPanel(true); return true; }
+      if (K.state.highlighted && !K.state.objectType) { clearNetworkHighlight(); return true; }
       return false;
     };
 
-    K.grafikSteuerung();
+    K.graphControls();
 
-    /* Die Sprache muss vor dem ersten Laden aus der URL kommen —
-       sie bestimmt bereits die Übersichtsabfrage. */
+    /* The language has to come from the URL before the first load — it
+       already determines the overview query. */
     var l = /[#&]l=(de|fr|it|en)(&|$)/.exec(location.hash);
-    if (l) { K.state.sprache = l[1]; el.sprache.value = l[1]; }
+    if (l) { K.state.language = l[1]; el.language.value = l[1]; }
 
-    /* Statische Beschriftungen, sobald das Wörterbuch da ist */
-    K.i18nBereit.then(K.uebersetzeStatisch);
+    /* Static labels as soon as the dictionary has arrived */
+    K.i18nReady.then(K.translateStatic);
   }
 
-  verdrahten();
-  laden();      // ohne Klick: der Katalog ist beim Öffnen schon da
+  wire();
+  load();      // without a click: the catalogue is already there when it opens
 })(KBOB);

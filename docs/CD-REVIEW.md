@@ -164,3 +164,91 @@ Umgesetzt:
 
 Der P1 des Laufs («Overlay-/Panel-/Skip-Selektoren tot») war der halbfertige
 Graph-Umbau im Prüfmoment; mit dessen Abschluss gegenstandslos.
+
+---
+
+## 10. Politur-, Konsistenz- und Benennungsrunde (01.09.2026)
+
+Eigener Durchgang: Design-Review am laufenden Browser (Desktop 1440,
+Tablet 834, Telefon 390; alle Ansichten, beide Dialoge, Export), Abgleich
+der App-Bauteile gegen den echten Oblique-Quellcode und eine vollständige
+Vereinheitlichung der Benennung.
+
+### 10.1 Oblique-Komponenten übernommen, die die App nachgebaut hatte
+
+Der Abgleich gegen `projects/oblique/src` förderte drei Bauteile zutage,
+für die Oblique bereits eine Klasse führt:
+
+| bisher | jetzt | Quelle |
+|---|---|---|
+| `kbob-search` / `kbob-search-clear` | `ob-text-control` / `ob-text-control-clear` (+ Zustandsklasse `ob-text-control-clear-has-value`) | `core/components/_text-control.scss`, `lib/input-clear` |
+| `kbob-card-button` | `ob-button-card` | `material/_mat-card.scss` |
+| `button.ob-top-control` | `div.ob-top-control > button.ob-top-control-btn` | `lib/scrolling/top-control.component` |
+
+Der Nutzen ist nicht kosmetisch: sobald das Design System eigenes CSS für
+diese Bauteile liefert (§7 in OBLIQUE.md), fällt es auf das bestehende
+Markup, statt daneben zu liegen.
+
+### 10.2 Benennung: `kbob-*` → `app-*`, Zustandsklassen ins CD-Vokabular
+
+Begründung und vollständige Konvention: OBLIQUE.md §3, «Namenskonvention».
+Kurz: ein Präfix ist nötig (eine globale Kaskade unter 2528 Token), aber es
+muss die *Schicht* benennen, nicht das *Produkt* — und `app` ist Obliques
+eigenes Anwendungspräfix (CLI `ng new`, `prefix.defaultValue = "app"`).
+98 Klassen umbenannt, darunter der interne SVG-Namensraum `g-*` →
+`app-graph-*`. Neun nackte globale Zustandsklassen (`.an`, `.aus`, `.on`,
+`.klick`, `.aktiv`, `.rund`, `.eintrag`, `.dragging`, `.error`) sind zu
+`ob-active` beziehungsweise `app-is-*`/`app-*-*` geworden.
+
+### 10.3 Befunde aus dem visuellen Durchgang — umgesetzt
+
+| Befund | Fix |
+|---|---|
+| **Werkzeugleiste auf drei Höhen**: Suchfeld und Facetten-Trigger 40 px, Ansichts-Umschalter 30 px — in einer Zeile sichtbar versetzt | Umschalter auf 40 px |
+| **Suchfeld schnitt seinen eigenen Platzhalter ab** («Objekttyp oder Beschrei…») bei 341 px ungenutztem Raum rechts daneben | `flex: 1 1 240px`, `max-width: 420px` |
+| **Facetten-Menü gruppierte falsch**: bei mehrzeiligen Katalognamen (24 px Zeilenabstand) standen die Optionen nur 20 px auseinander, das Kästchen sass mittig zwischen zwei Zeilen | Kästchen an der ersten Zeile (`align-items: flex-start`, `margin-top: 2px`), Zeilenabstand 1.3, Options-Gap 8 px |
+| **Galerie**: die Reifegrad-Marke folgte der unterschiedlich langen Beschreibung und stand je Karte auf anderer Höhe | `margin-top: auto` auf `.app-tags` — die Marken einer Kartenzeile stehen auf einer Linie |
+| **Graph-Panel verdeckte die Legende** (Panel `right: 0; bottom: 0`, Legende in voller Breite darunter) | `:has()`-Einzug der Legende um die Panelbreite |
+| **`Pset_ManufacturerTypeInformation` brach mitten im Wort** in der Property-Set-Spalte | `K.breakable()` setzt ein `<wbr>` hinter jeden Unterstrich — sichtbar identisch, kopiert unverändert |
+| **Kopfzeile belegte unter md drei Vollbreiten-Zeilen** (~110 px auf 390 px) | Ikone statt Wort in der Service-Navigation; der Name bleibt als `aria-label` und Tooltip |
+| **Excel-Export ohne Rückmeldung am Knopf** (nur Statuszeile) | CD-Spinnerbogen im Knopf, gesteuert über `aria-busy`; der Bogen deckt auch den synchronen XLSX-Bau ab (`setTimeout 0`, damit der Browser ihn vor der Arbeit zeichnet) |
+| **Fehlermeldung «Die Antwort ist kein SPARQL-Ergebnis» hart deutsch** — erschien auch in der französischen Oberfläche | i18n-Schlüssel `errors.notSparql`, vier Sprachen |
+
+### 10.4 Ansichts-Umschalter: Ikone je Wahl, Wort auf der aktiven
+
+`list` / `grid` / `share` aus dem Oblique-Sprite. Der zugängliche Name
+bleibt auf allen drei vollständig (`aria-label` = das sichtbare Wort, WCAG
+2.5.3 «Label in Name» erfüllt, weil sichtbarer Text und Name identisch
+sind, wo beide da sind). Der Umschalter schrumpft von 214 px auf 184 px und
+belegt unter md keine eigene Vollbreiten-Zeile mehr.
+
+### 10.5 Codesprache: durchgehend Englisch
+
+Bezeichner, Kommentare, HTML-IDs, CSS-Klassen und **die Kommentare der
+SPARQL-Beispielabfragen** (im Dialog «Verbindung und Abfrage» für alle vier
+Sprachgruppen sichtbar) sind Englisch. Die *Oberflächen*texte bleiben
+mehrsprachig in `data/i18n.json`; die deutschsprachige Projektdokumentation
+unter `docs/` bleibt Deutsch. Ein Test bewacht die Abfrage-Kommentare
+(`overviewQuery: comments are English`).
+
+Beim Umbau gefundene und behobene Fehler: drei ID-Kollisionen mit dem
+injizierten Icon-Sprite (`search`, `fullscreen`, `accessibility` sind auch
+Icon-Namen — die Knöpfe heissen jetzt `search-input`, `graph-fullscreen`,
+`accessibility-statement`).
+
+### 10.6 Fusszeile
+
+`Rechtliches` ergänzt (i18n-Schlüssel `footer.legal`, URL je Sprache als
+`footer.legalUrl` über das neue `data-i18n-href`). Die deutsche URL ist
+gesetzt; **die Pfade für fr/it/en sind von der Betreiberin zu bestätigen**
+und stehen einstweilen auf der deutschen Seite. Die Erklärung zur
+Barrierefreiheit bleibt als Dialog und verweist neu auf «Barrierefreiheit
+in der Bundesverwaltung» (BBL), wie es die Oblique-Vorlage vorsieht.
+
+### 10.7 Beobachtung, nicht umgesetzt
+
+Die Brotkrume steht auf der Übersicht mit einem einzigen, nicht
+verlinkten Element («Objekttypen») unmittelbar über der gleichlautenden
+H1 — eine Krume mit einem Element trägt keine Information. Der Code hält
+das ausdrücklich als redaktionellen Entscheid fest («stabiler Ankerpunkt»);
+darum als Beobachtung notiert statt still geändert.

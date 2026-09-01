@@ -1,17 +1,20 @@
-/* kbob-data — Komponenten- und App-Stile auf Basis des Oblique-Designsystems.
+/* kbob-data — component and application styles on top of the Oblique design system.
 
-   Quellen (lokaler Checkout, Version 15.4.4; Belege in docs/OBLIQUE.md):
+   Sources (local checkout, version 15.4.4; evidence in docs/OBLIQUE.md):
    - @oblique/design-system: fonts.css, reset.css, text/(heading|paragraph|link).css — verbatim
-   - @oblique/oblique (SCSS): Master-Layout, ob-table, ob-alert, ob-chip, Breadcrumb,
-     Spinner, Paginator, Dialog, Tooltip, Card, External-Link — Werte 1:1 aufgeloest
-   Lizenz der uebernommenen Teile: MIT, Copyright (c) 2020-2026
-   The Swiss Confederation (FOITT). Abweichungen: docs/OBLIQUE.md §5.
+   - @oblique/oblique (SCSS): master layout, ob-table, ob-alert, ob-chip, breadcrumb,
+     spinner, paginator, dialog, tooltip, card, external link — values resolved 1:1
+   Licence of the adopted parts: MIT, Copyright (c) 2020-2026
+   The Swiss Confederation (FOITT). Deviations: docs/OBLIQUE.md §5.
 
-   Reihenfolge = Kaskade (statt @layer, Abweichung C7):
-   1 Fonts · 2 Reset/Basis · 3 Text · 4 Fokus/Utilities · 5 Master-Layout
-   6 Brotkrume · 7 Knoepfe · 8 Formulare · 9 Tabelle · 10 Chips · 11 Alerts
-   12 Spinner · 13 Blaettern · 14 Dialog · 15 Karten · 16 Tooltip
-   17 kbob-App-Bauteile · 18 Graph · 19 Print · 20 Kontrastmodus/Motion */
+   Two class layers: ob-* is Oblique verbatim, app-* is this application's own
+   furniture — never ob-*, and built only from --ob-* tokens.
+
+   Order = cascade (instead of @layer, deviation C7):
+   1 fonts · 2 reset/base · 3 text · 4 focus/utilities · 5 master layout
+   6 breadcrumb · 7 buttons · 8 forms · 9 table · 10 chips · 11 alerts
+   12 spinner · 13 paginator · 14 dialog · 15 cards · 16 tooltip
+   17 app components · 18 graph · 19 print · 20 forced colours/motion */
 
 /* ========== 1 Fonts (DS fonts.css, Pfade angepasst) ========== */
 
@@ -43,15 +46,15 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* ========== 2 Reset und Basis (DS reset.css + Kern-Normalisierung) ========== */
+/* ========== 2 Reset and base (DS reset.css + core normalisation) ========== */
 
 html { box-sizing: border-box; line-height: 1.5; -webkit-text-size-adjust: 100%; }
 *, *::before, *::after { box-sizing: inherit; }
 
 body {
   font-family: var(--ob-s-static-font_family-body);
-  /* Abweichung A1: weisser Grund statt DS-Reset-Grau — die Legacy-Komponenten
-     (Zebra-Tabelle, weisser Kopf, Karten) setzen Weiss voraus. */
+  /* Deviation A1: white ground instead of the DS reset grey — the legacy
+     components (zebra table, white header, cards) assume white. */
   background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   margin: 0;
@@ -60,14 +63,14 @@ body {
   word-break: break-word;
 }
 
-/* Eigene display-Regeln haben mehr Gewicht als das [hidden] des Browsers. */
+/* Our own display rules outweigh the browser's [hidden]. */
 [hidden] { display: none !important; }
 [tabindex="-1"]:focus { outline: 0 !important; }
 
 img { vertical-align: middle; max-width: 100%; }
 b, strong { font-weight: 700; }
 small { font-size: 0.875em; }
-code, .kbob-mono { font-family: var(--ob-s-static-font_family-code); font-size: 0.875em; }
+code, .app-mono { font-family: var(--ob-s-static-font_family-code); font-size: 0.875em; }
 
 fieldset { min-width: 0; padding: 0; margin: 0; border: 0; }
 input, button, select, optgroup, textarea { margin: 0; font-family: inherit; font-size: inherit; line-height: inherit; }
@@ -136,8 +139,8 @@ a:visited { color: var(--ob-h-link-color-visited); }
 
 /* ========== 4 Fokus, Screenreader, Icons ========== */
 
-/* App-weit der DS-Fokusring (Abweichung B2: statt Legacy-box-shadow);
-   Offset md = 3px wie bei den DS-Knöpfen */
+/* The DS focus ring app-wide (deviation B2: instead of the legacy
+   box-shadow); offset md = 3px, as on the DS buttons */
 :focus-visible {
   outline: var(--ob-s-border-focus_ring-inversity_normal-width)
            var(--ob-s-border-focus_ring-inversity_normal-style)
@@ -150,7 +153,7 @@ a:visited { color: var(--ob-h-link-color-visited); }
   clip-path: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 
-/* Icons aus dem injizierten Sprite (Vanilla-Entsprechung von mat-icon) */
+/* Icons from the injected sprite (the vanilla equivalent of mat-icon) */
 .ob-icon {
   display: inline-block;
   width: 1em; height: 1em;
@@ -158,7 +161,7 @@ a:visited { color: var(--ob-h-link-color-visited); }
   flex-shrink: 0;
 }
 
-/* ========== 5 Master-Layout: Access-Keys, Kopf, Sprachwahl, Fusszeile ========== */
+/* ========== 5 Master layout: access keys, header, language, footer ========== */
 
 /* Skip-Link als Oblique-Access-Key (oranges Band) */
 .ob-access-keys {
@@ -187,13 +190,13 @@ a:visited { color: var(--ob-h-link-color-visited); }
   opacity: 1; clip-path: none; white-space: normal;
 }
 
-/* Kopfzeile — Abweichung C1: position sticky statt 100dvh-Viewport-Konstrukt */
+/* Header — deviation C1: position sticky instead of the 100dvh viewport construct */
 .ob-master-layout-header {
   position: sticky; top: 0;
   display: flex; flex-direction: column;
   background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
   z-index: 101;
-  /* ob-no-navigation: der Kopf schliesst mit einer 1px-Linie ab */
+  /* ob-no-navigation: the header closes with a 1px rule */
   border-bottom: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
 }
 .ob-header { position: relative; width: 100%; background-color: inherit; }
@@ -235,12 +238,12 @@ a:visited { color: var(--ob-h-link-color-visited); }
 .ob-service-navigation { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; padding: 12px 16px; }
 .ob-service-navigation-list { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
 
-/* Sprachwahl: natives select als randlose ob-select-Variante (Abweichung C2);
-   das Chevron kommt einmalig von select.ob-select (Abschnitt 8) */
+/* Language choice: a native select as the borderless ob-select variant
+   (deviation C2); the chevron comes once from select.ob-select (section 8) */
 
-/* Inhalt. Body und Wrapper füllen den Viewport als Flex-Spalte, der
-   Inhaltsbereich dehnt sich — so steht der Fussbalken auch bei kurzem
-   Inhalt (Ladezustand) unten statt mitten im Fenster. */
+/* Content. Body and wrapper fill the viewport as a flex column and the
+   content area stretches — so the footer bar sits at the bottom even with
+   short content (loading state) instead of mid-window. */
 body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
 .ob-master-layout-wrapper { display: flex; flex-direction: column; flex: 1 0 auto; }
 .ob-master-layout-wrapper > .ob-master-layout-footer { margin-top: auto; }
@@ -251,8 +254,8 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
   .ob-layout-expanded.ob-has-max-width .ob-main-layout { width: 1440px; margin: 0 auto; }
 }
 
-/* Fusszeile: dunkler Balken (master-layout-footer) — eine Zeile:
-   Links links, Quellcode-Hinweis rechts (statt CD-Grid 1fr/1fr) */
+/* Footer: dark bar (master-layout-footer) — a single row: links on the
+   left, source-code note on the right (instead of the CD grid 1fr/1fr) */
 .ob-master-layout-footer > footer {
   position: relative; display: flex; align-items: center;
   justify-content: space-between;
@@ -280,8 +283,9 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
 .ob-master-layout-footer :focus-visible {
   outline-color: var(--ob-s-border-focus_ring-inversity_flipped-color);
 }
-/* Zum-Seitenanfang-Reiter (ob-top-control des Master-Layouts) */
-.ob-top-control {
+/* The master layout's back-to-top tab: .ob-top-control is the host, the
+   button carries .ob-top-control-btn (scrolling/top-control) */
+.ob-top-control-btn {
   position: fixed; right: 16px; bottom: 16px; z-index: 90;
   width: 40px; height: 40px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -290,101 +294,117 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
   border: 0; border-radius: var(--ob-s-border_radius-md);
   cursor: pointer;
 }
-.ob-top-control:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_flipped); }
-.ob-top-control .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
+.ob-top-control-btn:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_flipped); }
+.ob-top-control-btn .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
 
 .ob-layout-collapsed .ob-master-layout-footer > footer { display: flex; flex-direction: column; align-items: flex-start; padding: 24px; }
 .ob-layout-collapsed .ob-footer-item-links { flex-direction: column; gap: 12px; }
 .ob-layout-collapsed .ob-footer-item a, .ob-layout-collapsed .ob-footer-item button { padding: 4px 0; }
 
-/* Zusammengeklapptes Layout (unter md): der Kopf klebt nicht — die
-   dauerhaft sichtbare Service-Navigation wuerde sonst einen Viertel des
-   Telefon-Viewports besetzen (Abweichung, docs/OBLIQUE.md §5). Die
-   Trennlinie unter der Markenzeile entspricht dem CD. */
+/* Collapsed layout (below md): the header does not stick — the always
+   visible service navigation would otherwise occupy a quarter of a phone
+   viewport (deviation, docs/OBLIQUE.md §5). The rule under the brand row
+   follows the CD. */
 .ob-layout-collapsed .ob-master-layout-header { position: static; }
 .ob-layout-collapsed .ob-master-layout-header-title {
   border-bottom: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
 }
 
-/* Service-Navigation gestapelt in vollen Zeilen (CD-Muster fuer
-   sichtbare Controls auf schmalen Viewports); Sprache rechts darunter */
+/* Above md the header buttons carry their wording, not the icon */
+.app-button-icon { display: none; }
+
+/* Working button: the CD spinner arc takes the place of the icon (below
+   md) or sits before the label (above). The state hangs off aria-busy so
+   that the visuals and the spoken state share one source. */
+.app-button-spinner { display: none; flex: none; }
+.ob-button[aria-busy="true"] .app-button-spinner { display: block; animation: ob-spin 1.2s infinite linear; stroke-dashoffset: 55; stroke-dasharray: 64 150; }
+.ob-button[aria-busy="true"] .app-button-icon { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ob-button[aria-busy="true"] .app-button-spinner { animation-duration: 3s; }
+}
+
+/* Service navigation below md: icon instead of wording. The three stacked
+   full-width rows (connection, export, language) became one — about 100px
+   of content reclaimed on a 390px phone. The name stays complete as the
+   aria-label and as the tooltip. */
 .ob-layout-collapsed .ob-service-navigation { padding-bottom: 8px; }
-.ob-layout-collapsed .ob-service-navigation-list { width: 100%; }
-.ob-layout-collapsed .ob-service-navigation-custom-control,
-.ob-layout-collapsed .ob-service-navigation-custom-control .ob-button { width: 100%; }
-.ob-layout-collapsed .ob-language-dropdown { margin-left: auto; }
+.ob-layout-collapsed .ob-service-navigation-list { width: 100%; justify-content: flex-end; gap: 8px; }
+.ob-layout-collapsed .app-button-icon { display: block; }
+.ob-layout-collapsed .app-button-label { display: none; }
+.ob-layout-collapsed .ob-service-navigation-custom-control .ob-button { padding-inline: 12px; }
+.ob-layout-collapsed .ob-language-dropdown { margin-left: 0; }
 
 /* Werkzeugleiste als saubere Spalte */
-.ob-layout-collapsed .kbob-toolbar .kbob-search { width: 100%; }
-.ob-layout-collapsed .kbob-field, .ob-layout-collapsed .kbob-facet,
-.ob-layout-collapsed .kbob-facet-toggle { width: 100%; }
-.ob-layout-collapsed .kbob-facet-menu { min-width: 100%; }
-.ob-layout-collapsed .kbob-toolbar-right { margin-left: 0; width: 100%; justify-content: space-between; }
+.ob-layout-collapsed .app-toolbar .ob-text-control { width: 100%; }
+.ob-layout-collapsed .app-field, .ob-layout-collapsed .app-facet,
+.ob-layout-collapsed .app-facet-toggle { width: 100%; }
+.ob-layout-collapsed .app-facet-menu { min-width: 100%; }
+.ob-layout-collapsed .app-toolbar-end { margin-left: 0; width: 100%; justify-content: space-between; }
 
-/* Ansichts-Umschalter: drei gleiche Segmente in voller Breite,
-   im Rhythmus der Spalte darueber */
-.ob-layout-collapsed .kbob-view-switch { display: flex; width: 100%; }
-.ob-layout-collapsed .kbob-view-switch .ob-button { flex: 1 1 0; }
+/* The view switch stays compact here too (an icon per choice, the wording
+   on the active one) and closes the toolbar column instead of taking a
+   full-width row of its own. */
+.ob-layout-collapsed .app-view-switch { display: inline-flex; width: auto; }
 
-/* Blaettern: drei ruhige, zentrierte Zeilen statt dreier Ausrichtungen */
-.ob-layout-collapsed .kbob-paginator { flex-direction: column; align-items: center; gap: 12px; }
-.ob-layout-collapsed .kbob-paginator-range,
-.ob-layout-collapsed .kbob-paginator-size { flex: none; width: auto; justify-content: center; }
+/* Paginator: three calm, centred rows instead of three alignments */
+.ob-layout-collapsed .app-paginator { flex-direction: column; align-items: center; gap: 12px; }
+.ob-layout-collapsed .app-paginator-range,
+.ob-layout-collapsed .app-paginator-size { flex: none; width: auto; justify-content: center; }
 
-/* Graph: Steuerung als Zeile statt 216px-Saeule; Skip-Fokus darunter;
-   Legende kompakt (die Encoding-Notiz weicht dem knappen Platz —
-   die abwaehlbare Hervorhebungs-Chipzeile bleibt) */
-.ob-layout-collapsed .kbob-graph-overlay { flex-direction: row; top: 8px; left: 8px; }
-.ob-layout-collapsed .kbob-graph-skip:focus { top: 64px; left: 8px; }
-.ob-layout-collapsed .kbob-legend { padding: 8px 12px; gap: 4px 12px; }
-.ob-layout-collapsed .kbob-legend-note { display: none; }
+/* Graph: controls as a row instead of a 216px column; skip focus below;
+   compact legend (the encoding note yields to the tight space — the
+   dismissable highlight chip row stays) */
+.ob-layout-collapsed .app-graph-controls { flex-direction: row; top: 8px; left: 8px; }
+.ob-layout-collapsed .app-graph-skip:focus { top: 64px; left: 8px; }
+.ob-layout-collapsed .app-legend { padding: 8px 12px; gap: 4px 12px; }
+.ob-layout-collapsed .app-legend-note { display: none; }
 
-/* Facetten-Menu im Fluss statt schwebend — kein Seitenscroll, kein
-   Scrollbereich im Scrollbereich */
-.ob-layout-collapsed .kbob-facet-menu {
+/* Facet menu in flow instead of floating — no page scroll, no scroll
+   area inside a scroll area */
+.ob-layout-collapsed .app-facet-menu {
   position: static; max-width: none; max-height: none;
   box-shadow: none;
   border: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
 }
 
-/* Beruehrziele: der mobile Token (48px) gilt als GROESSE, nicht nur als
-   Hoehe — Icon-Knoepfe wuerden sonst zu 38x48-Ovalen; und er erreicht
-   auch die eigenstaendigen Bedienelemente ausserhalb von .ob-button. */
+/* Touch targets: the mobile token (48px) counts as a SIZE, not only as a
+   height — icon buttons would otherwise become 38x48 ovals; and it reaches
+   the standalone controls outside .ob-button too. */
 .ob-viewport-mobile .ob-button,
-.ob-viewport-mobile .kbob-paginator-button {
+.ob-viewport-mobile .app-paginator-button {
   min-height: var(--ob-h-button-touch_target-min_size, 48px);
 }
 .ob-viewport-mobile .ob-button.ob-icon-button,
-.ob-viewport-mobile .kbob-paginator-button {
+.ob-viewport-mobile .app-paginator-button {
   min-width: var(--ob-h-button-touch_target-min_size, 48px);
 }
-.ob-viewport-mobile .kbob-graph-panel-close {
+.ob-viewport-mobile .app-graph-panel-close {
   width: var(--ob-h-button-touch_target-min_size, 48px);
   height: var(--ob-h-button-touch_target-min_size, 48px);
 }
-/* 40 ist die Obergrenze im 40px-Suchfeld */
-.ob-viewport-mobile .kbob-search-clear { width: 40px; height: 40px; right: 0; }
-.ob-viewport-mobile .ob-top-control {
+/* 40 is the ceiling inside the 40px search field */
+.ob-viewport-mobile .ob-text-control-clear { width: 40px; height: 40px; right: 0; }
+.ob-viewport-mobile .ob-top-control-btn {
   width: var(--ob-h-button-touch_target-min_size, 48px);
   height: var(--ob-h-button-touch_target-min_size, 48px);
 }
 .ob-viewport-mobile select.ob-select-borderless {
   height: auto; min-height: var(--ob-h-button-touch_target-min_size, 48px);
 }
-.ob-viewport-mobile .kbob-paginator-size select.ob-select {
+.ob-viewport-mobile .app-paginator-size select.ob-select {
   height: var(--ob-h-button-touch_target-min_size, 48px);
 }
 .ob-viewport-mobile .ob-chip { min-height: 40px; border-radius: 20px; }
-.ob-viewport-mobile .kbob-legend button { min-height: 32px; }
-/* Krume und Sortierkoepfe: Trefferhoehe wachsen lassen, Optik unveraendert */
+.ob-viewport-mobile .app-legend button { min-height: 32px; }
+/* Breadcrumb and sort headers: grow the hit height, leave the look alone */
 .ob-viewport-mobile button.ob-breadcrumb-label,
-.ob-viewport-mobile .kbob-sort { padding-top: 8px; padding-bottom: 8px; margin-top: -8px; margin-bottom: -8px; }
-/* Auf Touch gibt es kein Hover: der Sortierpfeil ist immer angedeutet */
-.ob-viewport-mobile .kbob-sort-arrow { opacity: 0.55; }
-.ob-viewport-mobile th[aria-sort] .kbob-sort-arrow { opacity: 1; }
-/* iOS zoomt bei Eingabefeldern unter 16px in die Seite — die Textarea
-   ist das einzige Feld unter diesem Wert */
+.ob-viewport-mobile .app-sort { padding-top: 8px; padding-bottom: 8px; margin-top: -8px; margin-bottom: -8px; }
+/* Touch has no hover: the sort arrow is always hinted at */
+.ob-viewport-mobile .app-sort-arrow { opacity: 0.55; }
+.ob-viewport-mobile th[aria-sort] .app-sort-arrow { opacity: 1; }
+/* iOS zooms the page for input fields below 16px — the textarea is the
+   only field under that value */
 .ob-viewport-mobile dialog textarea { font-size: 1rem; }
 
 /* ========== 6 Brotkrume (ob-breadcrumbs, im Inhalt) ========== */
@@ -406,7 +426,7 @@ span.ob-breadcrumb-label[aria-current] { color: var(--ob-s3-color-neutral-fg-con
 .ob-breadcrumb-separator { margin: auto 4px; display: inline-flex; }
 .ob-breadcrumb-separator .ob-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); }
 
-/* ========== 7 Knoepfe — vollstaendig ueber DS-Tokens (--ob-h-button-*) ========== */
+/* ========== 7 Buttons — entirely from DS tokens (--ob-h-button-*) ========== */
 
 .ob-button {
   display: inline-flex; align-items: center; justify-content: center;
@@ -498,7 +518,7 @@ span.ob-breadcrumb-label[aria-current] { color: var(--ob-s3-color-neutral-fg-con
 }
 .ob-button-tertiary[disabled] { color: var(--ob-h-button-color-fg-tertiary-inversity_normal-disabled); }
 
-/* Icon-only-Variante: rund, wie die DS-Icon-Knöpfe */
+/* Icon-only variant: round, like the DS icon buttons */
 .ob-button.ob-icon-button {
   padding: var(--ob-h-button-icon_only-spacing-padding-vertical)
            var(--ob-h-button-icon_only-spacing-padding-horizontal);
@@ -507,8 +527,8 @@ span.ob-breadcrumb-label[aria-current] { color: var(--ob-s3-color-neutral-fg-con
 
 /* ========== 8 Formulare: Feld, Suche, Select, Checkbox ========== */
 
-.kbob-field { display: flex; flex-direction: column; gap: 4px; }
-.kbob-field > label, .kbob-field-label {
+.app-field { display: flex; flex-direction: column; gap: 4px; }
+.app-field > label, .app-field-label {
   font-size: 0.875rem; font-weight: 400;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
 }
@@ -528,28 +548,29 @@ input[type="search"]:focus, input[type="text"]:focus, input[type="url"]:focus {
 }
 input::placeholder { color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); }
 
-/* Suchfeld (CD: ob-search-box): Lupe links im Feld, Loesch-Knopf rechts,
-   sobald etwas eingetippt ist; der native Webkit-Loeschknopf weicht ihm */
-.kbob-search { position: relative; display: inline-block; }
-.kbob-search input[type="search"] { width: 100%; }
+/* Search field (CD: ob-search-box; markup ob-text-control): magnifier on
+   the left inside the field, clear button on the right as soon as anything
+   is typed; the native WebKit clear button gives way to it */
+.ob-text-control { position: relative; display: inline-block; }
+.ob-text-control input[type="search"] { width: 100%; }
 input[type="search"] {
   padding-left: 44px; padding-right: 40px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%232f4356' d='M21.53,20.46981l-7.89716-7.89819c.99512-1.23242,1.53778-2.75488,1.53778-4.36157,0-1.8584-.72363-3.60645-2.03809-4.9209s-3.0625-2.03906-4.92188-2.03906-3.60742.72461-4.92188,2.03906-2.03906,3.0625-2.03906,4.9209c0,1.85938.72461,3.60742,2.03906,4.92188s3.0625,2.03906,4.92188,2.03906c1.60681,0,3.12903-.54346,4.36163-1.53882l7.89716,7.89819,1.06055-1.06055ZM4.34933,12.07137c-1.03125-1.03125-1.59961-2.40234-1.59961-3.86133,0-1.45801.56836-2.8291,1.59961-3.86035s2.40234-1.59961,3.86133-1.59961c1.45801,0,2.83008.56836,3.86133,1.59961,2.12891,2.12891,2.12891,5.59277,0,7.72168-1.03125,1.03125-2.40332,1.59961-3.86133,1.59961-1.45898,0-2.83008-.56836-3.86133-1.59961Z'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: left 10px center;
-  /* gleiche Icongroesse wie die Knopf-Icons daneben (1.5rem) */
+  /* same icon size as the button icons next to it (1.5rem) */
   background-size: var(--ob-h-button-icon-size);
 }
 input[type="search"]:hover, input[type="search"]:focus { padding-left: 43px; padding-right: 39px; }
 input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
-.kbob-search-clear {
+.ob-text-control-clear {
   position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
   width: 32px; height: 32px; padding: 0; border: 0; background: none;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
   border-radius: var(--ob-s-border_radius-rounded); cursor: pointer;
 }
-.kbob-search-clear:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.kbob-search-clear .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
+.ob-text-control-clear:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
+.ob-text-control-clear .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
 
 
 /* Select in Oblique-Optik (Blaettern-Groesse, Facetten-Trigger nutzt Knopfrolle) */
@@ -569,7 +590,7 @@ select.ob-select:not(.ob-select-borderless):hover,
 select.ob-select:not(.ob-select-borderless):focus {
   border-width: 2px; padding: 0 35px 0 15px;
 }
-/* Randlose Variante der Service-Navigation (Sprachwahl) */
+/* Borderless variant used by the service navigation (language choice) */
 select.ob-select-borderless {
   height: 36px; border: none; background-color: transparent;
   padding: 0 28px 0 12px; font-weight: 500;
@@ -577,7 +598,7 @@ select.ob-select-borderless {
 }
 select.ob-select-borderless:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
 
-/* Deaktivierte Felder wie im CD: Text und Rand secondary-300 */
+/* Disabled fields as in the CD: text and border secondary-300 */
 input[disabled], select.ob-select[disabled], textarea[disabled] {
   color: var(--ob-s3-color-neutral-border-strong-inversity_normal);
   border-color: var(--ob-s3-color-neutral-border-strong-inversity_normal);
@@ -616,8 +637,8 @@ table { border-collapse: collapse; }
 .ob-table thead th { text-transform: uppercase; font-weight: normal; word-break: normal; }
 .ob-table td, .ob-table th { padding: 8px; text-align: inherit; vertical-align: top; }
 .ob-table-scrollable { overflow-x: auto; }
-/* Unter lg scrollt die Tabelle im eigenen Bereich (Abweichung statt
-   ob-table-collapse); eine Mindestbreite verhindert zerquetschte Spalten */
+/* Below lg the table scrolls in its own region (deviation instead of
+   ob-table-collapse); a minimum width prevents squashed columns */
 @media (max-width: 1240px) {
   .ob-table-scrollable .ob-table { min-width: 720px; }
 }
@@ -626,58 +647,58 @@ table { border-collapse: collapse; }
   text-align: left; caption-side: top;
 }
 
-/* App-Beigabe (Abweichung C5): klebender Kopf oberhalb lg; Linie als Schatten,
-   weil eine echte border bei border-collapse + sticky liegen bleibt.
-   Der Scroll-Container muss dafür aufhören, einer zu sein — sonst klebt
-   der Kopf INNERHALB der Tabelle und schiebt sich über die Zeilen. */
+/* Application addition (deviation C5): sticky header above lg; the rule is
+   a shadow, because a real border stays behind with border-collapse +
+   sticky. The scroll container has to stop being one for that — otherwise
+   the header sticks INSIDE the table and slides over the rows. */
 @media (min-width: 1241px) {
   .ob-table-scrollable { overflow-x: visible; }
   .ob-table thead th {
-    position: sticky; top: var(--kopf-gesamt, 0px); z-index: 5;
+    position: sticky; top: var(--app-header-height, 0px); z-index: 5;
     background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal);
     box-shadow: inset 0 -2px 0 var(--ob-s3-color-neutral-border-medium-inversity_normal);
   }
 }
-.ob-table tbody tr { scroll-margin-top: calc(var(--kopf-gesamt, 0px) + 16px); }
-.ob-table tbody tr.klick { cursor: pointer; }
-.ob-table .kbob-right { text-align: right; }
-.kbob-no-results { color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); padding: 24px 8px; }
-p.kbob-no-results { padding: 24px 0; }
+.ob-table tbody tr { scroll-margin-top: calc(var(--app-header-height, 0px) + 16px); }
+.ob-table tbody tr.app-row-clickable { cursor: pointer; }
+.ob-table .app-align-end { text-align: right; }
+.app-no-results { color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); padding: 24px 8px; }
+p.app-no-results { padding: 24px 0; }
 
-/* Sortierknopf im Kopf; Pfeil = ArrowUp-SVG aus _mat-table.scss */
-.kbob-sort {
+/* Sort button in the header; arrow = the ArrowUp SVG from _mat-table.scss */
+.app-sort {
   background: none; border: 0; padding: 0; height: auto;
   font: inherit; letter-spacing: inherit; text-transform: inherit;
   color: inherit; cursor: pointer; text-align: inherit; white-space: inherit;
   display: inline-flex; align-items: center; gap: 4px;
 }
-.kbob-sort:hover { color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_normal); text-decoration: underline; text-underline-offset: 3px; }
-.kbob-sort-arrow {
+.app-sort:hover { color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_normal); text-decoration: underline; text-underline-offset: 3px; }
+.app-sort-arrow {
   display: inline-block; width: 12px; height: 12px; min-width: 12px;
   background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><title>ArrowUp</title><polygon points="21.035 6.351 12 1.134 2.965 6.351 3.715 7.65 11.25 3.299 11.25 22 12.75 22 12.75 3.299 20.285 7.65 21.035 6.351" fill="currentColor"/></svg>');
   background-size: contain; background-repeat: no-repeat; background-position: center;
 }
-.kbob-sort-arrow.kbob-desc { transform: rotate(180deg); }
-/* Wie im CD: der Pfeil deutet sich bei Hover/Fokus an, steht voll auf der
-   aktiven Spalte (_mat-table.scss) */
-.kbob-sort-arrow { opacity: 0; transition: opacity 0.15s ease-in-out; }
-.kbob-sort:hover .kbob-sort-arrow, .kbob-sort:focus-visible .kbob-sort-arrow { opacity: 0.55; }
-th[aria-sort] .kbob-sort-arrow { opacity: 1; }
-th[aria-sort] .kbob-sort { color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_normal); }
+.app-sort-arrow.app-sort-arrow-desc { transform: rotate(180deg); }
+/* As in the CD: the arrow is hinted at on hover/focus and stands full on
+   the active column (_mat-table.scss) */
+.app-sort-arrow { opacity: 0; transition: opacity 0.15s ease-in-out; }
+.app-sort:hover .app-sort-arrow, .app-sort:focus-visible .app-sort-arrow { opacity: 0.55; }
+th[aria-sort] .app-sort-arrow { opacity: 1; }
+th[aria-sort] .app-sort { color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_normal); }
 
 /* Zellen-Utilities */
-.kbob-row-link {
+.app-row-link {
   background: none; border: 0; padding: 0; height: auto;
   font: inherit; text-align: left; cursor: pointer;
   color: var(--ob-h-link-color-default);
   text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 3px;
 }
-.kbob-row-link:hover { color: var(--ob-h-link-color-hover); text-decoration-color: currentColor; }
-tr:hover .kbob-row-link { text-decoration-color: currentColor; }
-.kbob-desc-text { display: block; max-width: 62ch; }
-.kbob-empty { color: var(--ob-s3-color-neutral-fg-contrast_lowest-inversity_normal); }
+.app-row-link:hover { color: var(--ob-h-link-color-hover); text-decoration-color: currentColor; }
+tr:hover .app-row-link { text-decoration-color: currentColor; }
+.app-desc { display: block; max-width: 62ch; }
+.app-empty { color: var(--ob-s3-color-neutral-fg-contrast_lowest-inversity_normal); }
 
-.kbob-tag {
+.app-tag {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 0.75rem; font-weight: 500; line-height: 1.333333; letter-spacing: 0.5px;
   /* 1px-Rand + 1/7 Innenpolster = 2/8 aussen — Skalenwerte */
@@ -687,23 +708,23 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   background: none; white-space: nowrap;
 }
-.kbob-count { font-variant-numeric: tabular-nums; }
-.kbob-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.app-tag-count { font-variant-numeric: tabular-nums; }
+.app-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 
-/* Zellinhalte tragen keine eigenen Schriftstile — eine Zeilenschrift,
-   Auszeichnung nur über den blauen Zeilen-Link und die eine Tag-Form. */
-.kbob-pset { display: flex; align-items: flex-start; }
-.kbob-pset-ifc { display: block; }
-.kbob-swatch {
+/* Cell contents carry no type styles of their own — one text style, with
+   emphasis only through the blue row link and the single tag shape. */
+.app-pset { display: flex; align-items: flex-start; }
+.app-pset-ifc { display: block; }
+.app-swatch {
   width: 9px; height: 9px; border-radius: var(--ob-s-border_radius-md); flex: none;
   box-shadow: inset 0 0 0 1px var(--ob-s3-color-neutral-fg-contrast_lowest-inversity_normal);
 }
-.kbob-unit { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.kbob-values { display: block; max-width: 38ch; }
+.app-unit { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.app-values { display: block; max-width: 38ch; }
 
-/* LOIN-Meilenstein-Kaestchen (fachspezifisch, kein Oblique-Gegenstueck) */
-.kbob-phase-track { display: inline-flex; gap: 2px; }
-.kbob-phase {
+/* LOIN milestone boxes (domain-specific, no Oblique counterpart) */
+.app-phase-track { display: inline-flex; gap: 2px; }
+.app-phase {
   min-width: 16px; height: 20px; padding: 0 3px;
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 0.6875rem; font-weight: 500; font-variant-numeric: tabular-nums;
@@ -711,7 +732,7 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
   background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal);
   color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal);
 }
-.kbob-phase.an { background: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_normal); color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped); }
+.app-phase.ob-active { background: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_normal); color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped); }
 
 /* ========== 10 Chips (Filter-Pillen, _mat-chip.scss) ========== */
 
@@ -724,17 +745,17 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
   max-width: 100%;
   cursor: pointer;
 }
-/* Lange Filterwerte laufen nicht aus der Pille — das aria-label traegt den vollen Text */
-.ob-chip .kbob-chip-value {
+/* Long filter values do not run out of the chip — the aria-label carries the full text */
+.ob-chip .app-chip-value {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ob-chip:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_flipped); }
 .ob-chip:active { background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_flipped); }
-.ob-chip .kbob-chip-kind { opacity: 0.75; }
+.ob-chip .app-chip-kind { opacity: 0.75; }
 .ob-chip .ob-chip-trailing-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); opacity: 0.85; }
 .ob-chip:hover .ob-chip-trailing-icon { opacity: 1; }
 
-.kbob-active-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 16px; }
+.app-filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 16px; }
 
 /* ========== 11 Alerts (oblique-alert.scss, verbatim aufgeloest) ========== */
 
@@ -780,36 +801,36 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
   50%  { stroke-dashoffset: 10; stroke-dasharray: 70 90; }
   100% { transform: rotate(359deg); }
 }
-.kbob-loading {
+.app-loading {
   display: flex; align-items: center; justify-content: center; gap: 12px;
   min-height: 160px;
   color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal);
 }
-.kbob-loading svg, .kbob-spinner-inline svg {
+.app-loading svg, .app-spinner-inline svg {
   display: block;
   animation: ob-spin 1.2s infinite linear;
   stroke-dashoffset: 55; stroke-dasharray: 64 150;
 }
-.kbob-loading svg { width: 4em; }   /* CD-Spinnergroesse (lib/spinner) */
-.kbob-spinner-inline { display: inline-flex; align-items: center; gap: 8px; color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); }
-.kbob-spinner-inline svg { width: 1.25em; }
+.app-loading svg { width: 4em; }   /* CD-Spinnergroesse (lib/spinner) */
+.app-spinner-inline { display: inline-flex; align-items: center; gap: 8px; color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); }
+.app-spinner-inline svg { width: 1.25em; }
 
 /* ========== 13 Blaettern (Paginator-Muster, _mat-paginator.scss) ========== */
 
-.kbob-paginator {
+.app-paginator {
   display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
   margin-top: 16px; padding-top: 8px;
   border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); font-size: 0.875rem;
 }
-.kbob-paginator-range { font-variant-numeric: tabular-nums; flex: 1 1 0; }
-.kbob-paginator-nav { display: flex; align-items: center; gap: 8px; }
-.kbob-paginator-size { display: flex; align-items: center; gap: 8px; flex: 1 1 0; justify-content: flex-end; }
-.kbob-paginator-size select.ob-select { height: 36px; }
+.app-paginator-range { font-variant-numeric: tabular-nums; flex: 1 1 0; }
+.app-paginator-nav { display: flex; align-items: center; gap: 8px; }
+.app-paginator-size { display: flex; align-items: center; gap: 8px; flex: 1 1 0; justify-content: flex-end; }
+.app-paginator-size select.ob-select { height: 36px; }
 
-/* Icon-Knoepfe mit Sprite-Chevrons in currentColor (loest Abweichung C3 ab:
-   weder schwarz+filter wie im CD noch fest eingefaerbte Data-URIs) */
-.kbob-paginator-button {
+/* Icon buttons with sprite chevrons in currentColor (supersedes deviation
+   C3: neither black+filter as in the CD nor hard-coloured data URIs) */
+.app-paginator-button {
   width: 36px; height: 36px; margin: 0; padding: 0; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
@@ -818,15 +839,15 @@ tr:hover .kbob-row-link { text-decoration-color: currentColor; }
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
   cursor: pointer;
 }
-.kbob-paginator-button .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
-.kbob-paginator-button:hover:not([disabled]) { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.kbob-paginator-button[disabled] {
+.app-paginator-button .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
+.app-paginator-button:hover:not([disabled]) { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
+.app-paginator-button[disabled] {
   color: var(--ob-s3-color-neutral-border-strong-inversity_normal);
   border-color: var(--ob-s3-color-neutral-border-strong-inversity_normal);
 }
-/* Auf schmalen Layouts reichen Vor und Zurueck */
-.ob-layout-collapsed .kbob-page-first,
-.ob-layout-collapsed .kbob-page-last { display: none; }
+/* On narrow layouts previous and next are enough */
+.ob-layout-collapsed .app-paginator-first,
+.ob-layout-collapsed .app-paginator-last { display: none; }
 
 /* ========== 14 Dialog (_mat-dialog.scss) ========== */
 
@@ -845,14 +866,14 @@ dialog.ob-dialog::backdrop { background: rgba(0, 0, 0, 0.32); }
 }
 .ob-dialog-content { font-size: 1rem; line-height: 1.5; padding: 0 0 8px; }
 .ob-dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--ob-h-button-container-spacing-gap, 16px); padding: 0; flex-wrap: wrap; }
-.kbob-dialog-status { margin-right: auto; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
+.app-dialog-status { margin-right: auto; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
 @media (max-width: 600px) {
   dialog.ob-dialog { padding: 16px; }
   dialog textarea { min-height: min(300px, 40dvh); }
-  .kbob-dialog-status { flex: 1 1 100%; margin-right: 0; }
+  .app-dialog-status { flex: 1 1 100%; margin-right: 0; }
 }
-dialog .kbob-controls { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
-dialog .kbob-controls input { min-width: min(300px, 100%); }
+dialog .app-form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
+dialog .app-form-row input { min-width: min(300px, 100%); }
 dialog textarea {
   width: 100%; min-height: 300px;
   font-family: var(--ob-s-static-font_family-code); font-size: 0.875rem;
@@ -862,20 +883,20 @@ dialog textarea {
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
 }
 
-/* Abfrage-Tabs: Knopfgruppe mit rotem Aktiv-Balken (mat-tab-Optik) */
-.kbob-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-.kbob-tab {
+/* Query tabs: a button group with the red active bar (mat-tab look) */
+.app-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.app-tab {
   background: none; border: 0; cursor: pointer; font: inherit;
   padding: 8px 12px;
   border-bottom: 3px solid transparent;
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
 }
-.kbob-tab:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.kbob-tab[aria-pressed="true"] { border-bottom-color: #e53940; font-weight: 700; }
+.app-tab:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
+.app-tab[aria-pressed="true"] { border-bottom-color: #e53940; font-weight: 700; }
 
 /* ========== 15 Karten (Galerie, _mat-card.scss) ========== */
 
-.kbob-gallery {
+.app-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
   gap: 16px;
@@ -889,36 +910,40 @@ dialog textarea {
   border-radius: var(--ob-s-border_radius-lg);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05), 0 5px 20px rgba(0, 0, 0, 0.08);
 }
-/* Klickbare Karte hebt sich wie im CD: Schatten xl + Flaeche + Rand
-   (_mat-card.scss focus-highlight) — keine erfundene Titel-Unterstreichung */
-.ob-card:hover:has(.kbob-card-button) {
+/* A clickable card lifts as in the CD: shadow xl + surface + border
+   (_mat-card.scss focus-highlight) — no invented title underline */
+.ob-card:hover:has(.ob-button-card) {
   box-shadow: 0 6px 10px rgba(0, 0, 0, 0.04), 0 15px 25px rgba(0, 0, 0, 0.09);
   background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal);
   border-color: var(--ob-s3-color-neutral-border-medium-inversity_normal);
 }
-.kbob-card-head { display: flex; align-items: baseline; gap: 8px; }
-.kbob-card-head .kbob-count { margin-left: auto; }
-.kbob-card-button {
+.app-card-head { display: flex; align-items: baseline; gap: 8px; }
+.app-card-head .app-tag-count { margin-left: auto; }
+.ob-button-card {
   background: none; border: 0; padding: 0;
   font-size: 1.0625rem; font-weight: 700; line-height: 24px;
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   text-align: left; cursor: pointer;
 }
-.kbob-card-button::after { content: ''; position: absolute; inset: 0; border-radius: var(--ob-s-border_radius-lg); }
-.kbob-card-button:focus-visible { outline: none; }
-.ob-card:has(.kbob-card-button:focus-visible) {
+.ob-button-card::after { content: ''; position: absolute; inset: 0; border-radius: var(--ob-s-border_radius-lg); }
+.ob-button-card:focus-visible { outline: none; }
+.ob-card:has(.ob-button-card:focus-visible) {
   outline: var(--ob-s-border-focus_ring-inversity_normal-width)
            var(--ob-s-border-focus_ring-inversity_normal-style)
            var(--ob-s-border-focus_ring-inversity_normal-color);
   outline-offset: var(--ob-s-outline_offset-md);
 }
-.kbob-card-name { font-size: 1.0625rem; font-weight: 700; line-height: 24px; }
+.app-card-name { font-size: 1.0625rem; font-weight: 700; line-height: 24px; }
 .ob-card-content {
   font-size: 0.875rem; line-height: 1.42857; letter-spacing: 0.25px;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
 }
-.kbob-card-footer {
+/* The tag row closes the card body instead of trailing the description,
+   whose length varies: that way the maturity tags across one card row
+   line up with each other. */
+.ob-card > .app-tags { margin-top: auto; }
+.app-card-footer {
   margin-top: auto; padding-top: 8px;
   border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
@@ -934,9 +959,9 @@ dialog textarea {
   border-radius: var(--ob-s-border_radius-lg); max-width: 320px;
   opacity: 0; transition: opacity 90ms ease;
 }
-.ob-tooltip.on { opacity: 1; }
+.ob-tooltip.app-is-visible { opacity: 1; }
 .ob-tooltip b { font-weight: 600; }
-.ob-tooltip .kbob-tip-line { display: block; color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_flipped); margin-top: 3px; }
+.ob-tooltip .app-tooltip-line { display: block; color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_flipped); margin-top: 3px; }
 
 /* External Link */
 .ob-external-link { display: inline-flex; align-items: baseline; gap: 4px; }
@@ -945,49 +970,62 @@ dialog textarea {
 /* ========== 17 kbob-App-Bauteile ========== */
 
 /* Seitenkopfbereich (Titel + Kennzahlen + Zurueck) */
-.kbob-page-header { margin: 0 0 16px; position: relative; }
-.kbob-page-header h1:focus-visible { outline-offset: 4px; }
-.kbob-page-header h1 { scroll-margin-top: calc(var(--kopf-gesamt, 0px) + 16px); }
-.kbob-page-meta { margin: 0; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 74ch; }
-.kbob-page-lead { margin: 12px 0 0; max-width: 68ch; }
-.kbob-back { position: absolute; top: 0; right: 0; }
-@media (max-width: 600px) { .kbob-back { position: static; margin-bottom: 8px; } }
+.app-page-header { margin: 0 0 16px; position: relative; }
+.app-page-header h1:focus-visible { outline-offset: 4px; }
+.app-page-header h1 { scroll-margin-top: calc(var(--app-header-height, 0px) + 16px); }
+.app-page-meta { margin: 0; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 74ch; }
+.app-page-lead { margin: 12px 0 0; max-width: 68ch; }
+.app-page-back { position: absolute; top: 0; right: 0; }
+@media (max-width: 600px) { .app-page-back { position: static; margin-bottom: 8px; } }
 
 /* Statuszeile (aria-live) im Inhalt */
-.kbob-status { margin: 0 0 8px; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
-.kbob-status.error { color: var(--ob-s3-color-status-critical-fg-contrast_high-inversity_normal); font-weight: 500; }
-.kbob-status:empty { display: none; }
+.app-status { margin: 0 0 8px; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
+.app-status.app-status-error { color: var(--ob-s3-color-status-critical-fg-contrast_high-inversity_normal); font-weight: 500; }
+.app-status:empty { display: none; }
 
 /* Werkzeugleiste */
-/* Regionen trennt Weissraum, keine Linie (Oblique-Ruhe) */
-.kbob-toolbar {
+/* White space separates regions, not a rule (Oblique calm) */
+.app-toolbar {
   display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
   margin: 0 0 16px;
 }
-.kbob-toolbar .kbob-search { width: 280px; }
-.kbob-toolbar-right { margin-left: auto; display: flex; align-items: flex-end; gap: 12px; }
+/* The search field takes the rest of the row instead of clipping its own
+   placeholder while empty space sits to its right; the ceiling keeps the
+   line readable (~50 characters). */
+.app-toolbar .ob-text-control { flex: 1 1 240px; min-width: 240px; max-width: 420px; }
+.app-toolbar-end { margin-left: auto; display: flex; align-items: flex-end; gap: 12px; }
 
-/* Ansichts-Umschalter: Knopfgruppe, gewaehlt = Selected-Flaeche des CD
-   (ruhiger als eine Primaerflaeche; der Zustand ist keine Aktion) */
-.kbob-view-switch { display: inline-flex; flex: none; }
-.kbob-view-switch .ob-button { border-radius: 0; }
-.kbob-view-switch .ob-button:first-child { border-radius: var(--ob-h-button-border_radius) 0 0 var(--ob-h-button-border_radius); }
-.kbob-view-switch .ob-button:last-child { border-radius: 0 var(--ob-h-button-border_radius) var(--ob-h-button-border_radius) 0; }
-.kbob-view-switch .ob-button:not(:first-child) { margin-left: -1px; }
-.kbob-view-switch .ob-button[aria-pressed="true"] {
+/* View switch: a button group; chosen = the CD's selected surface (calmer
+   than a primary surface; a state is not an action). An icon on every
+   choice, the wording only on the active one — which keeps the switch
+   narrow enough to sit next to search and facets in one row. */
+.app-view-switch { display: inline-flex; flex: none; }
+/* One row height with the search field and facet triggers beside it (40px) */
+.app-view-switch .ob-button {
+  min-height: 40px; gap: 8px; padding-inline: 12px;
+  justify-content: center;
+}
+.app-view-switch .ob-button[aria-pressed="false"] .app-view-switch-label { display: none; }
+.app-view-switch .ob-button[aria-pressed="false"] { padding-inline: 10px; }
+.app-view-switch .ob-icon { flex: none; }
+.app-view-switch .ob-button { border-radius: 0; }
+.app-view-switch .ob-button:first-child { border-radius: var(--ob-h-button-border_radius) 0 0 var(--ob-h-button-border_radius); }
+.app-view-switch .ob-button:last-child { border-radius: 0 var(--ob-h-button-border_radius) var(--ob-h-button-border_radius) 0; }
+.app-view-switch .ob-button:not(:first-child) { margin-left: -1px; }
+.app-view-switch .ob-button[aria-pressed="true"] {
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   background-color: var(--ob-s3-color-interaction-state-bg-selected-inversity_normal);
   border-color: var(--ob-h-button-color-border-secondary-inversity_normal-enabled);
 }
 
 /* Facetten (Checkbox-Dropdown, Abweichung C9) */
-.kbob-facets { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
-.kbob-facet { position: relative; }   /* Feld-Gerippe kommt von .kbob-field */
-/* 40px hoch wie das Suchfeld daneben — eine Zeilenhoehe in der Werkzeugleiste */
-.kbob-facet-toggle { min-width: 150px; min-height: 40px; justify-content: flex-start; font-weight: 400; gap: 8px; }
-.kbob-facet-toggle .kbob-facet-value { margin-right: auto; }
-.kbob-facet-toggle .kbob-facet-value.aktiv { font-weight: 700; }
-.kbob-facet-menu {
+.app-facets { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.app-facet { position: relative; }   /* Feld-Gerippe kommt von .app-field */
+/* 40px tall like the search field beside it — one row height in the toolbar */
+.app-facet-toggle { min-width: 150px; min-height: 40px; justify-content: flex-start; font-weight: 400; gap: 8px; }
+.app-facet-toggle .app-facet-value { margin-right: auto; }
+.app-facet-toggle .app-facet-value.ob-active { font-weight: 700; }
+.app-facet-menu {
   position: absolute; top: calc(100% + 4px); left: 0; z-index: 40;
   min-width: max(100%, 300px); max-width: min(460px, calc(100vw - 32px));
   max-height: 320px; overflow-y: auto; overflow-x: hidden;
@@ -995,75 +1033,82 @@ dialog textarea {
   border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   box-shadow: 0 3px 4px 1px #828e9a;
   padding: 8px;
-  display: flex; flex-direction: column; gap: 4px;
+  /* 8px between the options — more than the leading INSIDE a multi-line
+     option (see line-height below). The other way round, two-line catalogue
+     names read like two separate entries. */
+  display: flex; flex-direction: column; gap: 8px;
 }
-/* Die ganze Zeile ist das Bedienelement: das <label> umschliesst die
-   Checkbox — Klick, Hover und Zeiger gelten fuer die volle Breite */
-.kbob-facet-option {
-  display: flex; align-items: center; gap: 12px; width: 100%;
-  font-size: 1rem; cursor: pointer; min-height: 40px;
+/* The whole row is the control: it wraps the checkbox — click, hover and
+   cursor apply across the full width */
+/* Checkbox on the FIRST line, not in the middle: with two-line catalogue
+   names it otherwise sat between the lines and left open which entry it
+   belonged to. */
+.app-facet-option {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%;
+  font-size: 1rem; line-height: 1.3; cursor: pointer; min-height: 40px;
   padding: 8px 12px; white-space: normal; word-break: normal;
   border-radius: var(--ob-s-border_radius-md);
   -webkit-user-select: none; user-select: none;
 }
-.kbob-facet-option:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.kbob-facet-option input { cursor: pointer; }
-.kbob-facet-footer { border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal); margin-top: 4px; padding-top: 8px; }
+.app-facet-option:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
+/* Centre the 18px box on the first line (20.8px) */
+.app-facet-option input { cursor: pointer; margin-top: 2px; }
+.app-facet-footer { border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal); margin-top: 4px; padding-top: 8px; }
 
-/* Merkmal-Detail: Abschnitte im I14Y-Muster — H2, darunter fette
-   Beschriftung ueber schlichtem Wert, kein Kartenrahmen, keine Linien */
-.kbob-detail { max-width: 78ch; }
-.kbob-detail-section h2 { margin: 32px 0 8px; font-size: 1.4375rem; }
-.kbob-detail-section:first-child h2 { margin-top: 8px; }
-dl.kbob-data { margin: 0; }
-dl.kbob-data dt { font-weight: 700; padding: 12px 0 2px; }
-dl.kbob-data dd { margin: 0; word-break: break-word; }
-.kbob-copy { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.kbob-values-list { max-width: 78ch; }
+/* Attribute detail: sections in the I14Y pattern — H2, below it a bold
+   label over a plain value, no card frame, no rules */
+.app-detail { max-width: 78ch; }
+.app-detail-section h2 { margin: 32px 0 8px; font-size: 1.4375rem; }
+.app-detail-section:first-child h2 { margin-top: 8px; }
+dl.app-data-list { margin: 0; }
+dl.app-data-list dt { font-weight: 700; padding: 12px 0 2px; }
+dl.app-data-list dd { margin: 0; word-break: break-word; }
+.app-copy { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.app-values-list { max-width: 78ch; }
 
 /* ========== 18 Graph (Fachvisualisierung, kbob + interner g-Namensraum) ========== */
 
-.kbob-graph-wrap {
+.app-graph {
   position: relative;
   border: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
 }
-.kbob-graph-wrap:fullscreen {
+.app-graph:fullscreen {
   border: 0; border-radius: 0;
   display: flex; flex-direction: column;
 }
-.kbob-graph-wrap:fullscreen #netz { flex: 1; height: auto; max-height: none; }
+.app-graph:fullscreen #graph-canvas { flex: 1; height: auto; max-height: none; }
 
-#netz {
+#graph-canvas {
   display: block; width: 100%;
   height: 62vh; min-height: 440px; max-height: 720px;
   cursor: grab; touch-action: pan-y;
 }
-#netz.dragging { cursor: grabbing; }
-@media (max-height: 760px) { #netz { min-height: 340px; height: 56vh; } }
+#graph-canvas.app-is-dragging { cursor: grabbing; }
+@media (max-height: 760px) { #graph-canvas { min-height: 340px; height: 56vh; } }
 
-/* Steuerung als Overlay AUF der Grafik (oben links), nicht als eigener
-   Streifen darueber — die Werkzeuge gehoeren zum Werkstueck */
-.kbob-graph-overlay {
+/* Controls as an overlay ON the graphic (top left), not as a separate
+   strip above it — the tools belong to the workpiece */
+.app-graph-controls {
   position: absolute; top: 12px; left: 12px; z-index: 20;
   display: flex; flex-direction: column; gap: 8px;
 }
-.kbob-graph-overlay .ob-button {
+.app-graph-controls .ob-button {
   background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
   box-shadow: var(--ob-s-shadow-sm);
 }
-.kbob-graph-overlay .ob-button:hover:not([disabled]) {
+.app-graph-controls .ob-button:hover:not([disabled]) {
   background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal);
 }
 
-/* Grafik ueberspringen: unsichtbar, bis der Fokus darauf landet */
-.kbob-graph-skip {
+/* Skip the graphic: invisible until focus lands on it */
+.app-graph-skip {
   position: absolute; top: 12px; left: 60px; z-index: 30;
   width: 1px; height: 1px; padding: 0; overflow: hidden;
   clip-path: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
-.kbob-graph-skip:focus {
+.app-graph-skip:focus {
   width: auto; height: auto; padding: 8px 12px; overflow: visible;
   clip-path: none; white-space: normal;
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
@@ -1074,7 +1119,7 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
 }
 
 /* Fluechtiger Rad-Hinweis (Karten-Muster): unten mittig, dunkle Pille */
-.kbob-zoom-hint {
+.app-zoom-hint {
   position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
   z-index: 20; pointer-events: none;
   padding: 6px 12px; border-radius: var(--ob-s-border_radius-lg);
@@ -1083,9 +1128,9 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
   font-size: 0.875rem;
 }
 
-/* Seitenpanel: Details zum gewaehlten Knoten; Navigation erst ueber die
-   Aktion hier drin. Rechte Kante der Grafikflaeche, intern scrollbar. */
-.kbob-graph-panel {
+/* Side panel: details of the selected node; navigation only through the
+   action inside it. Right edge of the graphic area, scrolls internally. */
+.app-graph-panel {
   position: absolute; top: 0; right: 0; bottom: 0; z-index: 25;
   width: min(340px, 85%);
   overflow-y: auto;
@@ -1095,124 +1140,130 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
   border-radius: 0 var(--ob-s-border_radius-lg) var(--ob-s-border_radius-lg) 0;
   box-shadow: 0 3px 4px 1px #828e9a;   /* ob-default-panel-box-shadow */
 }
-.kbob-graph-panel-head { display: flex; align-items: flex-start; gap: 8px; }
-.kbob-graph-panel-title { flex: 1; min-width: 0; }
-.kbob-graph-panel-kind {
+.app-graph-panel-head { display: flex; align-items: flex-start; gap: 8px; }
+.app-graph-panel-title { flex: 1; min-width: 0; }
+.app-graph-panel-kind {
   display: block; font-size: 0.75rem; letter-spacing: 0.5px; text-transform: uppercase;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
 }
-.kbob-graph-panel h2 {
+.app-graph-panel h2 {
   margin: 0; font-size: 1.0625rem; line-height: 24px; word-break: break-word;
 }
-.kbob-graph-panel h2:focus-visible { outline-offset: 2px; }
-.kbob-graph-panel-close {
+.app-graph-panel h2:focus-visible { outline-offset: 2px; }
+.app-graph-panel-close {
   flex: none; width: 32px; height: 32px; padding: 0; border: 0;
   display: inline-flex; align-items: center; justify-content: center;
   background: none; cursor: pointer;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
   border-radius: var(--ob-s-border_radius-rounded);
 }
-.kbob-graph-panel-close:hover { background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.kbob-graph-panel-close .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
-.kbob-graph-panel-desc {
+.app-graph-panel-close:hover { background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
+.app-graph-panel-close .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
+.app-graph-panel-desc {
   margin: 8px 0 0; font-size: 0.875rem;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
 }
-.kbob-graph-panel-data { margin: 8px 0 0; }
-.kbob-graph-panel-data dt {
+.app-graph-panel-data { margin: 8px 0 0; }
+.app-graph-panel-data dt {
   font-size: 0.75rem; font-weight: 700; letter-spacing: 0.25px;
   padding: 8px 0 0;
 }
-.kbob-graph-panel-data dd { margin: 0; font-size: 0.875rem; word-break: break-word; }
-.kbob-graph-panel-actions {
+.app-graph-panel-data dd { margin: 0; font-size: 0.875rem; word-break: break-word; }
+.app-graph-panel-actions {
   display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
 }
 
-/* Kanten: leiser als die Knoten (Figur vor Grund); Staerke = geteilte
-   Merkmale (inline gesetzt). .an ist die Hover-/Fokus-Betonung. */
-.g-link { fill: none; stroke: var(--ob-s3-color-neutral-border-medium-inversity_normal); stroke-width: 1.2; }
-.g-link.an { stroke: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped); stroke-width: 2.5 !important; }
+/* Edges: quieter than the nodes (figure before ground); width = shared
+   attributes (set inline). .ob-active is the hover/focus emphasis. */
+.app-graph-edge { fill: none; stroke: var(--ob-s3-color-neutral-border-medium-inversity_normal); stroke-width: 1.2; }
+.app-graph-edge.ob-active { stroke: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped); stroke-width: 2.5 !important; }
 
-/* Knotenfarben ueber Klassen und Token (die Radial-Palette K.FARBEN bleibt
-   inline — Abweichung C10) */
-.g-dot { stroke: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal); stroke-width: 1; }
-.g-dot-typ { fill: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped); }
-.g-dot-pset { fill: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_flipped); }
-.g-center-circle { fill: var(--ob-s3-color-neutral-bg-contrast_high-inversity_flipped); }
+/* Node colours through classes and tokens (the radial palette K.COLORS
+   stays inline — deviation C10) */
+.app-graph-dot { stroke: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal); stroke-width: 1; }
+.app-graph-dot-type { fill: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped); }
+.app-graph-dot-pset { fill: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_flipped); }
+.app-graph-center-circle { fill: var(--ob-s3-color-neutral-bg-contrast_high-inversity_flipped); }
 
 /* SVG-Typo: nie unter dem DS-Minimum (12px) */
-.g-label {
+.app-graph-label {
   font-family: var(--ob-s-static-font_family-body); font-size: 12px;
   fill: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   paint-order: stroke; stroke: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal); stroke-width: 3px; stroke-linejoin: round;
 }
-.g-pset-label {
+.app-graph-pset-label {
   font-family: var(--ob-s-static-font_family-body); font-size: 12px; font-weight: 600;
   fill: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   paint-order: stroke; stroke: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal); stroke-width: 4px; stroke-linejoin: round;
 }
-.g-center-label { font-family: var(--ob-s-static-font_family-body); font-size: 13px; font-weight: 600; fill: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped); }
-.g-center-sub { font-family: var(--ob-s-static-font_family-body); font-size: 12px; fill: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_flipped); }
+.app-graph-center-label { font-family: var(--ob-s-static-font_family-body); font-size: 13px; font-weight: 600; fill: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped); }
+.app-graph-center-sub { font-family: var(--ob-s-static-font_family-body); font-size: 12px; fill: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_flipped); }
 
-/* Abgeblendet heisst zurueckgenommen, nicht ausradiert */
-.g-fade { opacity: 0.3; }
-.g-fade:focus-visible, .g-fade:focus-within { opacity: 1; }
-.g-hit { fill: transparent; stroke: none; cursor: pointer; }
+/* Dimmed means held back, not erased */
+.app-graph-faded { opacity: 0.3; }
+.app-graph-faded:focus-visible, .app-graph-faded:focus-within { opacity: 1; }
+.app-graph-hit { fill: transparent; stroke: none; cursor: pointer; }
 
-/* Fokusring und Auswahlring behalten ihre Staerke bei jedem Zoom */
-.g-knoten:focus-visible { outline: none; }
-.g-knoten:focus-visible .g-dot,
-.g-knoten:focus-visible circle {
+/* Focus ring and selection ring keep their width at every zoom level */
+.app-graph-node:focus-visible { outline: none; }
+.app-graph-node:focus-visible .app-graph-dot,
+.app-graph-node:focus-visible circle {
   stroke: var(--ob-s-border-focus_ring-inversity_normal-color); stroke-width: 3;
   vector-effect: non-scaling-stroke;
 }
-.g-knoten.g-ausgewaehlt .g-dot {
+.app-graph-node.app-graph-selected .app-graph-dot {
   stroke: var(--ob-s3-color-interaction-state-bg-enabled-inversity_flipped);
   stroke-width: 3; vector-effect: non-scaling-stroke;
 }
 
-.kbob-legend {
+.app-legend {
   display: flex; flex-wrap: wrap; gap: 8px 16px;
   padding: 12px 16px;
+  transition: padding-right var(--ob-s-motion-duration-md, 0.2s) ease;
   border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   font-size: 0.875rem;
 }
-.kbob-legend button, .kbob-legend .eintrag {
+.app-legend button, .app-legend .app-legend-item {
   display: flex; align-items: center; gap: 6px;
   background: none; border: 0; height: auto; min-height: 24px; padding: 2px 4px;
   font-size: 0.875rem; font-weight: 400;
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); cursor: pointer;
 }
-.kbob-legend .eintrag { cursor: default; }
-.kbob-legend button:hover { background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.kbob-legend button[aria-pressed="true"] { font-weight: 700; }
-.kbob-legend button.aus { color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
-.kbob-legend button.aus .kbob-swatch { opacity: 0.35; }
-.kbob-legend .kbob-swatch.rund { border-radius: 50%; }
-.kbob-legend-note { margin-left: auto; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); align-self: center; }
-.kbob-legend-clear {
+.app-legend .app-legend-item { cursor: default; }
+.app-legend button:hover { background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
+.app-legend button[aria-pressed="true"] { font-weight: 700; }
+.app-legend button.app-is-muted { color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
+.app-legend button.app-is-muted .app-swatch { opacity: 0.35; }
+.app-legend .app-swatch.app-swatch-round { border-radius: 50%; }
+/* The panel is absolutely positioned over the whole graphic area — without
+   this inset the legend would run underneath it and be half hidden. */
+.app-graph:has(.app-graph-panel:not([hidden])) .app-legend {
+  padding-right: calc(min(340px, 85%) + 16px);
+}
+.app-legend-note { margin-left: auto; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); align-self: center; }
+.app-legend-clear {
   margin-left: auto; align-self: center;
   display: inline-flex; align-items: center; gap: 6px;
   border: 0; background: none; padding: 2px 4px; cursor: pointer;
   font-size: 0.875rem; color: var(--ob-h-link-color-default);
 }
-.kbob-legend-clear:hover { text-decoration: underline; text-underline-offset: 3px; }
-.kbob-legend-clear .ob-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); }
-.kbob-graph-hint { margin: 8px 0 0; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 78ch; }
+.app-legend-clear:hover { text-decoration: underline; text-underline-offset: 3px; }
+.app-legend-clear .ob-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); }
+.app-graph-hint { margin: 8px 0 0; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 78ch; }
 
-/* Breite Inhalte (Graph) duerfen ueber die Lesebreite hinaus */
-.kbob-wide { max-width: none; }
+/* Wide content (graph) may exceed the reading measure */
+.app-bleed { max-width: none; }
 
 /* Meldungs-Kachel neben den Alerts (Lade-/Leerzustand) */
-.kbob-message { max-width: 74ch; }
-.kbob-message .ob-button { margin-top: 4px; }
+.app-message { max-width: 74ch; }
+.app-message .ob-button { margin-top: 4px; }
 
 /* ========== 19 Print ========== */
 
 @media print {
   *, *::before, *::after, *:focus { box-shadow: none !important; text-shadow: none !important; transition: none !important; }
-  .ob-master-layout-header, .ob-access-keys, .kbob-toolbar, .kbob-active-filters,
-  .kbob-paginator, .kbob-graph-overlay, .kbob-graph-panel, .kbob-legend button, .kbob-back,
+  .ob-master-layout-header, .ob-access-keys, .app-toolbar, .app-filter-bar,
+  .app-paginator, .app-graph-controls, .app-graph-panel, .app-legend button, .app-page-back,
   .ob-master-layout-footer button { display: none !important; }
   body { background: #fff; color: #000; }
   .ob-main-layout { padding: 0 !important; width: auto !important; }
@@ -1222,23 +1273,23 @@ dl.kbob-data dd { margin: 0; word-break: break-word; }
   thead { display: table-header-group; }
   .ob-table thead th { position: static !important; box-shadow: none !important; border-bottom: 2px solid #000; }
   tbody tr { break-inside: avoid; }
-  .kbob-detail { max-width: none; }
+  .app-detail { max-width: none; }
   .ob-table-scrollable { overflow: visible !important; }
   .ob-master-layout-footer > footer { background: #fff !important; color: #000 !important; }
   .ob-master-layout-footer .ob-footer-item a { color: #000 !important; }
 }
 
-/* ========== 20 Kontrastmodus und Motion ========== */
+/* ========== 20 Forced colours and motion ========== */
 
 @media (forced-colors: active) {
-  .kbob-phase.an, .kbob-swatch { forced-color-adjust: none; }
-  .kbob-phase { border: 1px solid CanvasText; }
-  .kbob-view-switch .ob-button[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; }
-  .kbob-legend button[aria-pressed="false"] { text-decoration: line-through; }
+  .app-phase.ob-active, .app-swatch { forced-color-adjust: none; }
+  .app-phase { border: 1px solid CanvasText; }
+  .app-view-switch .ob-button[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; }
+  .app-legend button[aria-pressed="false"] { text-decoration: line-through; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kbob-loading svg, .kbob-spinner-inline svg { animation-duration: 3s; }
+  .app-loading svg, .app-spinner-inline svg { animation-duration: 3s; }
   .ob-tooltip { transition: none; }
   .ob-button { transition: none; }
 }
