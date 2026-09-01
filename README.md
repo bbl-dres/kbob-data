@@ -19,8 +19,8 @@ A browser-based explorer that turns the [KBOB Data Dictionary](https://github.co
 **Live demo:** https://bbl-dres.github.io/kbob-data/
 
 <p align="center">
-  <img src="assets/preview-1.jpg" alt="KBOB Data Dictionary object-type gallery" width="49%"/>
-  <img src="assets/preview-2.jpg" alt="KBOB Data Dictionary room attribute graph" width="49%"/>
+  <img src="assets/preview-1.jpg" alt="KBOB Data Dictionary object-type gallery" width="49%" align="top"/>
+  <img src="assets/preview-2.jpg" alt="KBOB Data Dictionary room attribute graph" width="49%" align="top"/>
 </p>
 
 ## Features
