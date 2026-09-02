@@ -55,6 +55,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
    'attribute-detail', 'zoom-in', 'zoom-out', 'zoom-reset',
    'facets', 'paginator', 'copy-status', 'language',
    'facets-toggle', 'view-guide', 'guide-content', 'guide-lang-note',
+   'info-toggle', 'info-popover',
    'graph-panel', 'graph-title', 'zoom-hint',
    'graph-skip', 'graph-fullscreen'].forEach(function (id) {
     el[id] = document.getElementById(id);
@@ -2117,6 +2118,60 @@ var KBOB = window.KBOB || (window.KBOB = {});
       writeUrl();
       render(true);
     });
+
+    /* Info widget (service-navigation/info): the popover hangs under its
+       button — positioned fixed from the button's rectangle at opening (so
+       it follows the sticky header on desktop and the static one on
+       phones), arrow centred on the button, kept 16px inside the viewport.
+       Escape and a click outside close it; focus goes in on opening and
+       returns to the button on Escape. */
+    var infoToggle = el['info-toggle'], infoPopover = el['info-popover'];
+    function positionInfo() {
+      var r = infoToggle.getBoundingClientRect();
+      infoPopover.style.top = (r.bottom + 8) + 'px';
+      infoPopover.style.right = Math.max(16, window.innerWidth - r.right) + 'px';
+      /* The scrolling wrapper takes what the viewport leaves below the
+         button (the CD's fixed 50vh cut the contact block on phones) */
+      infoPopover.querySelector('.ob-popover-content-wrapper').style.maxHeight =
+        Math.max(160, window.innerHeight - (r.bottom + 8) - 48) + 'px';
+      var pr = infoPopover.getBoundingClientRect();
+      /* Narrow viewports: keep the panel 16px inside the left edge too */
+      if (pr.left < 16) {
+        infoPopover.style.right = Math.max(16, window.innerWidth - 16 - pr.width) + 'px';
+        pr = infoPopover.getBoundingClientRect();
+      }
+      var arrow = infoPopover.querySelector('.ob-popover-arrow');
+      arrow.style.right = Math.max(12, pr.right - (r.left + r.width / 2) - 8) + 'px';
+    }
+    function openInfo() {
+      infoPopover.hidden = false;
+      infoToggle.setAttribute('aria-expanded', 'true');
+      positionInfo();
+      var first = infoPopover.querySelector('a, button');
+      if (first) first.focus();
+    }
+    function closeInfo(returnFocus) {
+      if (infoPopover.hidden) return;
+      infoPopover.hidden = true;
+      infoToggle.setAttribute('aria-expanded', 'false');
+      if (returnFocus) infoToggle.focus();
+    }
+    infoToggle.addEventListener('click', function () {
+      if (infoPopover.hidden) openInfo(); else closeInfo(true);
+    });
+    infoPopover.addEventListener('click', function (ev) {
+      if (ev.target.closest && ev.target.closest('a')) closeInfo(false);
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape' && !infoPopover.hidden) { closeInfo(true); ev.preventDefault(); }
+    });
+    document.addEventListener('pointerdown', function (ev) {
+      if (infoPopover.hidden) return;
+      if (infoPopover.contains(ev.target) || infoToggle.contains(ev.target)) return;
+      closeInfo(false);
+    });
+    window.addEventListener('resize', function () { if (!infoPopover.hidden) positionInfo(); });
+    window.addEventListener('scroll', function () { if (!infoPopover.hidden) positionInfo(); }, { passive: true });
 
     /* Phones: fold the facet fields in and out (see updateFacetsToggle) */
     el['facets-toggle'].addEventListener('click', function () {

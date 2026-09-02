@@ -96,6 +96,60 @@
     "it": "Navigazione principale",
     "en": "Main navigation"
   },
+  "info.button": {
+    "de": "Hilfe und Kontakt",
+    "fr": "Aide et contact",
+    "it": "Aiuto e contatto",
+    "en": "Help & Contact"
+  },
+  "info.description": {
+    "de": "Objekttypen und Merkmale des KBOB Data Dictionary, gelesen aus LINDAS.",
+    "fr": "Types d’objet et attributs du KBOB Data Dictionary, lus depuis LINDAS.",
+    "it": "Tipi di oggetto e attributi del KBOB Data Dictionary, letti da LINDAS.",
+    "en": "Object types and attributes of the KBOB Data Dictionary, read from LINDAS."
+  },
+  "info.helpHeader": {
+    "de": "Hilfe",
+    "fr": "Aide",
+    "it": "Aiuto",
+    "en": "Help"
+  },
+  "info.helpText": {
+    "de": "Die Anleitung erklärt Begriffe, Datenherkunft und Bedienung.",
+    "fr": "Le guide explique les termes, l’origine des données et l’utilisation.",
+    "it": "La guida spiega i termini, l’origine dei dati e l’uso.",
+    "en": "The guide explains the terms, where the data comes from and how to use the application."
+  },
+  "info.feedback": {
+    "de": "Rückmeldung auf GitHub",
+    "fr": "Retour sur GitHub",
+    "it": "Feedback su GitHub",
+    "en": "Feedback on GitHub"
+  },
+  "info.contactHeader": {
+    "de": "Kontakt",
+    "fr": "Contact",
+    "it": "Contatto",
+    "en": "Contact"
+  },
+  "info.contactText": {
+    "de": "Fragen zum Katalog und zu seinen Inhalten beantwortet die Geschäftsstelle KBOB.",
+    "fr": "Le secrétariat de la KBOB répond aux questions sur le catalogue et son contenu.",
+    "it": "La segreteria KBOB risponde alle domande sul catalogo e sui suoi contenuti.",
+    "en": "The KBOB secretariat answers questions about the catalogue and its content."
+  },
+  "info.address": {
+    "de": "Geschäftsstelle KBOB, Fellerstrasse 21, 3003 Bern",
+    "fr": "Secrétariat KBOB, Fellerstrasse 21, 3003 Berne",
+    "it": "Segreteria KBOB, Fellerstrasse 21, 3003 Berna",
+    "en": "KBOB secretariat, Fellerstrasse 21, 3003 Bern"
+  },
+  "a11y.externalLink": {
+    "de": " – externer Link",
+    "fr": " – lien externe",
+    "it": " – link esterno",
+    "en": " – external link"
+  },
   "nav.catalog": {
     "de": "Katalog",
     "fr": "Catalogue",

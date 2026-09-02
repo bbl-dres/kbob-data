@@ -77,6 +77,44 @@
             <span class="app-button-label" data-i18n="export.button">Als Excel exportieren</span>
           </button>
         </li>
+        <!-- Info widget (service-navigation/info): question icon, popover
+             with description, «Hilfe» (links) and «Kontakt» (mail, address).
+             The popover is positioned by app.js under the button. -->
+        <li class="ob-service-navigation-info">
+          <button type="button" id="info-toggle" class="ob-button ob-button-tertiary ob-icon-button ob-widget"
+                  aria-expanded="false" aria-controls="info-popover" aria-haspopup="dialog"
+                  aria-label="Hilfe und Kontakt" data-i18n-aria-label="info.button"
+                  title="Hilfe und Kontakt" data-i18n-title="info.button">
+            <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#question"></use></svg>
+          </button>
+          <div id="info-popover" class="ob-popover-content" role="dialog" aria-labelledby="info-popover-title" hidden>
+            <div class="ob-popover-arrow" aria-hidden="true"></div>
+            <div class="ob-popover-content-wrapper">
+              <h3 id="info-popover-title" class="ob-screen-reader-only" data-i18n="info.button">Hilfe und Kontakt</h3>
+              <p data-i18n="info.description">Objekttypen und Merkmale des KBOB Data Dictionary, gelesen aus LINDAS.</p>
+              <section class="ob-service-navigation-popover-section">
+                <header class="ob-popover-header"><h4 data-i18n="info.helpHeader">Hilfe</h4></header>
+                <p data-i18n="info.helpText">Die Anleitung erklärt Begriffe, Datenherkunft und Bedienung.</p>
+                <ul class="ob-popover-list">
+                  <li><a class="ob-popover-link" id="info-link-guide" href="#anleitung" data-i18n="nav.guide">Anleitung</a></li>
+                  <li><a class="ob-popover-link" href="https://github.com/bbl-dres/kbob-data/issues" target="_blank" rel="noopener noreferrer"><span data-i18n="info.feedback">Rückmeldung auf GitHub</span><svg class="ob-icon ob-icon-text" focusable="false" aria-hidden="true"><use href="#link_external"></use></svg><span class="ob-screen-reader-only" data-i18n="a11y.externalLink"> – externer Link</span></a></li>
+                </ul>
+              </section>
+              <section class="ob-service-navigation-popover-section">
+                <header class="ob-popover-header"><h4 data-i18n="info.contactHeader">Kontakt</h4></header>
+                <p data-i18n="info.contactText">Fragen zum Katalog und zu seinen Inhalten beantwortet die Geschäftsstelle KBOB.</p>
+                <div class="ob-content">
+                  <ul class="ob-service-navigation-info-links">
+                    <li>
+                      <a href="mailto:kbob@bbl.admin.ch"><svg class="ob-icon ob-icon-text" focusable="false" aria-hidden="true"><use href="#mail"></use></svg>kbob@bbl.admin.ch</a><br>
+                      <span data-i18n="info.address">Geschäftsstelle KBOB, Fellerstrasse 21, 3003 Bern</span>
+                    </li>
+                  </ul>
+                </div>
+              </section>
+            </div>
+          </div>
+        </li>
         <li class="ob-language-dropdown">
           <span class="ob-screen-reader-only" id="ob-language-change" data-i18n="language.label">Sprache der Katalogbeschriftungen</span>
           <select id="language" class="ob-select ob-select-borderless" aria-labelledby="ob-language-change"

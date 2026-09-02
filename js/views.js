@@ -326,8 +326,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
       }
       card.appendChild(head);
 
-      if (k.text) card.appendChild(K.e('span', 'ob-card-content', k.text));
-      if (k.tags && k.tags.length) card.appendChild(K.tags(k.tags));
+      /* Header, then the content block (description + tags), then the
+         signature line — the three blocks of the Oblique/Material card
+         (header, content, signature), 16px apart. */
+      if (k.text || (k.tags && k.tags.length)) {
+        var body = K.e('div', 'app-card-body');
+        if (k.text) body.appendChild(K.e('span', 'ob-card-content', k.text));
+        if (k.tags && k.tags.length) body.appendChild(K.tags(k.tags));
+        card.appendChild(body);
+      }
       if (k.footer) card.appendChild(K.e('span', 'app-card-footer', k.footer));
 
       target.appendChild(card);

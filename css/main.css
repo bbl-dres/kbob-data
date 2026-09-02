@@ -323,6 +323,53 @@ a:visited { color: var(--ob-h-link-color-visited); }
 .ob-service-navigation { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; padding: var(--app-spacing-md) var(--app-spacing-default); }
 .ob-service-navigation-list { display: flex; align-items: center; gap: var(--app-spacing-sm); margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
 
+/* Info widget popover (core/_popover.scss, service-navigation
+   popover-section, service-navigation-info): white panel, 16px padding
+   (right one on the scrolling wrapper), drop-shadow default, 8px arrow;
+   sections 32px apart with an h5 header; link list rows 8/16 with a subtle
+   rule; contact links with icon. Position: fixed, set by app.js. */
+.ob-popover-content {
+  position: fixed; z-index: 200;   /* $ob-z-index-widget */
+  width: max-content; max-width: min(395px, calc(100vw - 32px));
+  padding: var(--app-spacing-default) 0 var(--app-spacing-default) var(--app-spacing-default);
+  background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
+  color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+  font-weight: var(--ob-s-static-font_weight-regular); text-align: left; white-space: normal;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.06)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.08));   /* shadow-default as drop-shadow (OUI-2324) */
+}
+.ob-popover-content-wrapper {
+  overflow-y: auto; max-height: 50vh;   /* $ob-pop-over-max-height */
+  padding-right: var(--app-spacing-default); padding-bottom: var(--app-spacing-sm);
+}
+.ob-popover-arrow {
+  position: absolute; top: 0; width: 0; height: 0;
+  border: var(--app-spacing-sm) solid;
+  border-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal) var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal) transparent transparent;
+  transform: translate(0, -50%) rotate(-45deg); transform-origin: center;
+}
+.ob-popover-content p { margin: 0 0 var(--app-spacing-md); font-weight: var(--ob-s-static-font_weight-regular); }
+.ob-service-navigation-popover-section { display: block; }
+.ob-service-navigation-popover-section + .ob-service-navigation-popover-section { margin-top: var(--app-spacing-xl); }
+.ob-popover-header { display: flex; align-items: center; gap: var(--app-spacing-sm); padding-bottom: var(--app-spacing-sm); }
+.ob-popover-header h4 { margin: 0; font-size: 1.0625rem; font-weight: var(--ob-s-static-font_weight-bold); line-height: var(--ob-s-static-line_height-md); }   /* ob-h5 */
+.ob-popover-list { margin: 0; padding-left: 0; list-style: none; }
+.ob-popover-link {
+  display: inline-block; width: 100%;
+  padding: var(--app-spacing-sm) var(--app-spacing-default);
+  border-bottom: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); text-decoration: none;
+}
+.ob-popover-link:visited { color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); }
+.ob-popover-link:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
+.ob-popover-link:active { background-color: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_normal); }
+.ob-popover-link .ob-icon-text { float: right; margin-top: 4px; }
+.ob-service-navigation-info-links { margin: 0; padding-left: 0; list-style: none; }
+.ob-service-navigation-info-links li:not(:last-child) { margin-bottom: var(--app-spacing-default); }
+.ob-service-navigation-info-links a { text-decoration: none; }
+.ob-service-navigation-info-links a:hover { text-decoration: underline; }
+.ob-icon-text { width: 1em; height: 1em; vertical-align: -0.15em; margin-right: var(--app-spacing-xs); }
+.ob-content > *:not(:first-child) { margin-top: var(--app-spacing-default); }
+
 /* Language choice: a native select as the borderless ob-select variant
    (deviation C2); the chevron comes once from select.ob-select (section 8) */
 
@@ -1027,7 +1074,7 @@ dialog textarea {
 }
 .ob-card {
   position: relative;
-  display: flex; flex-direction: column; align-items: stretch; gap: var(--app-spacing-sm);
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--app-spacing-default);
   padding: var(--app-spacing-default);
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
   border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
@@ -1068,11 +1115,16 @@ dialog textarea {
 /* The tag row closes the card body instead of trailing the description,
    whose length varies: that way the maturity tags across one card row
    line up with each other. */
-.ob-card > .app-tags { margin-top: auto; }
+/* Content block: description and tags 8px apart (Material card content);
+   the block sits between header and signature */
+.app-card-body { display: flex; flex-direction: column; gap: var(--app-spacing-sm); }
 .app-card-footer {
-  margin-top: auto; padding-top: var(--app-spacing-sm);
-  border-top: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
-  font-size: var(--ob-s-static-font_size-sm); color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
+  margin-top: auto;
+  /* ob-signature: caption typography, no rule (_mat-card.scss) */
+  display: flex; justify-content: space-between; gap: var(--app-spacing-sm);
+  font-size: var(--ob-s-static-font_size-xs); font-weight: var(--ob-s-static-font_weight-medium);
+  line-height: 1.333333; letter-spacing: var(--ob-s-static-letter_spacing_px-wide);
+  color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
 }
 
 /* ========== 16 Tooltip (Graph; _mat-tooltip.scss) ========== */

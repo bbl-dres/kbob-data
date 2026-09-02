@@ -298,3 +298,73 @@ Fluss), ein gleichmässiger Takt (Optionen 10 px Polster oben/unten,
 2 px Abstand, Zeilenhöhe 1.375) — zwischen zwei Einträgen liegen so immer
 20 px, innerhalb eines umbrochenen Namens 6 px Durchschuss; die Namen
 brechen nur noch ein Mal um.
+
+## 7. Nachtrag: Service-Navigation, Sub-Header-Links, Karten (02.09.2026)
+
+Quellen: die Oblique-Dokumentation «Guidelines › Service Navigation» und
+«Introductions › Welcome» (oblique.bit.admin.ch, im Browser gerendert — die
+Seiten sind eine SPA), der Komponenten-Quellcode
+`lib/service-navigation` (Reihenfolge der Widgets, `info`-Widget,
+`shared/popover-section`, `contact-to-links.pipe`), `core/components/
+_popover.scss`, `master-layout-navigation.component.scss`
+(`ob-start-of-right-side-links`), `material/_mat-card.scss` samt Mixin sowie
+die Oblique-Übersetzungen (`assets/i18n/oblique-{de,fr,it,en}.json`).
+
+### 7.1 Was die Guideline verlangt
+
+Die Service-Navigation ist «the part of the Master Layout that takes care of
+the right hand part of the header. Per default, it only displays the
+language selection widget» — alle weiteren Widgets sind einzeln
+zuschaltbar. Ausser dem **Info-Widget** brauchen alle eine PAMS-Anbindung
+(Login, Profil, Nachrichten, Applikationen); für diese Anwendung ohne Login
+bleibt damit genau das Info-Widget als verlangter Zusatz. Eigene Controls
+(«custom widgets») stehen laut Guideline **links** der Standard-Widgets —
+die Knöpfe «Verbindung und Abfrage» und «Als Excel exportieren» standen
+bereits richtig. Reihenfolge im CD-Markup: Custom-Controls → Nachrichten →
+**Info** → Applikationen → Profil → Login → **Sprache**.
+
+Das Info-Widget (`service-navigation-info`): Tertiär-Icon-Knopf mit dem
+Sprite-Icon `question`, Tooltip/Name «Hilfe und Kontakt» (Oblique-i18n:
+«Aide et contact», «Aiuto e contatto», «Help & Contact»); Popover unter dem
+Knopf mit **Beschreibung**, Abschnitt **«Hilfe»** (Hilfetext + Linkliste)
+und Abschnitt **«Kontakt»** (Kontakttext + Telefon/E-Mail/Formular als
+Links mit `phone`/`mail`-Icon und Zusatzzeile). Der Kontakt stammt aus
+kbob.admin.ch/de/kontakt-kbob: **kbob@bbl.admin.ch**, Fellerstrasse 21,
+3003 Bern — die Seite nennt keine Telefonnummer und kein Formular, darum nur
+die Mail-Zeile mit der Adresse als Zusatztext.
+
+### 7.2 Umsetzung
+
+| Bauteil | CD-Quelle | App |
+|---|---|---|
+| Info-Knopf | `mat-icon-button obButton="tertiary"`, Icon `question`, Tooltip `info.button` | `#info-toggle.ob-button.ob-button-tertiary.ob-icon-button` zwischen Export und Sprache; `aria-expanded`, `aria-controls`, `aria-haspopup="dialog"`; i18n `info.button` in vier Sprachen (Oblique-Wortlaut) |
+| Popover | `_popover.scss`: weiss, Polster 16/0/16/16, Wrapper mit `padding-right` 16, `max-height` 50 vh, Drop-Shadow (shadow-default als `filter`, OUI-2324), 8-px-Pfeil, `max-width` 395 (`[id^=service-navigation]`), z-index 200 | `#info-popover.ob-popover-content[role=dialog]` mit `.ob-popover-arrow` und `.ob-popover-content-wrapper`; Werte 1:1, `max-width: min(395px, 100vw − 32px)`; Position `fixed` aus dem Knopf-Rechteck (folgt dem klebenden Kopf auf Desktop und dem statischen auf Telefonen), 16 px Mindestabstand zu beiden Fensterrändern, Pfeil auf der Knopfmitte; Scrollhöhe des Wrappers = Rest des Viewports unter dem Knopf statt der starren 50 vh des CD (die schnitten auf Telefonen den Kontaktblock ab) |
+| Abschnitte | `popover-section`: `header.ob-popover-header` mit h4 in ob-h5 (17/24/700), `+ section` 32 px, `ul.ob-popover-list > a.ob-popover-link` 8/16-Polster, 1-px-Linie, Hover `secondary-50`; `ob-service-navigation-info-links` ohne Punkte, 16 px zwischen Einträgen, Icon 4 px vor dem Text | identisch; Abschnitt «Hilfe» mit Hilfetext und den Links «Anleitung» (`#anleitung`, schliesst das Popover, Sprache bleibt) und «Rückmeldung auf GitHub» (extern, Icon + sr-Suffix), Abschnitt «Kontakt» mit Kontakttext und Mail-Link plus Adresse |
+| Bedienung | Popover-Direktive: Fokus in den Inhalt (`cdkTrapFocus`), Escape, Klick ausserhalb | Fokus auf den ersten Link beim Öffnen, Escape schliesst und gibt den Fokus zurück, Klick ausserhalb schliesst, Neupositionierung bei Scroll/Resize; kein Fokus-Trap (der Dialog ist nicht modal — Tab verlässt ihn nach dem letzten Link zum nächsten Kopf-Element) |
+| Sub-Header | `li.ob-start-of-right-side-links` (rechtsbündige Gruppe) wäre möglich | «Anleitung» steht **neben** «Katalog» (Entscheid der Betreiberin: eine Gruppe, beide Einträge links); die rechtsbündige Gruppe bleibt ungenutzt |
+
+### 7.3 Karten gegen das CD
+
+`_mat-card.scss` definiert Rand `secondary-100`, `shadow-lg`, Hover
+`shadow-xl` + Fläche `secondary-50` + Rand `secondary-200`, Titel ob-h5
+(17/24/700), Inhalt ob-body2 (14/20, `secondary-600`), `mat-card-header +
+mat-card-content { margin-top: 16px }`, Aktionen 16 Polster / 16 Gap, die
+**Signaturzeile** (`.ob-signature`) als Caption (12/500/0.5 px) in einer
+Zeile mit `space-between`, ohne Linie. Die Material-Grundmasse (Header
+16/16/0, Content 0/16/16) stammen aus der MDC-Karte; ein Raster-Abstand
+zwischen Karten ist im CD nicht definiert — die Oblique-Sandbox setzt
+`$ob-spacing-default` (16) als Gap.
+
+Vorher: alle Kartenblöcke 8 px auseinander; die Fusszeile (Katalogname) in
+14 px mit 1-px-Linie und 8 px Polster darüber. Jetzt: die drei Blöcke
+Kopf → Inhalt (Beschreibung + Tags, 8 px) → Signatur stehen **16 px**
+auseinander, die Signatur ist die CD-Caption ohne Linie; Rand, Schatten,
+Hover, Titel- und Inhaltstypografie, 16-px-Polster und 16-px-Raster waren
+bereits CD-exakt (gemessen: Kopf 24, +16, Inhalt 60, +8, Tags 20, +16,
+Signatur 16 — Karte 194 px statt 192).
+
+Umsetzung: `views.js` (`.app-card-body` fasst Beschreibung und Tags),
+`main.css` (`.ob-card` Gap 16, `.app-card-body` Gap 8, `.app-card-footer`
+als Caption), `index.html` (Info-Widget, Popover-Markup,
+`ob-start-of-right-side-links`), `app.js` (Öffnen/Schliessen/Position),
+`data/i18n.json` (`info.*`, `a11y.externalLink`).
