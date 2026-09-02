@@ -11,7 +11,7 @@
    furniture — never ob-*, and built only from --ob-* tokens.
 
    Order = cascade (instead of @layer, deviation C7):
-   1 fonts · 2 reset/base · 3 text · 4 focus/utilities · 5 master layout
+   1 fonts · 2 reset/base · 2a scale aliases · 2b contrast override · 3 text · 4 focus/utilities · 5 master layout
    6 breadcrumb · 7 buttons · 8 forms · 9 table · 10 chips · 11 alerts
    12 spinner · 13 paginator · 14 dialog · 15 cards · 16 tooltip
    17 app components · 18 graph · 19 print · 20 forced colours/motion */
@@ -59,7 +59,7 @@ body {
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   margin: 0;
   min-width: 248px;
-  font-size: 1rem;
+  font-size: var(--ob-s-static-font_size-md);
   word-break: break-word;
 }
 
@@ -68,7 +68,7 @@ body {
 [tabindex="-1"]:focus { outline: 0 !important; }
 
 img { vertical-align: middle; max-width: 100%; }
-b, strong { font-weight: 700; }
+b, strong { font-weight: var(--ob-s-static-font_weight-bold); }
 small { font-size: 0.875em; }
 code, .app-mono { font-family: var(--ob-s-static-font_family-code); font-size: 0.875em; }
 
@@ -80,9 +80,51 @@ button, select { text-transform: none; }
 button[disabled], input[disabled], select[disabled], textarea[disabled] { cursor: not-allowed !important; }
 textarea { resize: vertical; }
 [type="search"]::-webkit-search-decoration, [type="search"]::-webkit-search-cancel-button { display: none; }
-ol, ul, dl { margin-top: 0; margin-bottom: 12px; }
-dt { font-weight: 700; }
+ol, ul, dl { margin-top: 0; margin-bottom: var(--app-spacing-md); }
+dt { font-weight: var(--ob-s-static-font_weight-bold); }
 dd { margin-bottom: 0; margin-left: 0; }
+
+/* ========== 2a Spacing scale and control sizes — aliases onto DS tokens ==========
+   The legacy Oblique scale $ob-spacing-xs…xxl (4/8/12/16/24/32/48) that
+   every ob-* component in this file resolves to, expressed through the DS
+   density tokens so that the value itself lives in tokens.css. Control
+   heights map to the DS container sizes (36/40/48). All margins, paddings
+   and gaps below use these aliases; a literal px there is an off-scale
+   compensation (border widths, icon insets, legacy Material metrics) and
+   carries a comment. */
+:root {
+  --app-spacing-xs: var(--ob-s-dimension-static-density-xs-px);        /* 4px  */
+  --app-spacing-sm: var(--ob-s-dimension-static-density-md-px);        /* 8px  */
+  --app-spacing-md: var(--ob-s-dimension-static-density-xl-px);        /* 12px */
+  --app-spacing-default: var(--ob-s-dimension-static-density-2xl-px);  /* 16px */
+  --app-spacing-lg: var(--ob-s-dimension-static-density-4xl-px);       /* 24px */
+  --app-spacing-xl: var(--ob-s-dimension-static-density-6xl-px);       /* 32px */
+  --app-spacing-xxl: var(--ob-s-dimension-static-density-9xl-px);      /* 48px */
+  --app-control-sm: var(--ob-s-dimension-static-component_size-container-xs-px);  /* 36px: paginator buttons, per-page select */
+  --app-control-md: var(--ob-s-dimension-static-component_size-container-sm-px);  /* 40px: fields, facet fields, view switch */
+  --app-control-lg: var(--ob-s-dimension-static-component_size-container-md-px);  /* 48px: touch target (= --ob-h-button-touch_target-min_size on mobile) */
+  --app-measure: 78ch;        /* reading measure of detail, guide, hints and messages */
+  --app-measure-lead: 68ch;   /* the one-sentence lead under the page title */
+}
+
+/* ========== 2b Interaction colour — deviation B3 (contrast) ==========
+   The DS token for enabled links and secondary/tertiary button labels
+   (interaction-state-fg-enabled, #2e8fbf) reaches 3.6:1 on white, 3.3:1 on
+   the zebra row and 2.8:1 on the hovered row — below WCAG AA (4.5:1) for
+   the row links, breadcrumb, facet triggers and header buttons this app is
+   made of. The enabled/focus/selected foreground therefore takes the DS
+   hover blue (#236487, 6.5:1 on white, 5.1:1 on the hovered row) and
+   hover/pressed step down to the DS pressed blue (#255069). Both are DS
+   interaction tokens of the same family; the primary button (#2379a4 with
+   white text, 4.8:1) is untouched. Remove this block once the DS ships an
+   AA-compliant link colour. */
+:root {
+  --ob-s3-color-interaction-state-fg-enabled-inversity_normal: var(--ob-s1-color-interaction-emphasis_high-fg_base-contrast_high-inversity_normal);
+  --ob-s3-color-interaction-state-fg-focus-inversity_normal: var(--ob-s1-color-interaction-emphasis_high-fg_base-contrast_high-inversity_normal);
+  --ob-s3-color-interaction-state-fg-selected-inversity_normal: var(--ob-s1-color-interaction-emphasis_high-fg_base-contrast_high-inversity_normal);
+  --ob-s3-color-interaction-state-fg-hover-inversity_normal: var(--ob-s3-color-interaction-state-bg-pressed-inversity_flipped);
+  --ob-s3-color-interaction-state-fg-pressed-inversity_normal: var(--ob-s3-color-interaction-state-bg-pressed-inversity_flipped);
+}
 
 /* ========== 3 Text-Layer (DS heading/paragraph/link, verbatim entschachtelt) ========== */
 
@@ -172,17 +214,17 @@ a:visited { color: var(--ob-h-link-color-visited); }
 .ob-accessible {
   position: absolute; display: block; height: 1px; clip-path: rect(0, 0, 0, 0);
   white-space: nowrap; border: 0;
-  padding: 16px 16px 16px calc(32px + 2.25em);
+  padding: var(--app-spacing-default) var(--app-spacing-default) var(--app-spacing-default) calc(var(--app-spacing-xl) + 2.25em);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   background-color: var(--ob-s3-color-status-attention-bg-contrast_medium-inversity_normal);
   opacity: 0; transform: translateY(-100%);
   transition: transform 0.6s cubic-bezier(0.7, 0, 0.3, 1), opacity 0.6s ease-in-out;
-  filter: drop-shadow(2px 4px 4px #acb4bd);
+  filter: drop-shadow(2px 4px 4px var(--ob-s3-color-neutral-border-medium-inversity_normal));   /* ob-drop-shadow($ob-light) */
 }
 .ob-accessible .ob-icon-wrapper {
   position: absolute; left: 0; top: 0; bottom: 0;
   display: flex; justify-content: center; align-items: center;
-  padding: 0 8px; font-size: 1.5em; line-height: 1;
+  padding: 0 var(--app-spacing-sm); font-size: 1.5em; line-height: 1;
   background-color: var(--ob-s3-color-status-attention-bg-contrast_low-inversity_flipped); color: var(--ob-s3-color-status-attention-fg-contrast_highest-inversity_flipped);
 }
 .ob-accessible:active, .ob-accessible:focus {
@@ -196,8 +238,51 @@ a:visited { color: var(--ob-h-link-color-visited); }
   display: flex; flex-direction: column;
   background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
   z-index: 101;
-  /* ob-no-navigation: the header closes with a 1px rule */
-  border-bottom: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+}
+
+/* Main navigation strip (master-layout-navigation.component.scss, first
+   level, expanded): a white row closed by 1px rules above and below; the
+   links are plain text with a 3px bottom border that turns accent red on
+   hover and on the active entry. Focus: the app-wide ring, drawn inside
+   the link (Oblique uses an inset box-shadow of the same purple). */
+.ob-master-layout-navigation {
+  flex-grow: 1;
+  border-top: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  border-bottom: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+}
+.ob-main-nav {
+  display: flex; flex-flow: row nowrap;
+  margin: 0; padding: 0; list-style: none;
+  background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
+}
+.ob-main-nav > .ob-main-nav-item > .ob-main-nav-link {
+  display: inline-flex; align-items: center; gap: var(--app-spacing-sm);
+  padding: var(--app-spacing-md) var(--app-spacing-default);
+  font-size: 1em; line-height: 1.5;
+  color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+  text-decoration: none; white-space: nowrap;
+  border-bottom: var(--ob-s-border_width-md) solid transparent;
+}
+.ob-main-nav > .ob-main-nav-item > .ob-main-nav-link:visited {
+  color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+}
+.ob-main-nav > .ob-main-nav-item > .ob-main-nav-link:hover {
+  background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal);
+}
+.ob-main-nav > .ob-main-nav-item > .ob-main-nav-link:active {
+  background-color: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_normal);
+}
+.ob-main-nav > .ob-main-nav-item > .ob-main-nav-link.active,
+.ob-main-nav > .ob-main-nav-item > .ob-main-nav-link:hover {
+  border-bottom-color: #e53940;   /* $ob-accent = red-500; no DS token (as the tab bar) */
+}
+.ob-main-nav > .ob-main-nav-item > .ob-main-nav-link:focus-visible { outline-offset: -3px; }
+/* Below md Oblique folds the navigation behind the burger; with two
+   entries the row stays visible (deviation C19) and the brand row keeps its
+   own rule, so the strip only closes at the bottom. */
+.ob-layout-collapsed .ob-master-layout-navigation { border-top: 0; }
+.ob-viewport-mobile .ob-main-nav > .ob-main-nav-item > .ob-main-nav-link {
+  min-height: var(--ob-h-button-touch_target-min_size, 48px);
 }
 .ob-header { position: relative; width: 100%; background-color: inherit; }
 .ob-layout-expanded .ob-header { display: flex; }
@@ -207,13 +292,13 @@ a:visited { color: var(--ob-h-link-color-visited); }
 }
 .ob-master-layout-brand {
   display: flex; flex: auto; align-items: center; min-width: 0;
-  padding: 8px 16px;
+  padding: var(--app-spacing-sm) var(--app-spacing-default);
   transition: padding 0.6s ease-in-out;
 }
-.ob-layout-expanded .ob-master-layout-brand { padding: 16px; }
+.ob-layout-expanded .ob-master-layout-brand { padding: var(--app-spacing-default); }
 .ob-master-layout-logo {
   display: block; overflow: hidden; flex: none;
-  width: 30px; height: 34px; margin-right: 8px;
+  width: 30px; height: 34px; margin-right: var(--app-spacing-sm);
   transition: width 0.6s ease-in-out, height 0.6s ease-in-out;
 }
 .ob-layout-expanded .ob-master-layout-logo { width: 218px; height: 53px; }
@@ -221,8 +306,8 @@ a:visited { color: var(--ob-h-link-color-visited); }
 .ob-master-layout-brand-app-title {
   display: block; flex: 1;
   font-size: 1.65rem; line-height: 34px; font-weight: 300;
-  padding-left: 8px;
-  border-left: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  padding-left: var(--app-spacing-sm);
+  border-left: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .ob-master-layout-brand-link {
@@ -235,8 +320,8 @@ a:visited { color: var(--ob-h-link-color-visited); }
 }
 
 /* Service-Navigation rechts (Sprachwahl, Export) */
-.ob-service-navigation { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; padding: 12px 16px; }
-.ob-service-navigation-list { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
+.ob-service-navigation { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; padding: var(--app-spacing-md) var(--app-spacing-default); }
+.ob-service-navigation-list { display: flex; align-items: center; gap: var(--app-spacing-sm); margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
 
 /* Language choice: a native select as the borderless ob-select variant
    (deviation C2); the chevron comes once from select.ob-select (section 8) */
@@ -247,8 +332,8 @@ a:visited { color: var(--ob-h-link-color-visited); }
 body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
 .ob-master-layout-wrapper { display: flex; flex-direction: column; flex: 1 0 auto; }
 .ob-master-layout-wrapper > .ob-master-layout-footer { margin-top: auto; }
-.ob-main-layout { position: relative; padding: 16px; flex: 1 0 auto; }
-.ob-layout-expanded .ob-main-layout { padding: 16px 24px; }
+.ob-main-layout { position: relative; padding: var(--app-spacing-default); flex: 1 0 auto; }
+.ob-layout-expanded .ob-main-layout { padding: var(--app-spacing-default) var(--app-spacing-lg); }
 @media (min-width: 1441px) {
   .ob-layout-expanded .ob-has-max-width .ob-main-layout,
   .ob-layout-expanded.ob-has-max-width .ob-main-layout { width: 1440px; margin: 0 auto; }
@@ -259,12 +344,12 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
 .ob-master-layout-footer > footer {
   position: relative; display: flex; align-items: center;
   justify-content: space-between;
-  gap: 24px; padding: 8px 24px;
+  gap: var(--app-spacing-lg); padding: var(--app-spacing-sm) var(--app-spacing-lg);
   color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped);
   background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_flipped);
 }
 .ob-footer-links .ob-footer-item-links {
-  display: flex; flex-wrap: wrap; gap: 8px 24px;
+  display: flex; flex-wrap: wrap; gap: var(--app-spacing-sm) var(--app-spacing-lg);
   list-style: none; margin: 0; padding: 0;
 }
 .ob-footer-item-links li { white-space: nowrap; }
@@ -276,30 +361,45 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
   background: none; border: 0; padding: 0; cursor: pointer;
   font: inherit;
 }
-.ob-master-layout-footer .ob-footer-item a:hover,
+.ob-master-layout-footer .ob-footer-item a: hover,
 .ob-master-layout-footer .ob-footer-item button:hover {
   color: var(--ob-s3-color-neutral-border-subtle-inversity_normal);
 }
 .ob-master-layout-footer :focus-visible {
   outline-color: var(--ob-s-border-focus_ring-inversity_flipped-color);
 }
-/* The master layout's back-to-top tab: .ob-top-control is the host, the
-   button carries .ob-top-control-btn (scrolling/top-control) */
+/* The master layout's back-to-top tab (scrolling/top-control.component,
+   values 1:1): a 200px-wide light-grey tab docked to the right edge with
+   only its first 50px (the chevron) showing; hover or focus slides the
+   wording in. Bottom 10% of the viewport above md, 15px below — it never
+   sits on the 40px footer bar. Shown through .ob-master-layout-scrolling on
+   <body> (set by app.js after half a window height), hidden as in the CD
+   with visibility so it is not reachable by Tab while invisible. */
 .ob-top-control-btn {
-  position: fixed; right: 16px; bottom: 16px; z-index: 90;
-  width: 40px; height: 40px; padding: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  background-color: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_flipped);
-  color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped);
-  border: 0; border-radius: var(--ob-s-border_radius-md);
-  cursor: pointer;
+  visibility: hidden; opacity: 0;
+  position: fixed; right: -150px; bottom: -52px; z-index: 200;   /* $ob-z-index-widget */
+  display: flex; align-items: center; column-gap: var(--app-spacing-default);
+  width: 200px; padding: var(--app-spacing-sm) 14px;
+  white-space: nowrap;
+  color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+  background-color: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_normal);   /* $ob-gray-lighter */
+  border: 0; border-radius: var(--ob-s-border_radius-lg) 0 0 var(--ob-s-border_radius-lg);
+  font: inherit; cursor: pointer;
+  transition: all 0.6s ease-in-out;   /* $ob-duration-default */
 }
-.ob-top-control-btn:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_flipped); }
-.ob-top-control-btn .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
+.ob-top-control-btn .ob-control-icon { width: 1.25rem; height: 1.25rem; flex: none; }   /* $ob-font-size-lg */
+.ob-master-layout-scrolling .ob-top-control-btn { visibility: visible; opacity: 0.85; bottom: 15px; }
+.ob-master-layout-scrolling.ob-layout-expanded .ob-top-control-btn { bottom: 10%; }
+.ob-master-layout-scrolling .ob-top-control-btn:hover,
+.ob-master-layout-scrolling .ob-top-control-btn:focus {
+  opacity: 1; right: 0;
+  filter: drop-shadow(2px 4px 4px var(--ob-s3-color-neutral-border-medium-inversity_normal));   /* ob-drop-shadow */
+}
+@media (prefers-reduced-motion: reduce) { .ob-top-control-btn { transition: none; } }
 
-.ob-layout-collapsed .ob-master-layout-footer > footer { display: flex; flex-direction: column; align-items: flex-start; padding: 24px; }
-.ob-layout-collapsed .ob-footer-item-links { flex-direction: column; gap: 12px; }
-.ob-layout-collapsed .ob-footer-item a, .ob-layout-collapsed .ob-footer-item button { padding: 4px 0; }
+.ob-layout-collapsed .ob-master-layout-footer > footer { display: flex; flex-direction: column; align-items: flex-start; padding: var(--app-spacing-lg); }
+.ob-layout-collapsed .ob-footer-item-links { flex-direction: column; gap: var(--app-spacing-md); }
+.ob-layout-collapsed .ob-footer-item a, .ob-layout-collapsed .ob-footer-item button { padding: var(--app-spacing-xs) 0; }
 
 /* Collapsed layout (below md): the header does not stick — the always
    visible service navigation would otherwise occupy a quarter of a phone
@@ -307,7 +407,7 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
    follows the CD. */
 .ob-layout-collapsed .ob-master-layout-header { position: static; }
 .ob-layout-collapsed .ob-master-layout-header-title {
-  border-bottom: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  border-bottom: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
 }
 
 /* Above md the header buttons carry their wording, not the icon */
@@ -327,11 +427,11 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
    full-width rows (connection, export, language) became one — about 100px
    of content reclaimed on a 390px phone. The name stays complete as the
    aria-label and as the tooltip. */
-.ob-layout-collapsed .ob-service-navigation { padding-bottom: 8px; }
-.ob-layout-collapsed .ob-service-navigation-list { width: 100%; justify-content: flex-end; gap: 8px; }
+.ob-layout-collapsed .ob-service-navigation { padding-bottom: var(--app-spacing-sm); }
+.ob-layout-collapsed .ob-service-navigation-list { width: 100%; justify-content: flex-end; gap: var(--app-spacing-sm); }
 .ob-layout-collapsed .app-button-icon { display: block; }
 .ob-layout-collapsed .app-button-label { display: none; }
-.ob-layout-collapsed .ob-service-navigation-custom-control .ob-button { padding-inline: 12px; }
+.ob-layout-collapsed .ob-service-navigation-custom-control .ob-button { padding-inline: var(--app-spacing-md); }
 .ob-layout-collapsed .ob-language-dropdown { margin-left: 0; }
 
 /* Toolbar as a clean column — but only where the width really is scarce.
@@ -344,6 +444,11 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
   .ob-layout-collapsed .app-field, .ob-layout-collapsed .app-facet,
   .ob-layout-collapsed .app-facet-toggle { width: 100%; }
   .ob-layout-collapsed .app-toolbar-end { margin-left: 0; width: 100%; justify-content: space-between; }
+  /* Two toolbar rows instead of five: search, then «Filter» + view switch;
+     the facet fields follow only while the button is expanded. */
+  .ob-layout-collapsed .app-facets-toggle { display: inline-flex; }
+  .ob-layout-collapsed .app-facets { order: 1; width: 100%; }
+  .ob-layout-collapsed .app-toolbar:not(.app-facets-open) .app-facets { display: none; }
 }
 .ob-layout-collapsed .app-facet-menu { min-width: 100%; }
 
@@ -353,16 +458,16 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
 .ob-layout-collapsed .app-view-switch { display: inline-flex; width: auto; }
 
 /* Paginator: three calm, centred rows instead of three alignments */
-.ob-layout-collapsed .app-paginator { flex-direction: column; align-items: center; gap: 12px; }
+.ob-layout-collapsed .app-paginator { flex-direction: column; align-items: center; gap: var(--app-spacing-md); }
 .ob-layout-collapsed .app-paginator-range,
 .ob-layout-collapsed .app-paginator-size { flex: none; width: auto; justify-content: center; }
 
 /* Graph: controls as a row instead of a 216px column; skip focus below;
    compact legend (the encoding note yields to the tight space — the
    dismissable highlight chip row stays) */
-.ob-layout-collapsed .app-graph-controls { flex-direction: row; top: 8px; left: 8px; }
-.ob-layout-collapsed .app-graph-skip:focus { top: 64px; left: 8px; }
-.ob-layout-collapsed .app-legend { padding: 8px 12px; gap: 4px 12px; }
+.ob-layout-collapsed .app-graph-controls { flex-direction: row; top: var(--app-spacing-sm); left: var(--app-spacing-sm); }
+.ob-layout-collapsed .app-graph-skip:focus { top: 64px; left: var(--app-spacing-sm); }
+.ob-layout-collapsed .app-legend { padding: var(--app-spacing-sm) var(--app-spacing-md); gap: var(--app-spacing-xs) var(--app-spacing-md); }
 .ob-layout-collapsed .app-legend-note { display: none; }
 
 /* Facet menu in flow instead of floating — no page scroll, no scroll area
@@ -372,7 +477,7 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
   .ob-layout-collapsed .app-facet-menu {
     position: static; max-width: none; max-height: none;
     box-shadow: none;
-    border: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
+    border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
     border-radius: var(--ob-s-border_radius-lg);
   }
 }
@@ -388,15 +493,21 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
 .ob-viewport-mobile .app-paginator-button {
   min-width: var(--ob-h-button-touch_target-min_size, 48px);
 }
+/* The toolbar controls share one height on touch: facet fields and the
+   view switch grow to the touch target like the header buttons */
+.ob-viewport-mobile .app-facet-toggle,
+.ob-viewport-mobile .app-view-switch .ob-button {
+  height: auto; min-height: var(--ob-h-button-touch_target-min_size, 48px);
+}
 .ob-viewport-mobile .app-graph-panel-close {
   width: var(--ob-h-button-touch_target-min_size, 48px);
   height: var(--ob-h-button-touch_target-min_size, 48px);
 }
 /* 40 is the ceiling inside the 40px search field */
-.ob-viewport-mobile .ob-text-control-clear { width: 40px; height: 40px; right: 0; }
+.ob-viewport-mobile .ob-text-control-clear { width: var(--app-control-md); height: var(--app-control-md); right: 0; }
+/* The visible 50px of the tab reach the touch target in height */
 .ob-viewport-mobile .ob-top-control-btn {
-  width: var(--ob-h-button-touch_target-min_size, 48px);
-  height: var(--ob-h-button-touch_target-min_size, 48px);
+  min-height: var(--ob-h-button-touch_target-min_size, 48px);
 }
 .ob-viewport-mobile select.ob-select-borderless {
   height: auto; min-height: var(--ob-h-button-touch_target-min_size, 48px);
@@ -404,21 +515,21 @@ body.ob-master-layout { display: flex; flex-direction: column; min-height: 100vh
 .ob-viewport-mobile .app-paginator-size select.ob-select {
   height: var(--ob-h-button-touch_target-min_size, 48px);
 }
-.ob-viewport-mobile .ob-chip { min-height: 40px; border-radius: 20px; }
+.ob-viewport-mobile .ob-chip { min-height: var(--app-control-md); border-radius: 20px; }
 .ob-viewport-mobile .app-legend button { min-height: 32px; }
 /* Breadcrumb and sort headers: grow the hit height, leave the look alone */
 .ob-viewport-mobile button.ob-breadcrumb-label,
-.ob-viewport-mobile .app-sort { padding-top: 8px; padding-bottom: 8px; margin-top: -8px; margin-bottom: -8px; }
-/* Touch has no hover: the sort arrow is always hinted at */
-.ob-viewport-mobile .app-sort-arrow { opacity: 0.55; }
-.ob-viewport-mobile th[aria-sort] .app-sort-arrow { opacity: 1; }
+.ob-viewport-mobile .app-sort { padding-top: var(--app-spacing-sm); padding-bottom: var(--app-spacing-sm); margin-top: calc(-1 * var(--app-spacing-sm)); margin-bottom: calc(-1 * var(--app-spacing-sm)); }
+/* The sort arrow stands on the active column only — also on touch. Hinted
+   at on every sortable header, four identical arrows hid the one that
+   meant something (mat-sort shows it on hover and on the active column). */
 /* iOS zooms the page for input fields below 16px — the textarea is the
    only field under that value */
-.ob-viewport-mobile dialog textarea { font-size: 1rem; }
+.ob-viewport-mobile dialog textarea { font-size: var(--ob-s-static-font_size-md); }
 
 /* ========== 6 Brotkrume (ob-breadcrumbs, im Inhalt) ========== */
 
-.ob-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; font-size: 0.8em; margin: 0 0 8px; padding: 0; }
+.ob-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; font-size: 0.8em; margin: 0 0 var(--app-spacing-sm); padding: 0; }
 .ob-breadcrumbs li { list-style: none; display: flex; align-items: center; }
 .ob-breadcrumb-label {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -432,7 +543,7 @@ button.ob-breadcrumb-label {
 }
 button.ob-breadcrumb-label:hover { color: var(--ob-h-link-color-hover); text-decoration: underline; }
 span.ob-breadcrumb-label[aria-current] { color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); }
-.ob-breadcrumb-separator { margin: auto 4px; display: inline-flex; }
+.ob-breadcrumb-separator { margin: auto var(--app-spacing-xs); display: inline-flex; }
 .ob-breadcrumb-separator .ob-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); }
 
 /* ========== 7 Buttons — entirely from DS tokens (--ob-h-button-*) ========== */
@@ -536,24 +647,24 @@ span.ob-breadcrumb-label[aria-current] { color: var(--ob-s3-color-neutral-fg-con
 
 /* ========== 8 Formulare: Feld, Suche, Select, Checkbox ========== */
 
-.app-field { display: flex; flex-direction: column; gap: 4px; }
+.app-field { display: flex; flex-direction: column; gap: var(--app-spacing-xs); }
 .app-field > label, .app-field-label {
-  font-size: 0.875rem; font-weight: 400;
+  font-size: var(--ob-s-static-font_size-sm); font-weight: var(--ob-s-static-font_weight-regular);
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
 }
 
 .ob-form-field-input,
 input[type="search"], input[type="text"], input[type="url"] {
-  height: 40px; padding: 0 16px;
-  font: 400 1rem/1.5 var(--ob-s-static-font_family-body);
+  height: var(--app-control-md); padding: 0 var(--app-spacing-default);
+  font: var(--ob-s-static-font_weight-regular) var(--ob-s-static-font_size-md)/var(--ob-s-static-line_height-md) var(--ob-s-static-font_family-body);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   background: var(--ob-s3-color-interaction-state-bg-enabled-inversity_normal);
-  border: 1px solid var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
 }
 input[type="search"]:hover, input[type="text"]:hover, input[type="url"]:hover,
 input[type="search"]:focus, input[type="text"]:focus, input[type="url"]:focus {
-  border-width: 2px; padding: 0 15px;
+  border-width: var(--ob-s-border_width-sm); padding: 0 15px;
 }
 input::placeholder { color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); }
 
@@ -572,7 +683,7 @@ input[type="search"] {
 input[type="search"]:hover, input[type="search"]:focus { padding-left: 43px; padding-right: 39px; }
 input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
 .ob-text-control-clear {
-  position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+  position: absolute; right: var(--app-spacing-xs); top: 50%; transform: translateY(-50%);
   width: 32px; height: 32px; padding: 0; border: 0; background: none;
   display: inline-flex; align-items: center; justify-content: center;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
@@ -584,25 +695,25 @@ input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; a
 
 /* Select in Oblique-Optik (Blaettern-Groesse, Facetten-Trigger nutzt Knopfrolle) */
 select.ob-select {
-  height: 40px; padding: 0 36px 0 16px;
-  font: 400 1rem/1.5 var(--ob-s-static-font_family-body);
+  height: var(--app-control-md); padding: 0 36px 0 var(--app-spacing-default);
+  font: var(--ob-s-static-font_weight-regular) var(--ob-s-static-font_size-md)/var(--ob-s-static-line_height-md) var(--ob-s-static-font_family-body);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   background-color: var(--ob-s3-color-interaction-state-bg-enabled-inversity_normal);
-  border: 1px solid var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
   appearance: none; -webkit-appearance: none; cursor: pointer;
   background-image: url("data:image/svg+xml;base64,PHN2ZyBpZD0iY2hldnJvbi1zbWFsbC1kb3duIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBvbHlnb24gcG9pbnRzPSIxMiAxNC41ODQgNS42NzQgMTAuOTMyIDYuNDI0IDkuNjMzIDEyIDEyLjg1MiAxNy41NzYgOS42MzMgMTguMzI2IDEwLjkzMiAxMiAxNC41ODQiIGZpbGw9ImN1cnJlbnRDb2xvciIvPjwvc3ZnPg==");
   background-repeat: no-repeat; background-position: right 8px center; background-size: 19px;
 }
 /* Wie jedes Oblique-Formularfeld: 2px-Rand bei Hover/Fokus */
-select.ob-select:not(.ob-select-borderless):hover,
+select.ob-select: not(.ob-select-borderless):hover,
 select.ob-select:not(.ob-select-borderless):focus {
-  border-width: 2px; padding: 0 35px 0 15px;
+  border-width: var(--ob-s-border_width-sm); padding: 0 35px 0 15px;
 }
 /* Borderless variant used by the service navigation (language choice) */
 select.ob-select-borderless {
-  height: 36px; border: none; background-color: transparent;
-  padding: 0 28px 0 12px; font-weight: 500;
+  height: var(--app-control-sm); border: none; background-color: transparent;
+  padding: 0 28px 0 var(--app-spacing-md); font-weight: var(--ob-s-static-font_weight-medium);
   background-position: right 4px center;
 }
 select.ob-select-borderless:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
@@ -617,7 +728,7 @@ input[disabled], select.ob-select[disabled], textarea[disabled] {
 input[type="checkbox"].ob-checkbox {
   appearance: none; -webkit-appearance: none;
   width: 18px; height: 18px; flex: none; margin: 0;
-  border: 2px solid rgba(0, 0, 0, 0.54); border-radius: var(--ob-s-border_radius-md);
+  border: var(--ob-s-border_width-sm) solid rgba(0, 0, 0, 0.54); border-radius: var(--ob-s-border_radius-md);
   background: var(--ob-s3-color-interaction-state-bg-enabled-inversity_normal); cursor: pointer;
   display: inline-grid; place-content: center;
 }
@@ -638,13 +749,13 @@ table { border-collapse: collapse; }
 }
 .ob-table, .ob-table thead, .ob-table tbody, .ob-table th, .ob-table td,
 .ob-table tr, .ob-table caption { font-size: 1em; }
-.ob-table thead tr:nth-child(odd),
+.ob-table thead tr: nth-child(odd),
 .ob-table:not(.ob-table-plain) tbody tr:nth-child(even) { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
 .ob-table:not(.ob-table-disable-hover-style) tbody tr:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_medium-inversity_normal); }
-.ob-table tr { border-bottom: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal); }
-.ob-table thead tr:last-child { border-width: 2px; }
+.ob-table tr { border-bottom: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-medium-inversity_normal); }
+.ob-table thead tr:last-child { border-width: var(--ob-s-border_width-sm); }
 .ob-table thead th { text-transform: uppercase; font-weight: normal; word-break: normal; }
-.ob-table td, .ob-table th { padding: 8px; text-align: inherit; vertical-align: top; }
+.ob-table td, .ob-table th { padding: var(--app-spacing-sm); text-align: inherit; vertical-align: top; }
 .ob-table-scrollable { overflow-x: auto; }
 /* Below lg the table scrolls in its own region (deviation instead of
    ob-table-collapse); a minimum width prevents squashed columns */
@@ -652,7 +763,7 @@ table { border-collapse: collapse; }
   .ob-table-scrollable .ob-table { min-width: 720px; }
 }
 .ob-table caption {
-  padding: 8px 0; color: #46596b; font-weight: 700;
+  padding: var(--app-spacing-sm) 0; color: #46596b; font-weight: var(--ob-s-static-font_weight-bold);
   text-align: left; caption-side: top;
 }
 
@@ -668,18 +779,18 @@ table { border-collapse: collapse; }
     box-shadow: inset 0 -2px 0 var(--ob-s3-color-neutral-border-medium-inversity_normal);
   }
 }
-.ob-table tbody tr { scroll-margin-top: calc(var(--app-header-height, 0px) + 16px); }
+.ob-table tbody tr { scroll-margin-top: calc(var(--app-header-height, 0px) + var(--app-spacing-default)); }
 .ob-table tbody tr.app-row-clickable { cursor: pointer; }
 .ob-table .app-align-end { text-align: right; }
-.app-no-results { color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); padding: 24px 8px; }
-p.app-no-results { padding: 24px 0; }
+.app-no-results { color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); padding: var(--app-spacing-lg) var(--app-spacing-sm); }
+p.app-no-results { padding: var(--app-spacing-lg) 0; }
 
 /* Sort button in the header; arrow = the ArrowUp SVG from _mat-table.scss */
 .app-sort {
   background: none; border: 0; padding: 0; height: auto;
   font: inherit; letter-spacing: inherit; text-transform: inherit;
   color: inherit; cursor: pointer; text-align: inherit; white-space: inherit;
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--app-spacing-xs);
 }
 .app-sort:hover { color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_normal); text-decoration: underline; text-underline-offset: 3px; }
 .app-sort-arrow {
@@ -708,17 +819,17 @@ tr:hover .app-row-link { text-decoration-color: currentColor; }
 .app-empty { color: var(--ob-s3-color-neutral-fg-contrast_lowest-inversity_normal); }
 
 .app-tag {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.75rem; font-weight: 500; line-height: 1.333333; letter-spacing: 0.5px;
+  display: inline-flex; align-items: center; gap: var(--app-spacing-xs);
+  font-size: var(--ob-s-static-font_size-xs); font-weight: var(--ob-s-static-font_weight-medium); line-height: 1.333333; letter-spacing: var(--ob-s-static-letter_spacing_px-wide);
   /* 1px-Rand + 1/7 Innenpolster = 2/8 aussen — Skalenwerte */
   padding: 1px 7px;
-  border: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
   border-radius: var(--ob-s-border_radius-md);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   background: none; white-space: nowrap;
 }
 .app-tag-count { font-variant-numeric: tabular-nums; }
-.app-tags { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.app-tags { display: inline-flex; flex-wrap: wrap; gap: var(--app-spacing-xs); align-items: center; }
 
 /* Cell contents carry no type styles of their own — one text style, with
    emphasis only through the blue row link and the single tag shape. */
@@ -736,7 +847,7 @@ tr:hover .app-row-link { text-decoration-color: currentColor; }
 .app-phase {
   min-width: 16px; height: 20px; padding: 0 3px;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.6875rem; font-weight: 500; font-variant-numeric: tabular-nums;
+  font-size: 0.6875rem; font-weight: var(--ob-s-static-font_weight-medium); font-variant-numeric: tabular-nums;
   border-radius: var(--ob-s-border_radius-md);
   background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal);
   color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal);
@@ -746,11 +857,11 @@ tr:hover .app-row-link { text-decoration-color: currentColor; }
 /* ========== 10 Chips (Filter-Pillen, _mat-chip.scss) ========== */
 
 .ob-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 0.75rem; font-weight: 500; line-height: 1.333333; letter-spacing: 0.5px;
+  display: inline-flex; align-items: center; gap: var(--app-spacing-xs);
+  font-size: var(--ob-s-static-font_size-xs); font-weight: var(--ob-s-static-font_weight-medium); line-height: 1.333333; letter-spacing: var(--ob-s-static-letter_spacing_px-wide);
   color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped);
   background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_flipped);
-  border: none; min-height: 32px; border-radius: 16px; padding: 0 12px;
+  border: none; min-height: 32px; border-radius: 16px; padding: 0 var(--app-spacing-md);
   max-width: 100%;
   cursor: pointer;
 }
@@ -764,14 +875,14 @@ tr:hover .app-row-link { text-decoration-color: currentColor; }
 .ob-chip .ob-chip-trailing-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); opacity: 0.85; }
 .ob-chip:hover .ob-chip-trailing-icon { opacity: 1; }
 
-.app-filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 16px; }
+.app-filter-bar { display: flex; flex-wrap: wrap; gap: var(--app-spacing-sm); align-items: center; margin: 0 0 var(--app-spacing-default); }
 
 /* ========== 11 Alerts (oblique-alert.scss, verbatim aufgeloest) ========== */
 
 .ob-alert {
   position: relative;
-  padding: 16px 16px 16px calc(3em + 16px);
-  margin-bottom: 16px;
+  padding: var(--app-spacing-default) var(--app-spacing-default) var(--app-spacing-default) calc(3em + var(--app-spacing-default));
+  margin-bottom: var(--app-spacing-default);
   border-radius: var(--ob-s-border_radius-lg);
 }
 .ob-alert a { color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); text-decoration: underline; }
@@ -783,7 +894,7 @@ tr:hover .app-row-link { text-decoration-color: currentColor; }
 .ob-alert-error   { background-color: var(--ob-s3-color-status-critical-bg-contrast_medium-inversity_normal); }
 .ob-alert::before {
   display: inline-block; position: absolute; left: 0; top: 0; bottom: 0;
-  padding: 8px; width: 1.5em; font-size: 2em;
+  padding: var(--app-spacing-sm); width: 1.5em; font-size: 2em;
   border-radius: var(--ob-s-border_radius-lg) 0 0 var(--ob-s-border_radius-lg);
 }
 .ob-alert-info::before {
@@ -811,7 +922,7 @@ tr:hover .app-row-link { text-decoration-color: currentColor; }
   100% { transform: rotate(359deg); }
 }
 .app-loading {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
+  display: flex; align-items: center; justify-content: center; gap: var(--app-spacing-md);
   min-height: 160px;
   color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal);
 }
@@ -821,28 +932,28 @@ tr:hover .app-row-link { text-decoration-color: currentColor; }
   stroke-dashoffset: 55; stroke-dasharray: 64 150;
 }
 .app-loading svg { width: 4em; }   /* CD-Spinnergroesse (lib/spinner) */
-.app-spinner-inline { display: inline-flex; align-items: center; gap: 8px; color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); }
+.app-spinner-inline { display: inline-flex; align-items: center; gap: var(--app-spacing-sm); color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_normal); }
 .app-spinner-inline svg { width: 1.25em; }
 
 /* ========== 13 Blaettern (Paginator-Muster, _mat-paginator.scss) ========== */
 
 .app-paginator {
-  display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap;
-  margin-top: 16px; padding-top: 8px;
-  border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
-  color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); font-size: 0.875rem;
+  display: flex; align-items: center; gap: var(--app-spacing-md) var(--app-spacing-default); flex-wrap: wrap;
+  margin-top: var(--app-spacing-default); padding-top: var(--app-spacing-sm);
+  border-top: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); font-size: var(--ob-s-static-font_size-sm);
 }
 .app-paginator-range { font-variant-numeric: tabular-nums; flex: 1 1 0; }
-.app-paginator-nav { display: flex; align-items: center; gap: 8px; }
-.app-paginator-size { display: flex; align-items: center; gap: 8px; flex: 1 1 0; justify-content: flex-end; }
-.app-paginator-size select.ob-select { height: 36px; }
+.app-paginator-nav { display: flex; align-items: center; gap: var(--app-spacing-sm); }
+.app-paginator-size { display: flex; align-items: center; gap: var(--app-spacing-sm); flex: 1 1 0; justify-content: flex-end; }
+.app-paginator-size select.ob-select { height: var(--app-control-sm); }
 
 /* Icon buttons with sprite chevrons in currentColor (supersedes deviation
    C3: neither black+filter as in the CD nor hard-coloured data URIs) */
 .app-paginator-button {
-  width: 36px; height: 36px; margin: 0; padding: 0; flex: none;
+  width: var(--app-control-sm); height: var(--app-control-sm); margin: 0; padding: 0; flex: none;
   display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
   border-radius: var(--ob-s-border_radius-md);
   background: none;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
@@ -862,7 +973,7 @@ tr:hover .app-row-link { text-decoration-color: currentColor; }
 
 dialog.ob-dialog {
   border: 0; border-radius: var(--ob-s-border_radius-lg);
-  padding: 24px; max-width: 880px; width: min(92vw, 880px);
+  padding: var(--app-spacing-lg); max-width: 880px; width: min(92vw, 880px);
   max-height: calc(100dvh - 32px); overflow-y: auto;
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
@@ -870,67 +981,73 @@ dialog.ob-dialog {
 }
 dialog.ob-dialog::backdrop { background: rgba(0, 0, 0, 0.32); }
 .ob-dialog-title {
-  font-size: 1.4375rem; font-weight: 700; line-height: 28px; letter-spacing: -0.5px;
-  padding: 0 0 8px; margin: 0;
+  font-size: var(--ob-s-static-font_size-xl); font-weight: var(--ob-s-static-font_weight-bold); line-height: var(--ob-s-static-line_height-lg); letter-spacing: var(--ob-s-static-letter_spacing_px-narrow);
+  padding: 0 0 var(--app-spacing-sm); margin: 0;
 }
-.ob-dialog-content { font-size: 1rem; line-height: 1.5; padding: 0 0 8px; }
+.ob-dialog-content { font-size: var(--ob-s-static-font_size-md); line-height: 1.5; padding: 0 0 var(--app-spacing-sm); }
 .ob-dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: var(--ob-h-button-container-spacing-gap, 16px); padding: 0; flex-wrap: wrap; }
-.app-dialog-status { margin-right: auto; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
+.app-dialog-status { margin-right: auto; font-size: var(--ob-s-static-font_size-sm); color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
 @media (max-width: 600px) {
-  dialog.ob-dialog { padding: 16px; }
+  dialog.ob-dialog { padding: var(--app-spacing-default); }
   dialog textarea { min-height: min(300px, 40dvh); }
   .app-dialog-status { flex: 1 1 100%; margin-right: 0; }
 }
-dialog .app-form-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 16px; }
+dialog .app-form-row { display: flex; gap: var(--app-spacing-md); align-items: flex-end; flex-wrap: wrap; margin-bottom: var(--app-spacing-default); }
 dialog .app-form-row input { min-width: min(300px, 100%); }
+/* A block with the 8px the CD gives dialog content before the actions —
+   as an inline-block it left a 6px baseline gap instead */
 dialog textarea {
-  width: 100%; min-height: 300px;
-  font-family: var(--ob-s-static-font_family-code); font-size: 0.875rem;
-  border: 1px solid var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+  display: block; width: 100%; min-height: 300px; margin-bottom: var(--app-spacing-sm);
+  font-family: var(--ob-s-static-font_family-code); font-size: var(--ob-s-static-font_size-sm);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
-  padding: 12px; background: var(--ob-s3-color-interaction-state-bg-enabled-inversity_normal);
+  padding: var(--app-spacing-md); background: var(--ob-s3-color-interaction-state-bg-enabled-inversity_normal);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
 }
 
-/* Query tabs: a button group with the red active bar (mat-tab look) */
-.app-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+/* Query tabs: a button group with the red active bar (mat-tab look). One
+   row that scrolls sideways where it does not fit (as the mat-tab header
+   does) — wrapped into three stacked rows the bar no longer read as tabs. */
+.app-tabs { display: flex; gap: var(--app-spacing-sm); margin-bottom: var(--app-spacing-default); overflow-x: auto; }
 .app-tab {
   background: none; border: 0; cursor: pointer; font: inherit;
-  padding: 8px 12px;
-  border-bottom: 3px solid transparent;
+  padding: var(--app-spacing-sm) var(--app-spacing-md); flex: none; white-space: nowrap;
+  border-bottom: var(--ob-s-border_width-md) solid transparent;
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
 }
 .app-tab:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.app-tab[aria-pressed="true"] { border-bottom-color: #e53940; font-weight: 700; }
+.app-tab[aria-pressed="true"] { border-bottom-color: #e53940; font-weight: var(--ob-s-static-font_weight-bold); }
 
 /* ========== 15 Karten (Galerie, _mat-card.scss) ========== */
 
 .app-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
-  gap: 16px;
+  gap: var(--app-spacing-default);
 }
 .ob-card {
   position: relative;
-  display: flex; flex-direction: column; align-items: stretch; gap: 8px;
-  padding: 16px;
+  display: flex; flex-direction: column; align-items: stretch; gap: var(--app-spacing-sm);
+  padding: var(--app-spacing-default);
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
-  border: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05), 0 5px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--ob-s-shadow-lg);
 }
 /* A clickable card lifts as in the CD: shadow xl + surface + border
-   (_mat-card.scss focus-highlight) — no invented title underline */
+   (_mat-card.scss focus-highlight) — no invented title underline. Shadows
+   are the DS tokens (lg/xl/default); the legacy Material mixins differ by a
+   few px of spread only. */
 .ob-card:hover:has(.ob-button-card) {
-  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.04), 0 15px 25px rgba(0, 0, 0, 0.09);
+  box-shadow: var(--ob-s-shadow-xl);
   background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal);
   border-color: var(--ob-s3-color-neutral-border-medium-inversity_normal);
 }
-.app-card-head { display: flex; align-items: baseline; gap: 8px; }
+.app-card-head { display: flex; align-items: baseline; gap: var(--app-spacing-sm); }
 .app-card-head .app-tag-count { margin-left: auto; }
 .ob-button-card {
   background: none; border: 0; padding: 0;
-  font-size: 1.0625rem; font-weight: 700; line-height: 24px;
+  font-size: 1.0625rem; font-weight: var(--ob-s-static-font_weight-bold); line-height: var(--ob-s-static-line_height-md);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
   text-align: left; cursor: pointer;
 }
@@ -942,9 +1059,9 @@ dialog textarea {
            var(--ob-s-border-focus_ring-inversity_normal-color);
   outline-offset: var(--ob-s-outline_offset-md);
 }
-.app-card-name { font-size: 1.0625rem; font-weight: 700; line-height: 24px; }
+.app-card-name { font-size: 1.0625rem; font-weight: var(--ob-s-static-font_weight-bold); line-height: var(--ob-s-static-line_height-md); }
 .ob-card-content {
-  font-size: 0.875rem; line-height: 1.42857; letter-spacing: 0.25px;
+  font-size: var(--ob-s-static-font_size-sm); line-height: 1.42857; letter-spacing: 0.25px;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
 }
@@ -953,9 +1070,9 @@ dialog textarea {
    line up with each other. */
 .ob-card > .app-tags { margin-top: auto; }
 .app-card-footer {
-  margin-top: auto; padding-top: 8px;
-  border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
-  font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
+  margin-top: auto; padding-top: var(--app-spacing-sm);
+  border-top: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  font-size: var(--ob-s-static-font_size-sm); color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
 }
 
 /* ========== 16 Tooltip (Graph; _mat-tooltip.scss) ========== */
@@ -963,8 +1080,8 @@ dialog textarea {
 .ob-tooltip {
   position: absolute; pointer-events: none; z-index: 30;
   background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_flipped); color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06), 0 4px 10px rgba(0, 0, 0, 0.08);
-  font-size: 0.75rem; line-height: 1.35; padding: 4px 8px;
+  box-shadow: var(--ob-s-shadow-default);
+  font-size: var(--ob-s-static-font_size-xs); line-height: 1.35; padding: var(--app-spacing-xs) var(--app-spacing-sm);
   border-radius: var(--ob-s-border_radius-lg); max-width: 320px;
   opacity: 0; transition: opacity 90ms ease;
 }
@@ -972,37 +1089,41 @@ dialog textarea {
 .ob-tooltip b { font-weight: 600; }
 .ob-tooltip .app-tooltip-line { display: block; color: var(--ob-s3-color-neutral-fg-contrast_medium-inversity_flipped); margin-top: 3px; }
 
-/* External Link */
-.ob-external-link { display: inline-flex; align-items: baseline; gap: 4px; }
-.ob-external-link .ob-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); align-self: center; }
+/* External Link — inline, not inline-flex as in the Oblique source: a
+   multi-line link in running text would otherwise wrap inside its own
+   flex box and strand the icon and the following punctuation on a line of
+   their own (seen in the accessibility statement at 390px). */
+.ob-external-link { display: inline; }
+.ob-external-link .ob-icon {
+  width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size);
+  margin-left: var(--ob-h-link-spacing-gap, 4px); vertical-align: -0.15em;
+}
 
 /* ========== 17 kbob-App-Bauteile ========== */
 
 /* Seitenkopfbereich (Titel + Kennzahlen + Zurueck) */
-.app-page-header { margin: 0 0 16px; position: relative; }
+.app-page-header { margin: 0 0 var(--app-spacing-default); position: relative; }
 .app-page-header h1:focus-visible { outline-offset: 4px; }
-.app-page-header h1 { scroll-margin-top: calc(var(--app-header-height, 0px) + 16px); }
-.app-page-meta { margin: 0; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 74ch; }
-.app-page-lead { margin: 12px 0 0; max-width: 68ch; }
-.app-page-back { position: absolute; top: 0; right: 0; }
-@media (max-width: 600px) { .app-page-back { position: static; margin-bottom: 8px; } }
+.app-page-header h1 { scroll-margin-top: calc(var(--app-header-height, 0px) + var(--app-spacing-default)); }
+.app-page-meta { margin: 0; font-size: var(--ob-s-static-font_size-sm); color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 74ch; }
+.app-page-lead { margin: var(--app-spacing-md) 0 0; max-width: var(--app-measure-lead); }
 
 /* Statuszeile (aria-live) im Inhalt */
-.app-status { margin: 0 0 8px; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
-.app-status.app-status-error { color: var(--ob-s3-color-status-critical-fg-contrast_high-inversity_normal); font-weight: 500; }
+.app-status { margin: 0 0 var(--app-spacing-sm); font-size: var(--ob-s-static-font_size-sm); color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
+.app-status.app-status-error { color: var(--ob-s3-color-status-critical-fg-contrast_high-inversity_normal); font-weight: var(--ob-s-static-font_weight-medium); }
 .app-status:empty { display: none; }
 
 /* Werkzeugleiste */
 /* White space separates regions, not a rule (Oblique calm) */
 .app-toolbar {
-  display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
-  margin: 0 0 16px;
+  display: flex; gap: var(--app-spacing-md); align-items: flex-end; flex-wrap: wrap;
+  margin: 0 0 var(--app-spacing-default);
 }
 /* The search field takes the rest of the row instead of clipping its own
    placeholder while empty space sits to its right; the ceiling keeps the
    line readable (~50 characters). */
-.app-toolbar .ob-text-control { flex: 1 1 240px; min-width: 240px; max-width: 420px; }
-.app-toolbar-end { margin-left: auto; display: flex; align-items: flex-end; gap: 12px; }
+.app-toolbar .ob-text-control { flex: 1 1 300px; min-width: 300px; max-width: 420px; }
+.app-toolbar-end { margin-left: auto; display: flex; align-items: flex-end; gap: var(--app-spacing-md); }
 
 /* View switch: a button group; chosen = the CD's selected surface (calmer
    than a primary surface; a state is not an action). An icon on every
@@ -1011,7 +1132,7 @@ dialog textarea {
 .app-view-switch { display: inline-flex; flex: none; }
 /* One row height with the search field and facet triggers beside it (40px) */
 .app-view-switch .ob-button {
-  min-height: 40px; gap: 8px; padding-inline: 12px;
+  min-height: var(--app-control-md); gap: var(--app-spacing-sm); padding-inline: var(--app-spacing-md);
   justify-content: center;
 }
 .app-view-switch .ob-button[aria-pressed="false"] .app-view-switch-label { display: none; }
@@ -1028,24 +1149,47 @@ dialog textarea {
 }
 
 /* Facetten (Checkbox-Dropdown, Abweichung C9) */
-.app-facets { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.app-facets { display: flex; flex-wrap: wrap; gap: var(--app-spacing-md); align-items: flex-end; }
 .app-facet { position: relative; }   /* Feld-Gerippe kommt von .app-field */
-/* 40px tall like the search field beside it — one row height in the toolbar */
-.app-facet-toggle { min-width: 150px; min-height: 40px; justify-content: flex-start; font-weight: 400; gap: 8px; }
+/* The trigger is a select field, not a button: same height, border, radius
+   and text colour as the search field and select.ob-select beside it (the
+   toolbar reads as one row of fields), the chevron from the sprite in the
+   19px select size. Open/hover/focus thicken the border to 2px like every
+   Oblique form field. */
+.app-facet-toggle {
+  display: inline-flex; align-items: center; gap: var(--app-spacing-sm);
+  min-width: 150px; height: var(--app-control-md); padding: 0 var(--app-spacing-md) 0 var(--app-spacing-default);
+  font: var(--ob-s-static-font_weight-regular) var(--ob-s-static-font_size-md)/var(--ob-s-static-line_height-md) var(--ob-s-static-font_family-body);
+  color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+  background-color: var(--ob-s3-color-interaction-state-bg-enabled-inversity_normal);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal);
+  border-radius: var(--ob-s-border_radius-lg);
+  cursor: pointer; white-space: nowrap; text-align: left;
+}
+.app-facet-toggle:hover, .app-facet-toggle:focus, .app-facet-toggle[aria-expanded="true"] {
+  border-width: var(--ob-s-border_width-sm); padding: 0 11px 0 15px;
+}
+.app-facet-toggle .ob-icon { width: 19px; height: 19px; flex: none; }
 .app-facet-toggle .app-facet-value { margin-right: auto; }
-.app-facet-toggle .app-facet-value.ob-active { font-weight: 700; }
+.app-facet-toggle .app-facet-value.ob-active { font-weight: var(--ob-s-static-font_weight-bold); }
+/* Phones only: one button folds the facet fields away (see index.html);
+   it takes the place of the fields in the toolbar row. */
+.app-facets-toggle { display: none; }
 .app-facet-menu {
-  position: absolute; top: calc(100% + 4px); left: 0; z-index: 40;
-  min-width: max(100%, 300px); max-width: min(460px, calc(100vw - 32px));
-  max-height: 320px; overflow-y: auto; overflow-x: hidden;
+  position: absolute; top: calc(100% + var(--app-spacing-xs)); left: 0; z-index: 40;
+  /* Wide enough for the long catalogue names («RTE 26201 BIM-Datenvorlage
+     Beleuchtung Bahninfrastruktur») to take one or two lines, not three */
+  min-width: max(100%, 380px); max-width: min(600px, calc(100vw - 32px));
+  max-height: 360px; overflow-y: auto; overflow-x: hidden;
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
-  border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
-  box-shadow: 0 3px 4px 1px #828e9a;
-  padding: 8px;
-  /* 8px between the options — more than the leading INSIDE a multi-line
-     option (see line-height below). The other way round, two-line catalogue
-     names read like two separate entries. */
-  display: flex; flex-direction: column; gap: 8px;
+  border-top: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  box-shadow: 0 3px 4px 1px var(--ob-s3-color-neutral-border-strong-inversity_normal);   /* ob-default-panel-box-shadow */
+  padding: var(--app-spacing-xs) var(--app-spacing-sm);
+  /* One even pitch: rows meet with 2px, each row carries 10px of its own
+     padding above and below — so the 20px between two entries always
+     exceeds the 6px of extra leading inside a wrapped name, and a wrapped
+     name reads as one entry, a list of single lines as one list. */
+  display: flex; flex-direction: column; gap: 2px;
 }
 /* The whole row is the control: it wraps the checkbox — click, hover and
    cursor apply across the full width */
@@ -1053,33 +1197,56 @@ dialog textarea {
    names it otherwise sat between the lines and left open which entry it
    belonged to. */
 .app-facet-option {
-  display: flex; align-items: flex-start; gap: 12px; width: 100%;
-  font-size: 1rem; line-height: 1.3; cursor: pointer; min-height: 40px;
-  padding: 8px 12px; white-space: normal; word-break: normal;
+  display: flex; align-items: flex-start; gap: var(--app-spacing-md); width: 100%;
+  font-size: var(--ob-s-static-font_size-md); line-height: 1.375; cursor: pointer; min-height: 42px;
+  padding: 10px var(--app-spacing-md); white-space: normal; word-break: normal;
   border-radius: var(--ob-s-border_radius-md);
   -webkit-user-select: none; user-select: none;
 }
 .app-facet-option:hover { background-color: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-/* Centre the 18px box on the first line (20.8px) */
+/* Centre the 18px box on the first line (22px) */
 .app-facet-option input { cursor: pointer; margin-top: 2px; }
-.app-facet-footer { border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal); margin-top: 4px; padding-top: 8px; }
+.app-facet-option > span { hyphens: manual; }
+.app-facet-footer { border-top: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal); margin-top: var(--app-spacing-xs); padding-top: var(--app-spacing-sm); }
 
 /* Attribute detail: sections in the I14Y pattern — H2, below it a bold
    label over a plain value, no card frame, no rules */
-.app-detail { max-width: 78ch; }
-.app-detail-section h2 { margin: 32px 0 8px; font-size: 1.4375rem; }
-.app-detail-section:first-child h2 { margin-top: 8px; }
+.app-detail { max-width: var(--app-measure); }
+.app-detail-section h2 { margin: var(--app-spacing-xl) 0 var(--app-spacing-sm); font-size: var(--ob-s-static-font_size-xl); }
+.app-detail-section:first-child h2 { margin-top: var(--app-spacing-sm); }
 dl.app-data-list { margin: 0; }
-dl.app-data-list dt { font-weight: 700; padding: 12px 0 2px; }
+dl.app-data-list dt { font-weight: var(--ob-s-static-font_weight-bold); padding: var(--app-spacing-md) 0 2px; }
+/* First label: H2 bottom 8px + 4px = the 12px every following pair keeps */
+dl.app-data-list dt:first-of-type { padding-top: var(--app-spacing-xs); }
 dl.app-data-list dd { margin: 0; word-break: break-word; }
-.app-copy { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.app-values-list { max-width: 78ch; }
+.app-copy { display: inline-flex; align-items: center; gap: var(--app-spacing-sm); flex-wrap: wrap; }
+.app-values-list { max-width: var(--app-measure); }
+
+/* Guide («Anleitung»): prose in the reading measure of the detail pages;
+   the same section rhythm (H2 32px above), the definition list of the
+   detail, a plain table of contents at the top. */
+.app-guide { max-width: var(--app-measure); }
+.app-guide-lang-note {
+  margin: 0 0 var(--app-spacing-default); font-size: var(--ob-s-static-font_size-sm);
+  color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
+}
+.app-guide-toc ul { margin: 0 0 var(--app-spacing-lg); padding-left: 1.25em; }
+.app-guide-toc li { margin: var(--app-spacing-xs) 0; }
+.app-guide section h2 { margin: var(--app-spacing-xl) 0 var(--app-spacing-sm); font-size: var(--ob-s-static-font_size-xl); }
+.app-guide section:first-of-type h2 { margin-top: var(--app-spacing-sm); }
+.app-guide h3 { margin: var(--app-spacing-default) 0 var(--app-spacing-xs); }
+.app-guide p, .app-guide li { font-weight: var(--ob-s-static-font_weight-regular); }
+.app-guide ul { padding-left: 1.25em; }
+.app-guide li { margin: var(--app-spacing-xs) 0; }
+.app-guide dl.app-data-list dd { max-width: 70ch; }
+.app-guide-links { list-style: none; padding: 0; }
+.app-guide-links li { margin: var(--app-spacing-sm) 0; }
 
 /* ========== 18 Graph (Fachvisualisierung, kbob + interner g-Namensraum) ========== */
 
 .app-graph {
   position: relative;
-  border: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
 }
@@ -1100,8 +1267,8 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
 /* Controls as an overlay ON the graphic (top left), not as a separate
    strip above it — the tools belong to the workpiece */
 .app-graph-controls {
-  position: absolute; top: 12px; left: 12px; z-index: 20;
-  display: flex; flex-direction: column; gap: 8px;
+  position: absolute; top: var(--app-spacing-md); left: var(--app-spacing-md); z-index: 20;
+  display: flex; flex-direction: column; gap: var(--app-spacing-sm);
 }
 .app-graph-controls .ob-button {
   background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
@@ -1113,15 +1280,15 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
 
 /* Skip the graphic: invisible until focus lands on it */
 .app-graph-skip {
-  position: absolute; top: 12px; left: 60px; z-index: 30;
+  position: absolute; top: var(--app-spacing-md); left: 60px; z-index: 30;
   width: 1px; height: 1px; padding: 0; overflow: hidden;
   clip-path: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
 .app-graph-skip:focus {
-  width: auto; height: auto; padding: 8px 12px; overflow: visible;
+  width: auto; height: auto; padding: var(--app-spacing-sm) var(--app-spacing-md); overflow: visible;
   clip-path: none; white-space: normal;
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
-  border: 1px solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
+  border: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-medium-inversity_normal);
   border-radius: var(--ob-s-border_radius-lg);
   box-shadow: var(--ob-s-shadow-sm);
   font: inherit; cursor: pointer;
@@ -1131,10 +1298,10 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
 .app-zoom-hint {
   position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
   z-index: 20; pointer-events: none;
-  padding: 6px 12px; border-radius: var(--ob-s-border_radius-lg);
+  padding: 6px var(--app-spacing-md); border-radius: var(--ob-s-border_radius-lg);
   background-color: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_flipped);
   color: var(--ob-s3-color-neutral-fg-contrast_highest-inversity_flipped);
-  font-size: 0.875rem;
+  font-size: var(--ob-s-static-font_size-sm);
 }
 
 /* Side panel: details of the selected node; navigation only through the
@@ -1143,20 +1310,20 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
   position: absolute; top: 0; right: 0; bottom: 0; z-index: 25;
   width: min(340px, 85%);
   overflow-y: auto;
-  padding: 16px;
+  padding: var(--app-spacing-default);
   background: var(--ob-s3-color-neutral-bg-contrast_highest-inversity_normal);
-  border-left: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  border-left: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
   border-radius: 0 var(--ob-s-border_radius-lg) var(--ob-s-border_radius-lg) 0;
-  box-shadow: 0 3px 4px 1px #828e9a;   /* ob-default-panel-box-shadow */
+  box-shadow: 0 3px 4px 1px var(--ob-s3-color-neutral-border-strong-inversity_normal);   /* ob-default-panel-box-shadow */
 }
-.app-graph-panel-head { display: flex; align-items: flex-start; gap: 8px; }
+.app-graph-panel-head { display: flex; align-items: flex-start; gap: var(--app-spacing-sm); }
 .app-graph-panel-title { flex: 1; min-width: 0; }
 .app-graph-panel-kind {
-  display: block; font-size: 0.75rem; letter-spacing: 0.5px; text-transform: uppercase;
+  display: block; font-size: var(--ob-s-static-font_size-xs); letter-spacing: var(--ob-s-static-letter_spacing_px-wide); text-transform: uppercase;
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
 }
 .app-graph-panel h2 {
-  margin: 0; font-size: 1.0625rem; line-height: 24px; word-break: break-word;
+  margin: 0; font-size: 1.0625rem; line-height: var(--ob-s-static-line_height-md); word-break: break-word;
 }
 .app-graph-panel h2:focus-visible { outline-offset: 2px; }
 .app-graph-panel-close {
@@ -1169,17 +1336,17 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
 .app-graph-panel-close:hover { background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
 .app-graph-panel-close .ob-icon { width: var(--ob-h-button-icon-size); height: var(--ob-h-button-icon-size); }
 .app-graph-panel-desc {
-  margin: 8px 0 0; font-size: 0.875rem;
+  margin: var(--app-spacing-sm) 0 0; font-size: var(--ob-s-static-font_size-sm);
   color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal);
 }
-.app-graph-panel-data { margin: 8px 0 0; }
+.app-graph-panel-data { margin: var(--app-spacing-sm) 0 0; }
 .app-graph-panel-data dt {
-  font-size: 0.75rem; font-weight: 700; letter-spacing: 0.25px;
-  padding: 8px 0 0;
+  font-size: var(--ob-s-static-font_size-xs); font-weight: var(--ob-s-static-font_weight-bold); letter-spacing: 0.25px;
+  padding: var(--app-spacing-sm) 0 0;
 }
-.app-graph-panel-data dd { margin: 0; font-size: 0.875rem; word-break: break-word; }
+.app-graph-panel-data dd { margin: 0; font-size: var(--ob-s-static-font_size-sm); word-break: break-word; }
 .app-graph-panel-actions {
-  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
+  display: flex; flex-wrap: wrap; gap: var(--app-spacing-sm); margin-top: var(--app-spacing-default);
 }
 
 /* Edges: quieter than the nodes (figure before ground); width = shared
@@ -1215,7 +1382,7 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
 
 /* Focus ring and selection ring keep their width at every zoom level */
 .app-graph-node:focus-visible { outline: none; }
-.app-graph-node:focus-visible .app-graph-dot,
+.app-graph-node: focus-visible .app-graph-dot,
 .app-graph-node:focus-visible circle {
   stroke: var(--ob-s-border-focus_ring-inversity_normal-color); stroke-width: 3;
   vector-effect: non-scaling-stroke;
@@ -1226,53 +1393,53 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
 }
 
 .app-legend {
-  display: flex; flex-wrap: wrap; gap: 8px 16px;
-  padding: 12px 16px;
+  display: flex; flex-wrap: wrap; gap: var(--app-spacing-sm) var(--app-spacing-default);
+  padding: var(--app-spacing-md) var(--app-spacing-default);
   transition: padding-right var(--ob-s-motion-duration-md, 0.2s) ease;
-  border-top: 1px solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
-  font-size: 0.875rem;
+  border-top: var(--ob-s-border_width-xs) solid var(--ob-s3-color-neutral-border-subtle-inversity_normal);
+  font-size: var(--ob-s-static-font_size-sm);
 }
 .app-legend button, .app-legend .app-legend-item {
   display: flex; align-items: center; gap: 6px;
-  background: none; border: 0; height: auto; min-height: 24px; padding: 2px 4px;
-  font-size: 0.875rem; font-weight: 400;
+  background: none; border: 0; height: auto; min-height: 24px; padding: 2px var(--app-spacing-xs);
+  font-size: var(--ob-s-static-font_size-sm); font-weight: var(--ob-s-static-font_weight-regular);
   color: var(--ob-s3-color-neutral-fg-contrast_high-inversity_normal); cursor: pointer;
 }
 .app-legend .app-legend-item { cursor: default; }
 .app-legend button:hover { background: var(--ob-s3-color-neutral-bg-contrast_high-inversity_normal); }
-.app-legend button[aria-pressed="true"] { font-weight: 700; }
+.app-legend button[aria-pressed="true"] { font-weight: var(--ob-s-static-font_weight-bold); }
 .app-legend button.app-is-muted { color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); }
 .app-legend button.app-is-muted .app-swatch { opacity: 0.35; }
 .app-legend .app-swatch.app-swatch-round { border-radius: 50%; }
 /* The panel is absolutely positioned over the whole graphic area — without
    this inset the legend would run underneath it and be half hidden. */
 .app-graph:has(.app-graph-panel:not([hidden])) .app-legend {
-  padding-right: calc(min(340px, 85%) + 16px);
+  padding-right: calc(min(340px, 85%) + var(--app-spacing-default));
 }
 .app-legend-note { margin-left: auto; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); align-self: center; }
 .app-legend-clear {
   margin-left: auto; align-self: center;
   display: inline-flex; align-items: center; gap: 6px;
-  border: 0; background: none; padding: 2px 4px; cursor: pointer;
-  font-size: 0.875rem; color: var(--ob-h-link-color-default);
+  border: 0; background: none; padding: 2px var(--app-spacing-xs); cursor: pointer;
+  font-size: var(--ob-s-static-font_size-sm); color: var(--ob-h-link-color-default);
 }
 .app-legend-clear:hover { text-decoration: underline; text-underline-offset: 3px; }
 .app-legend-clear .ob-icon { width: var(--ob-h-link-icon-size); height: var(--ob-h-link-icon-size); }
-.app-graph-hint { margin: 8px 0 0; font-size: 0.875rem; color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: 78ch; }
+.app-graph-hint { margin: var(--app-spacing-sm) 0 0; font-size: var(--ob-s-static-font_size-sm); color: var(--ob-s3-color-neutral-fg-contrast_low-inversity_normal); max-width: var(--app-measure); }
 
 /* Wide content (graph) may exceed the reading measure */
 .app-bleed { max-width: none; }
 
 /* Meldungs-Kachel neben den Alerts (Lade-/Leerzustand) */
-.app-message { max-width: 74ch; }
-.app-message .ob-button { margin-top: 4px; }
+.app-message { max-width: var(--app-measure); }
+.app-message .ob-button { margin-top: var(--app-spacing-xs); }
 
 /* ========== 19 Print ========== */
 
 @media print {
   *, *::before, *::after, *:focus { box-shadow: none !important; text-shadow: none !important; transition: none !important; }
   .ob-master-layout-header, .ob-access-keys, .app-toolbar, .app-filter-bar,
-  .app-paginator, .app-graph-controls, .app-graph-panel, .app-legend button, .app-page-back,
+  .app-paginator, .app-graph-controls, .app-graph-panel, .app-legend button,
   .ob-master-layout-footer button { display: none !important; }
   body { background: #fff; color: #000; }
   .ob-main-layout { padding: 0 !important; width: auto !important; }
@@ -1280,7 +1447,7 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
   .ob-footer-item a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 10px; }
   .ob-card-content { display: block; -webkit-line-clamp: unset; overflow: visible; }
   thead { display: table-header-group; }
-  .ob-table thead th { position: static !important; box-shadow: none !important; border-bottom: 2px solid #000; }
+  .ob-table thead th { position: static !important; box-shadow: none !important; border-bottom: var(--ob-s-border_width-sm) solid #000; }
   tbody tr { break-inside: avoid; }
   .app-detail { max-width: none; }
   .ob-table-scrollable { overflow: visible !important; }
@@ -1292,7 +1459,7 @@ dl.app-data-list dd { margin: 0; word-break: break-word; }
 
 @media (forced-colors: active) {
   .app-phase.ob-active, .app-swatch { forced-color-adjust: none; }
-  .app-phase { border: 1px solid CanvasText; }
+  .app-phase { border: var(--ob-s-border_width-xs) solid CanvasText; }
   .app-view-switch .ob-button[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; }
   .app-legend button[aria-pressed="false"] { text-decoration: line-through; }
 }

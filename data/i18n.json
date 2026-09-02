@@ -90,6 +90,48 @@
     "it": "Navigazione di servizio",
     "en": "Service navigation"
   },
+  "a11y.mainNav": {
+    "de": "Hauptnavigation",
+    "fr": "Navigation principale",
+    "it": "Navigazione principale",
+    "en": "Main navigation"
+  },
+  "nav.catalog": {
+    "de": "Katalog",
+    "fr": "Catalogue",
+    "it": "Catalogo",
+    "en": "Catalogue"
+  },
+  "nav.guide": {
+    "de": "Anleitung",
+    "fr": "Guide",
+    "it": "Guida",
+    "en": "Guide"
+  },
+  "guide.title": {
+    "de": "Anleitung",
+    "fr": "Guide",
+    "it": "Guida",
+    "en": "Guide"
+  },
+  "guide.meta": {
+    "de": "Was das KBOB Data Dictionary ist, woher die Daten kommen und wie die Anwendung funktioniert",
+    "fr": "Ce qu’est le KBOB Data Dictionary, d’où viennent les données et comment fonctionne l’application",
+    "it": "Che cos’è il KBOB Data Dictionary, da dove provengono i dati e come funziona l’applicazione",
+    "en": "What the KBOB Data Dictionary is, where the data comes from and how the application works"
+  },
+  "guide.langNote": {
+    "de": "Diese Anleitung liegt in der gewählten Sprache noch nicht vor; angezeigt wird die deutsche Fassung.",
+    "fr": "Ce guide n’existe pas encore dans la langue choisie ; la version allemande est affichée.",
+    "it": "Questa guida non è ancora disponibile nella lingua scelta; viene mostrata la versione tedesca.",
+    "en": "This guide is not yet available in the chosen language; the German version is shown."
+  },
+  "guide.loading": {
+    "de": "Anleitung wird geladen …",
+    "fr": "Chargement du guide …",
+    "it": "Caricamento della guida …",
+    "en": "Loading the guide …"
+  },
   "a11y.breadcrumb": {
     "de": "Pfad",
     "fr": "Fil d'Ariane",
@@ -191,18 +233,6 @@
     "fr": "Fermer",
     "it": "Chiudi",
     "en": "Close"
-  },
-  "common.back": {
-    "de": "Zurück",
-    "fr": "Retour",
-    "it": "Indietro",
-    "en": "Back"
-  },
-  "common.backTo": {
-    "de": "Zurück zu {name}",
-    "fr": "Retour à {name}",
-    "it": "Torna a {name}",
-    "en": "Back to {name}"
   },
   "common.retry": {
     "de": "Erneut versuchen",
@@ -449,6 +479,12 @@
     "fr": "Effacer la sélection",
     "it": "Annulla la selezione",
     "en": "Clear selection"
+  },
+  "facets.toggle": {
+    "de": "Filter",
+    "fr": "Filtres",
+    "it": "Filtri",
+    "en": "Filters"
   },
   "chips.remove": {
     "de": "Filter entfernen: {kind} {value}",

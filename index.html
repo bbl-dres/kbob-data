@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/main.css">
 </head>
-<body class="ob-master-layout ob-has-layout ob-no-navigation ob-has-max-width">
+<body class="ob-master-layout ob-has-layout ob-has-max-width">
 
 <noscript>
   <p style="max-width:74ch;margin:24px auto;padding:0 24px;font-family:Arial,sans-serif">
@@ -90,6 +90,22 @@
       </ul>
     </div>
   </header>
+  <!-- Oblique master-layout-navigation: one row of first-level links under
+       the header. Two entries: the catalogue (landing page) and the guide;
+       aria-current and .active are set by app.js. -->
+  <div class="ob-master-layout-navigation">
+    <h2 id="ob-navigationlabel" class="ob-screen-reader-only" data-i18n="a11y.mainNav">Hauptnavigation</h2>
+    <nav aria-labelledby="ob-navigationlabel">
+      <ul id="navigation" class="ob-main-nav">
+        <li class="ob-main-nav-item">
+          <a id="nav-catalog" class="ob-master-layout-navigation-link ob-main-nav-link active" href="#" aria-current="page" data-i18n="nav.catalog">Katalog</a>
+        </li>
+        <li class="ob-main-nav-item">
+          <a id="nav-guide" class="ob-master-layout-navigation-link ob-main-nav-link" href="#anleitung" data-i18n="nav.guide">Anleitung</a>
+        </li>
+      </ul>
+    </nav>
+  </div>
 </div>
 
 <div class="ob-master-layout-wrapper">
@@ -102,10 +118,6 @@
     </nav>
 
     <div class="app-page-header" id="page-header" hidden>
-      <button class="ob-button ob-button-tertiary app-page-back" id="back" hidden>
-        <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#arrow_left"></use></svg>
-        <span data-i18n="common.back">Zurück</span>
-      </button>
       <h1 id="page-title" tabindex="-1"></h1>
       <p class="app-page-meta" id="page-meta"></p>
       <p class="app-page-lead" id="page-lead" hidden></p>
@@ -121,6 +133,14 @@
       </span>
       <div class="app-facets" id="facets"></div>
       <span class="app-toolbar-end">
+        <!-- Phones only (below sm): the facet fields fold away behind this
+             one button so the toolbar stays two rows; the label carries the
+             number of active facets. Above sm the fields are always shown. -->
+        <button type="button" id="facets-toggle" class="ob-button ob-button-secondary app-facets-toggle"
+                aria-expanded="false" aria-controls="facets">
+          <svg class="ob-icon" focusable="false" aria-hidden="true"><use href="#filter"></use></svg>
+          <span class="app-facets-toggle-label">Filter</span>
+        </button>
         <span class="ob-screen-reader-only" id="result-count" aria-live="polite"></span>
         <!-- Icon on every option, wording only on the active one: the switch
              keeps one toolbar row on narrow viewports. The accessible name
@@ -195,6 +215,17 @@
       <div class="app-detail" id="attribute-detail"></div>
     </div>
 
+    <!-- Guide: static, German for now (lang="de"); the page header above
+         carries the H1 and the figures line like every other level. -->
+    <!-- Guide («Anleitung»): the content is one HTML fragment per language
+         in data/guide/<lang>.html, fetched on demand by app.js; German is
+         the fallback (the note below then appears). The page header above
+         carries the H1 and the figures line like every other level. -->
+    <div id="view-guide" class="app-guide" hidden>
+      <p class="app-guide-lang-note" id="guide-lang-note" data-i18n="guide.langNote" hidden>Diese Anleitung liegt vorerst nur auf Deutsch vor.</p>
+      <div id="guide-content"></div>
+    </div>
+
     <nav class="app-paginator" id="paginator" hidden aria-label="Blättern" data-i18n-aria-label="paginator.label"></nav>
 
   </main>
@@ -202,8 +233,9 @@
   <!-- Oblique nests the control: .ob-top-control is the host, the button is
        .ob-top-control-btn (scrolling/top-control.component). -->
   <div class="ob-top-control">
-    <button type="button" class="ob-top-control-btn" id="to-top" aria-label="Zum Seitenanfang" data-i18n-aria-label="a11y.toTop" hidden>
+    <button type="button" class="ob-top-control-btn" id="to-top">
       <svg class="ob-icon ob-control-icon" focusable="false" aria-hidden="true"><use href="#chevron_up"></use></svg>
+      <span class="ob-control-label" data-i18n="a11y.toTop">Zum Seitenanfang</span>
     </button>
   </div>
 

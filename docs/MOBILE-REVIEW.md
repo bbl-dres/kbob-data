@@ -29,7 +29,10 @@ gefunden), 32-px-Schliess-/Löschknöpfe, 36-px-Sprachwahl neben
   Seite»-Select 48; Chips min-height 40; Legenden-Knöpfe min-height 32.
 - Brotkrume und Sortierköpfe wachsen als **Trefferfläche** (Padding mit
   Negativ-Margin), die Optik bleibt.
-- Sortierpfeil ist auf Touch **immer angedeutet** (es gibt kein Hover).
+- ~~Sortierpfeil ist auf Touch **immer angedeutet** (es gibt kein Hover).~~
+  Zurückgenommen am 02.09.2026: vier gleiche Pfeile verdeckten den einen
+  aktiven; der Pfeil steht wie in mat-sort nur auf der aktiven Spalte
+  (docs/UX-REVIEW.md §5).
 - Graph-Knoten: Trefferflächen werden nach dem Rahmen auf mindestens
   ~24 CSS-Pixel Durchmesser angehoben — vorher schrumpften sie mit der
   Skala grosser Graphen auf ~13 px und weniger (WCAG 2.5.8).

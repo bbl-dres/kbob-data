@@ -62,12 +62,13 @@ Extraktionsbericht): `--pine` → Interaktionsblau, `--rust` →
 
 | App-Bauteil | Oblique-Klasse(n) | Quelle |
 |---|---|---|
-| Seitengerüst | `body.ob-master-layout.ob-has-layout.ob-no-navigation` + `ob-layout-expanded/-collapsed` (matchMedia 905 px) > Header > `.ob-master-layout-wrapper` > `main#content.ob-main-layout` (kein `.ob-viewport` — Abweichung C1) | master-layout.component |
+| Seitengerüst | `body.ob-master-layout.ob-has-layout` (mit Hauptnavigation, seit 02.09.2026 ohne `ob-no-navigation`) + `ob-layout-expanded/-collapsed` (matchMedia 905 px) > Header > `.ob-master-layout-wrapper` > `main#content.ob-main-layout` (kein `.ob-viewport` — Abweichung C1) | master-layout.component |
 | Kopfzeile | `.ob-master-layout-header` > `header.ob-header` > `.ob-master-layout-header-title` > `.ob-master-layout-brand` (Bundeslogo `a.ob-master-layout-logo` + `span.ob-master-layout-brand-app-title` > `a.ob-master-layout-brand-link`) | dito |
 | Sprachwahl | `.ob-service-navigation` > `ul.ob-service-navigation-list` > `li` > `.ob-language-dropdown` (natives `<select>`, rahmenlos, Chevron) | service-navigation/languages |
+| Hauptnavigation | `.ob-master-layout-navigation` > `nav` > `ul.ob-main-nav` > `li.ob-main-nav-item` > `a.ob-master-layout-navigation-link.ob-main-nav-link` (+ `.active`, `aria-current="page"`); zwei Einträge: Katalog (`#`), Anleitung (`#anleitung`); erste Ebene expanded: 12/16-px-Polster, 3-px-Unterkante, Hover `secondary-50`, aktiv/hover Akzentrot `$ob-accent` | master-layout-navigation.component |
 | Export-Knopf | `li.ob-service-navigation-custom-control` > `button.ob-button.ob-button-secondary` | dito + Button-Tokens |
 | Skip-Link | `nav.ob-access-keys` > `a.ob-accessible` (oranges Band, Accessibility-Icon, accesskey 0) | master-layout-accessibility |
-| Brotkrume | `nav > ol.ob-breadcrumbs` > `.ob-breadcrumb-label` + `.ob-breadcrumb-separator.ob-icon-text` (chevron_right_small); **wandert vom Kopfband in den Inhalt** (Oblique kennt kein Brotkrumen-Band) | breadcrumb.component |
+| Brotkrume | `nav > ol.ob-breadcrumbs` > `.ob-breadcrumb-label` + `.ob-breadcrumb-separator.ob-icon-text` (chevron_right_small); **wandert vom Kopfband in den Inhalt** (Oblique kennt kein Brotkrumen-Band); erscheint ab Tiefe 2 und ist der eine Rückweg (kein zusätzlicher «Zurück»-Knopf, UX-REVIEW §2.2) | breadcrumb.component |
 | Knöpfe | `.ob-button.ob-button-primary/-secondary/-tertiary` — vollständig über `var(--ob-h-button-*)` definiert (Radius 1 px, min-height 24 px, Blau-Kette, hover-Schatten `shadow-xl`) | DS-Tokens |
 | Tabelle | `.ob-table` (+`.ob-table-scrollable`-Wrapper): Zebra `#f0f4f7`, hover `#dfe4e9`, Zeilenlinie 1 px `#acb4bd`, Kopf 2 px, Versalien-`th` normalgewichtig, Zellpadding 8 px | core/_table.scss |
 | Sortierpfeil | `.mat-sort-header`-Muster: «ArrowUp»-SVG (data-URI, currentColor, 12 px), absteigend rotiert | material/_mat-table.scss |
@@ -77,6 +78,7 @@ Extraktionsbericht): `--pine` → Interaktionsblau, `--rust` →
 | Blättern | Paginator-Muster: 36×36-Navigationsknöpfe (first/prev/next/last) mit den vier Chevron-data-URIs, Text `#2f4356`, «Einträge pro Seite»-Select | material/_mat-paginator.scss |
 | Dialoge | `.ob-dialog`-Rollen (`-title` = ob-h2 23/28/700, `-content`, `-actions` rechtsbündig, Padding 24 px, bewusst ohne Schatten); natives `<dialog>` bleibt | material/_mat-dialog.scss |
 | Tooltip (Graph) | `.ob-tooltip`: Grund `#263645`, weiss, `shadow-default` | material/_mat-tooltip.scss |
+| Zum Seitenanfang | `div.ob-top-control > button.ob-top-control-btn` (Chevron + Wort «Zum Seitenanfang»), sichtbar über `body.ob-master-layout-scrolling`; hellgrauer Reiter am rechten Fensterrand, 50 von 200 px sichtbar, `bottom: 10 %` expanded / 15 px collapsed, Hover/Fokus fährt das Wort ein — Werte 1:1 | scrolling/top-control.component |
 | Karten (Galerie) | `.ob-card` (Rand `#dfe4e9`, `shadow-lg`, hover `shadow-xl`), Titelknopf mit gedehnter Klickfläche bleibt | material/_mat-card.scss |
 | Externe Links | `a.ob-external-link` + `link_external`-Icon + sr-Suffix «– externer Link» | external-link |
 | Fusszeile | `.ob-master-layout-footer` > `footer` (Grid, dunkel `#263645`, weisse Links, hover `#dfe4e9`) > `.ob-footer-links`/`.ob-footer-item-links`, `.ob-footer-info` | master-layout-footer |
@@ -116,6 +118,13 @@ Begründung des Präfixes — drei Punkte, in dieser Reihenfolge:
    Sandbox-Apps). Damit ist die App-Schicht CD-konform benannt, statt einen
    dritten Namensstil zu erfinden.
 
+**Eigene Custom Properties** tragen den Präfix `--app-` und sind Aliase auf
+DS-Tokens, nie eigene Werte: `--app-spacing-xs…xxl` (die Legacy-Skala
+`$ob-spacing-*` 4/8/12/16/24/32/48 auf `--ob-s-dimension-static-density-*`),
+`--app-control-sm/md/lg` (36/40/48 auf `component_size-container-*`),
+`--app-header-height` (gemessen) sowie die zwei Lesebreiten
+`--app-measure`/`--app-measure-lead` (docs/SPACING-REVIEW.md §4).
+
 **Zustandsklassen** kommen aus dem CD-Vokabular, wo Oblique dasselbe meint:
 `ob-active` (aktive Facette, hervorgehobene Kante, gesetzter Meilenstein),
 sonst `app-is-*` nach Obliques eigenem Muster `ob-has-*`/`ob-is-*`:
@@ -148,6 +157,7 @@ potenziell mit jedem Fremd-CSS und waren teils deutsch.
 | A1 | **Body-Grund weiss** (`bg-contrast_highest`) statt DS-Reset-Grau `#f0f4f7` | Die Komponenten (Zebra-Tabelle, weisser Header, Karten) stammen aus der Legacy-Welt mit weissem Grund; auf Grau würde das Zebra unsichtbar. Wenn Oblique die DS-Komponenten liefert, mitziehen. |
 | B1 | Knöpfe nach **DS-Tokens** (Blau `#2379a4`, Radius 1 px, ~30 px hoch) statt Legacy-Material (Grau `#596978`, Radius 2 px, 36 px) | DS ist die deklarierte Wahrheit; Blau-Knopf und Blau-Link gehören zusammen. Legacy-Werte im Extraktionsbericht festgehalten. |
 | B2 | Fokus app-weit `outline 3px solid #8b5cf6` + Offset (DS) statt Legacy-`box-shadow #8655f6` | outline überlebt forced-colors, box-shadow nicht; eine einheitliche Fokusfarbe statt zwei. |
+| B3 | **Interaktionsblau für Text** (Links, Zeilen-Links, Brotkrume, Sekundär-/Tertiärknöpfe): `fg-enabled/-focus/-selected` auf den DS-Hover-Ton `#236487`, Hover/Pressed auf den DS-Pressed-Ton `#255069` (Token-Override in `main.css` §2b) statt DS `#2e8fbf` | `#2e8fbf` erreicht 3.6:1 auf Weiss, 3.3:1 auf der Zebra-Zeile, 2.8:1 auf der Hover-Zeile — unter WCAG AA. Beide Ersatztöne sind DS-Tokens derselben Familie; Primärknopf unverändert. Entfällt, sobald das DS eine AA-konforme Linkfarbe liefert. Beleg: docs/UX-REVIEW.md §2.1. |
 | C1 | Header klebt per `position: sticky` statt Obliques `100dvh`-Viewport mit scrollendem Wrapper | Funktional/visuell deckungsgleich, ohne das Scrollverhalten der ganzen App umzubauen. |
 | C2 | Sprachwahl als gestyltes natives `<select>`; das aufgeklappte Panel ist das native Browser-Popup | Kein Overlay-Nachbau in ES5; Trigger-Optik (rahmenlos, 36 px, Chevron) ist originalgetreu. |
 | C3 | Paginator: Sprite-Chevrons in `currentColor` statt Schwarz+CSS-`filter` (löste die frühere Data-URI-Fassung ab) | Farben kommen aus den Knopf-Tokens, keine Filter-Approximation, keine doppelt gepflegten SVGs. Layout (Bereich links, Seiten Mitte, Grösse rechts) bleibt wie gehabt — dokumentierte App-Anordnung; unter md entfallen Erste/Letzte Seite. |
@@ -162,8 +172,11 @@ potenziell mit jedem Fremd-CSS und waren teils deutsch.
 | C12 | **Tabelle unter lg**: horizontales Scrollen in `.ob-table-scrollable` (fokussierbare Region, Mindestbreite 720 px) statt Obliques `ob-table-collapse`-Stapelmuster | Pragmatisch ohne Markup-Umbau; der Stapel-Umbau (`data-title` je Zelle) ist als Ausbau notiert (docs/CD-REVIEW.md). |
 | C13 | **Fusszeile einzeilig**: Flex (Links links, Quellcode-Hinweis rechts) statt CD-Grid `1fr 1fr` | Redaktioneller Entscheid; unter md weiterhin gestapelt wie im CD. |
 | C14 | **Suchfeld** mit Lupe links im Feld und Lösch-Knopf (×) rechts | Muster von `ob-search-box`, als natives Suchfeld umgesetzt; der native Webkit-Löschknopf ist abgeschaltet. |
-| C15 | **Facetten-Trigger** tragen Filter-Icon + Namen + «(n)» statt separatem Label und «n von m gewählt»; der Ansichts-Umschalter zeigt die Wahl als Interaction-`selected`-Fläche | Redaktioneller Entscheid: der Knopf sagt selbst, welcher Filter wirkt; Zustand ≠ Aktion, darum keine Primärfläche. |
+| C15 | **Facetten-Trigger** tragen Namen + «(n)» statt separatem Label und «n von m gewählt» und sehen aus wie `select.ob-select` (Feldrand, dunkle Schrift, Chevron, 2-px-Rand offen/hover/fokus) — nicht wie ein Sekundärknopf; kein Filter-Icon mehr (UX-REVIEW §2.3). Der Ansichts-Umschalter zeigt die Wahl als Interaction-`selected`-Fläche | Redaktioneller Entscheid: das Feld sagt selbst, welcher Filter wirkt; eine Auswahl ist ein Feld (mat-select-Rolle), keine Aktion; Zustand ≠ Aktion, darum keine Primärfläche. |
 | C16 | **Graph-Ansicht**: Steuerung (Zoom/Ausschnitt/Vollbild) als Overlay auf der Grafik, Knoten-Details in einem `app-graph-panel` (Navigation erst über die Panel-Aktion), Skip-Knopf zur Textfassung | Kein Oblique-Gegenstück; `app-*` im Oblique-Look (DS-Icon-Knöpfe, Panel-Schatten, Token-Flächen). Befunde und Begründung: docs/GRAPH-REVIEW.md. |
+| C17 | **Facetten unter sm hinter einem «Filter»-Knopf** (`#facets-toggle`, `aria-expanded`/`aria-controls`, Beschriftung mit Zahl der aktiven Facetten); ab sm immer ausgeklappt | Kein Oblique-Gegenstück für eine Facetten-Zeile; fünf Vollbreiten-Zeilen vor dem Inhalt waren auf Telefonen zu viel (UX-REVIEW §2.4). |
+| C18 | `.ob-external-link` als `display: inline` statt Obliques `inline-flex` | Mehrzeilige Links im Fliesstext brachen sonst in der eigenen Flex-Box um und liessen Ikone und Satzpunkt allein stehen (UX-REVIEW §2.4). |
+| C19 | **Hauptnavigation unter md sichtbar als Zeile** (kein Burger, keine gestapelten Vollbreiten-Einträge mit roter linker Kante); Fokusring als Outline innen statt Inset-Box-Shadow | Zwei Einträge rechtfertigen kein Menü hinter einem Burger; die Zeile schliesst den Kopf wie im expanded-Layout. Der Fokusring folgt B2 (eine Fokusfarbe, eine Technik). |
 
 ## 6. Umbau-Etappen (ausgeführt)
 

@@ -158,3 +158,20 @@ test('applyDetail: enumeration derivation and trivial yes/no list', function () 
   assert.strictEqual(byName['Aktiv'].valueList, null);   // true/false says nothing new
   assert.strictEqual(byName['Breite'].type, 'Zahl');
 });
+
+/* The guide exists once per interface language; every fragment carries the
+   same section anchors, so the table of contents and «#guide-…» links work
+   in every language. */
+test('guide fragments: one per language, identical section ids', function () {
+  var dir = path.join(__dirname, '..', 'data', 'guide');
+  var ids = null;
+  ['de', 'fr', 'it', 'en'].forEach(function (lang) {
+    var html = fs.readFileSync(path.join(dir, lang + '.html'), 'utf8');
+    var found = (html.match(/<section id="[^"]+"/g) || []).map(function (s) { return s.slice(13, -1); });
+    assert.ok(found.length >= 8, lang + ': sections');
+    if (ids) assert.deepStrictEqual(found, ids, lang + ': section ids differ from de');
+    ids = ids || found;
+    assert.ok(/aria-label="[^"]+"/.test(html), lang + ': toc label');
+    assert.ok(html.indexOf('<svg') === -1, lang + ': plain links only');
+  });
+});

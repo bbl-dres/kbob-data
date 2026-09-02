@@ -34,6 +34,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
     view: 'list',
     highlighted: null,        // highlighted property set in the graph (transient)
     allMilestones: [],      // every LOIN milestone occurring in the catalogue
+    catalogues: [],       // sources of the object types (buildCatalogues) — empty before the first load
+    guide: false,         // the «Anleitung» page is open (no catalogue level)
     silent: false,        // true while the URL is being read
     facets: { catalogue: [], status: [], milestone: [] },
     page: 1,
@@ -52,7 +54,8 @@ var KBOB = window.KBOB || (window.KBOB = {});
    'graph-message', 'graph-frame', 'graph-controls', 'filter-bar',
    'attribute-detail', 'zoom-in', 'zoom-out', 'zoom-reset',
    'facets', 'paginator', 'copy-status', 'language',
-   'back', 'graph-panel', 'graph-title', 'zoom-hint',
+   'facets-toggle', 'view-guide', 'guide-content', 'guide-lang-note',
+   'graph-panel', 'graph-title', 'zoom-hint',
    'graph-skip', 'graph-fullscreen'].forEach(function (id) {
     el[id] = document.getElementById(id);
   });
@@ -112,13 +115,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
        spinner. */
     K.i18nReady.then(function () {
       if (myGen !== st.generation) return;
-      if (!el.placeholder.hidden && !st.entries.length) {
+      if (!st.entries.length) {
         message(el.placeholder, { title: K.t('loading.catalog'), loading: true });
       }
       /* Reloading with existing content (language/endpoint switch): the
          interface texts change immediately, the content shows the ONE
-         loading state — a spinner in the table, gallery or graph. */
-      if (st.entries.length) {
+         loading state — a spinner in the table, gallery or graph. The
+         guide, if open, stays put; render() after the load decides. */
+      if (st.entries.length && !st.guide) {
         el.paginator.hidden = true;
         if (st.view === 'gallery') {
           showView('gallery');
@@ -211,6 +215,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
       type: 'error',
       action: { text: K.t('common.retry'), onClick: load, fokus: true }
     });
+    /* With the guide open the error tile waits behind it; render() shows
+       it as soon as the reader returns to the catalogue. */
+    if (K.state.guide) showGuide();
   }
 
   function buildCatalogues() {
@@ -291,13 +298,16 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     /* The button carries the filter name itself — «Katalog (2)» says at a
        glance WHICH filter applies; a separate label line and «n of m
-       selected» are then unnecessary. */
+       selected» are then unnecessary. It looks like a select field (dark
+       text, field border, chevron), not like an action button: it stands in
+       one row with the search field and opens a choice, it does not act.
+       No funnel icon — three identical icons in a row said nothing the
+       labels did not. */
     var button = document.createElement('button');
     button.type = 'button';
-    button.className = 'ob-button ob-button-secondary app-facet-toggle';
+    button.className = 'app-facet-toggle';
     button.setAttribute('aria-expanded', 'false');
 
-    button.appendChild(K.icon('filter'));
     var value = document.createElement('span');
     value.className = 'app-facet-value';
     value.id = id + '-value';
@@ -622,6 +632,11 @@ var KBOB = window.KBOB || (window.KBOB = {});
     if (st.page > 1) p.push('s=' + st.page);
     if (st.perPage !== 50) p.push('n=' + st.perPage);
 
+    /* The guide is its own top-level page: «#anleitung» (plus the language),
+       nothing of the catalogue state — the «Katalog» entry in the navigation
+       returns to the plain overview. */
+    if (st.guide) p = ['anleitung'].concat(st.language !== 'de' ? ['l=' + st.language] : []);
+
     var next = p.length ? '#' + p.join('&') : '#';
     /* location.hash returns an empty string for a bare «#» — without this
        compensation the base state would produce dead history entries. */
@@ -645,10 +660,15 @@ var KBOB = window.KBOB || (window.KBOB = {});
     /* Read from href, not from location.hash: some browsers decode the hash
        on read and broke encoded &/= inside search terms. */
     var raw = location.href.split('#')[1] || '';
+    var guide = false;
     raw.split('&').forEach(function (part) {
       var i = part.indexOf('=');
       if (i > 0) p[part.slice(0, i)] = part.slice(i + 1);
+      /* «#anleitung» opens the guide; «#guide-…» are the anchors of its
+         table of contents — the browser scrolls, the page stays. */
+      else if (part === 'anleitung' || part.indexOf('guide-') === 0) guide = true;
     });
+    st.guide = guide;
 
     function list(value) {
       return value ? value.split(',').map(dec).filter(Boolean) : [];
@@ -666,7 +686,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
     st.page     = Math.max(1, parseInt(p.s, 10) || 1);
     st.perPage  = K.PAGE_SIZES.indexOf(parseInt(p.n, 10)) !== -1
                      ? parseInt(p.n, 10) : K.PAGE_SIZES[0];
-    st.language   = K.LANGUAGES.indexOf(p.l) !== -1 ? p.l : 'de';
+    /* On the guide an address without «l=» (a table-of-contents anchor)
+       keeps the current language instead of falling back to German */
+    st.language   = K.LANGUAGES.indexOf(p.l) !== -1 ? p.l : (guide ? st.language : 'de');
     el.language.value = st.language;
     st.highlighted = null;   // transient graph state does not survive navigation
     st.sort = null;
@@ -825,9 +847,10 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var st = K.state;
     el.breadcrumb.innerHTML = '';
 
-    /* The crumb appears on every level — including the overview (a stable
-       anchor point, an editorial decision). */
-    el.breadcrumb.parentNode.hidden = false;
+    /* The crumb appears from depth 2 on. On the overview it would consist of
+       one unlinked item directly above the identical H1 — a path with one
+       element carries no information. */
+    el.breadcrumb.parentNode.hidden = !st.objectType;
     el.breadcrumb.appendChild(crumb(K.t('overview.title'), K.goToOverview, !st.objectType));
 
     if (st.objectType) {
@@ -861,8 +884,22 @@ var KBOB = window.KBOB || (window.KBOB = {});
   /* ---------- Rendering ---------- */
 
   function render(focus) {
-    if (!K.state.entries.length) return;
     var st = K.state;
+
+    /* The guide does not depend on the catalogue: it renders while the
+       data is still loading or has failed, and hands the content area back
+       untouched afterwards. */
+    updateMainNav();
+    if (st.guide) {
+      showGuide();
+      if (focus) el['page-title'].focus();
+      return;
+    }
+    el['view-guide'].hidden = true;
+    if (el.placeholder.hidden && !st.entries.length) el.placeholder.hidden = false;
+    if (!st.entries.length) return;
+    el.toolbar.hidden = false;
+    el['page-header'].hidden = false;
 
     /* The clear button in the search field follows the field content — also
        when the value was set programmatically (URL, chip removed) */
@@ -880,16 +917,9 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     var onAttribute = !!(st.attribute && attributeByUri());
 
-    /* A visible way back one level up — the breadcrumb is small, and the
-       button carries the destination in its accessible name. */
-    el.back.hidden = !st.objectType;
-    if (st.objectType) {
-      var parentName = onAttribute
-        ? (objectTypeByUri(st.objectType) || {}).name || K.t('col.type')
-        : K.t('overview.title');
-      el.back.setAttribute('aria-label', K.t('common.backTo', { name: parentName }));
-      el.back.title = K.t('common.backTo', { name: parentName });
-    }
+    /* The way back one level up is the breadcrumb (from depth 2 on) — one
+       mechanism, as in the Oblique master layout; a second «back» button
+       beside it duplicated the same destination. */
 
     /* On the attribute level there is nothing to search, filter or switch —
        the toolbar would only be pretending. */
@@ -905,9 +935,100 @@ var KBOB = window.KBOB || (window.KBOB = {});
     else if (st.objectType) showObjectType();
     else                   showOverview();
 
+    updateFacetsToggle();
+
     /* After a level change focus sits on the new heading — otherwise the
        rebuild drops it silently onto <body>. */
     if (focus) el['page-title'].focus();
+  }
+
+  /* The guide («Anleitung»): static content in #view-guide, the shared page
+     header carries title and figures line; toolbar, filters, paging and
+     the loading tile of the catalogue step aside. */
+  function showGuide() {
+    el.breadcrumb.parentNode.hidden = true;
+    el.toolbar.hidden = true;
+    el['filter-bar'].hidden = true;
+    el.paginator.hidden = true;
+    el.placeholder.hidden = true;
+    el['page-header'].hidden = false;
+    title(K.t('guide.title'), K.t('guide.meta'), null);
+    showView('guide');
+    loadGuide(K.state.language);
+  }
+
+  /* The guide text is one HTML fragment per language (data/guide/<lang>.html),
+     fetched once and kept; a language without a fragment falls back to
+     German and says so above the text. The fragment's language is marked
+     on the container (WCAG 3.1.2), the table-of-contents anchor of the
+     address is honoured once the content is there. */
+  var guideCache = {};
+  var guideRequest = 0;
+  function loadGuide(language) {
+    var target = el['guide-content'];
+    var note = el['guide-lang-note'];
+    var myRequest = ++guideRequest;
+
+    function show(html, shownLanguage) {
+      if (myRequest !== guideRequest) return;   // a newer language won
+      target.innerHTML = html;
+      target.setAttribute('lang', shownLanguage);
+      note.hidden = shownLanguage === language;
+      var anchor = /(^#|&)(guide-[^&]+)/.exec(location.hash);
+      var section = anchor && document.getElementById(anchor[2]);
+      if (section) section.scrollIntoView();
+    }
+
+    function fetchFragment(lang) {
+      if (guideCache[lang]) return Promise.resolve(guideCache[lang]);
+      return fetch('data/guide/' + lang + '.html').then(function (res) {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.text();
+      }).then(function (html) { guideCache[lang] = html; return html; });
+    }
+
+    if (guideCache[language]) { show(guideCache[language], language); return; }
+    target.innerHTML = '';
+    target.appendChild(K.loadingContent(K.t('guide.loading')));
+    fetchFragment(language).then(function (html) {
+      show(html, language);
+    }, function () {
+      if (language === 'de') { show('<p>' + K.t('errors.network') + '</p>', 'de'); return; }
+      fetchFragment('de').then(function (html) { show(html, 'de'); },
+        function () { show('<p>' + K.t('errors.network') + '</p>', 'de'); });
+    });
+  }
+  K.loadGuide = loadGuide;
+
+  /* aria-current and .active in the Oblique main navigation follow the
+     page: the catalogue on every catalogue level, the guide on its page */
+  function updateMainNav() {
+    var guide = !!K.state.guide;
+    [['nav-catalog', !guide], ['nav-guide', guide]].forEach(function (pair) {
+      var a = document.getElementById(pair[0]);
+      if (!a) return;
+      a.classList.toggle('active', pair[1]);
+      if (pair[1]) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    });
+  }
+
+  /* Phones only (CSS shows the button below sm): the facet fields are
+     folded away behind one «Filter» button; its label carries the number of
+     facets currently narrowing THIS level. The active values themselves are
+     visible anyway — as chips above the list. */
+  function updateFacetsToggle() {
+    var st = K.state;
+    var effective = st.objectType ? ['milestone'] : Object.keys(FACET_TITLES);
+    var n = effective.reduce(function (s, k) { return s + (st.facets[k] || []).length; }, 0);
+    var title = K.t('facets.toggle');
+    el['facets-toggle'].querySelector('.app-facets-toggle-label').textContent =
+      title + (n ? ' (' + n + ')' : '');
+    el['facets-toggle'].setAttribute('aria-label',
+      n ? K.t('facets.selectedCount', { title: title, n: n }) : title);
+    /* Nothing to fold away when no facet applies on this level */
+    var any = Array.prototype.some.call(el.facets.children, function (box) { return !box.hidden; });
+    el['facets-toggle'].hidden = !any;
   }
   K.render = render;
 
@@ -1004,7 +1125,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
   /* The only place that knows the four view containers */
   function showView(name) {
     if (name !== 'graph') closeGraphPanel(false);
-    ['list', 'gallery', 'graph', 'attribute'].forEach(function (v) {
+    ['list', 'gallery', 'graph', 'attribute', 'guide'].forEach(function (v) {
       el['view-' + v].hidden = (v !== name);
     });
   }
@@ -1598,20 +1719,13 @@ var KBOB = window.KBOB || (window.KBOB = {});
     return STATUS_EXPLANATION[value] ? K.t(STATUS_EXPLANATION[value]) : '';
   }
 
-  function statusTag(value) {
-    if (!value) return null;
-    var t = document.createElement('span');
-    t.className = 'app-tag';
-    t.appendChild(K.text(value, 'en'));   // data values are English
-    if (STATUS_EXPLANATION[value]) t.title = statusExplanation(value);
-    return t;
-  }
-
-  /* Plain text in table cells — the column header already labels it, and a
-     chip shape per row would be pure framing (one text style). */
+  /* Plain text in table cells and in the detail — the column header or the
+     label already names it, and a tag shape around a single word would be
+     pure framing (one text style). Tags stay in the gallery, where several
+     values share one row. */
   function statusText(value) {
     if (!value) return null;
-    var s = K.text(value, 'en');
+    var s = K.text(value, 'en');   // data values are English
     if (STATUS_EXPLANATION[value]) s.title = statusExplanation(value);
     return s;
   }
@@ -1637,11 +1751,6 @@ var KBOB = window.KBOB || (window.KBOB = {});
       return;
     }
     message(el['graph-message'], { title: title, text: text, loading: loading });
-  }
-
-  function typeTag(m) {
-    if (!m.type) return K.emptyValue(K.t('empty.type'));
-    return K.e('span', 'app-tag', m.type);
   }
 
   /* Without a colour dot: in the table the name carries the meaning — the
@@ -1728,7 +1837,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     row(dlA, K.t('col.type'), K.text(e.name, e.language));
     row(dlA, K.t('col.pset'), psetCell(e, m));
     row(dlA, K.t('col.catalog'), e.source);
-    row(dlA, K.t('col.status'), statusTag(m.status), K.t('empty.status'));
+    row(dlA, K.t('col.status'), statusText(m.status), K.t('empty.status'));
 
     /* IRI with a copy button, like the I14Y permalink field */
     var iri = K.e('span', 'app-copy');
@@ -1751,7 +1860,7 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var type = section(K.t('detail.typeUnit'));
     var dlT = K.e('dl', 'app-data-list');
     type.appendChild(dlT);
-    row(dlT, K.t('col.datatype'), typeTag(m));
+    row(dlT, K.t('col.datatype'), m.type, K.t('empty.type'));
     row(dlT, K.t('col.unit'), m.unit, K.t('empty.unit'));
     row(dlT, K.t('col.ifcType'), m.ifcTyp);
     row(dlT, K.t('col.ifcPset'), m.ifcPset);
@@ -1993,9 +2102,26 @@ var KBOB = window.KBOB || (window.KBOB = {});
 
     el.reload.addEventListener('click', load);
 
-    el.back.addEventListener('click', function () {
-      if (K.state.attribute) K.goToObjectType(K.state.objectType);
-      else K.goToOverview();
+    /* Main navigation: handled in script so that the language survives
+       (the plain «#» of the catalogue entry would drop «l=»); the hrefs stay
+       for open-in-new-tab. */
+    document.getElementById('nav-catalog').addEventListener('click', function (ev) {
+      ev.preventDefault();
+      K.state.guide = false;
+      K.goToOverview();
+    });
+    document.getElementById('nav-guide').addEventListener('click', function (ev) {
+      ev.preventDefault();
+      if (K.state.guide) { el['page-title'].focus(); return; }
+      K.state.guide = true;
+      writeUrl();
+      render(true);
+    });
+
+    /* Phones: fold the facet fields in and out (see updateFacetsToggle) */
+    el['facets-toggle'].addEventListener('click', function () {
+      var open = el.toolbar.classList.toggle('app-facets-open');
+      el['facets-toggle'].setAttribute('aria-expanded', String(open));
     });
 
     /* The language choice affects the catalogue labels: a new language
@@ -2117,10 +2243,12 @@ var KBOB = window.KBOB || (window.KBOB = {});
       window.addEventListener('resize', measureHeader);
     }
 
-    /* Back-to-top tab: appears after half a window height */
+    /* Back-to-top tab: appears after half a window height — through the
+       CD state class on <body> (ob-master-layout-scrolling), which the
+       top-control styles key on */
     var toTop = document.getElementById('to-top');
     window.addEventListener('scroll', function () {
-      toTop.hidden = window.scrollY < window.innerHeight / 2;
+      document.body.classList.toggle('ob-master-layout-scrolling', window.scrollY >= window.innerHeight / 2);
     }, { passive: true });
     toTop.addEventListener('click', function () {
       var ruhig = window.matchMedia &&
@@ -2145,8 +2273,14 @@ var KBOB = window.KBOB || (window.KBOB = {});
     var l = /[#&]l=(de|fr|it|en)(&|$)/.exec(location.hash);
     if (l) { K.state.language = l[1]; el.language.value = l[1]; }
 
-    /* Static labels as soon as the dictionary has arrived */
-    K.i18nReady.then(K.translateStatic);
+    /* Static labels as soon as the dictionary has arrived — and the guide,
+       if the address asks for it: it needs no catalogue and must not wait
+       behind the loading tile. */
+    K.state.guide = /(^#|&)(anleitung|guide-[^&]*)(&|$)/.test(location.hash);
+    K.i18nReady.then(function () {
+      K.translateStatic();
+      if (K.state.guide) render();
+    });
   }
 
   wire();

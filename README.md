@@ -31,6 +31,7 @@ A browser-based explorer that turns the [KBOB Data Dictionary](https://github.co
 - Use German, French, Italian, or English labels.
 - Export object types and attributes to XLSX.
 - Inspect the SPARQL queries used to load catalogue data.
+- Read the guide (Anleitung): what a data dictionary is, where the data comes from, how to use the app.
 
 ## Run locally
 
@@ -47,6 +48,8 @@ Open <http://localhost:8000/>. For authenticated or alternate SPARQL endpoints, 
 - [Technical review](docs/REVIEW.md)
 - [Code review](docs/CODE-REVIEW.md)
 - [Interface reviews](docs/GRAPH-REVIEW.md)
+- [UX and CD review](docs/UX-REVIEW.md)
+- [Spacing and layout review](docs/SPACING-REVIEW.md)
 
 ## License
 

@@ -252,3 +252,6 @@ verlinkten Element («Objekttypen») unmittelbar über der gleichlautenden
 H1 — eine Krume mit einem Element trägt keine Information. Der Code hält
 das ausdrücklich als redaktionellen Entscheid fest («stabiler Ankerpunkt»);
 darum als Beobachtung notiert statt still geändert.
+
+**Nachtrag 02.09.2026:** umgesetzt — die Brotkrume erscheint ab Tiefe 2
+(docs/UX-REVIEW.md §2.2, zusammen mit dem Entfall des «Zurück»-Knopfs).

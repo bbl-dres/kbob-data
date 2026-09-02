@@ -1,0 +1,200 @@
+<nav aria-label="Contents of this page" class="app-guide-toc">
+  <ul>
+    <li><a href="#guide-kbob">What is the KBOB Data Dictionary?</a></li>
+    <li><a href="#guide-dd">What is a data dictionary?</a></li>
+    <li><a href="#guide-begriffe">Terms used in this application</a></li>
+    <li><a href="#guide-lindas">What are LINDAS and I14Y?</a></li>
+    <li><a href="#guide-modell">How is the data model built?</a></li>
+    <li><a href="#guide-bedienung">How do I use the application?</a></li>
+    <li><a href="#guide-grenzen">What the data does not say</a></li>
+    <li><a href="#guide-quellen">Sources and links</a></li>
+  </ul>
+</nav>
+
+<section id="guide-kbob">
+  <h2>What is the KBOB Data Dictionary?</h2>
+  <p>The <b>KBOB</b> (Coordination Conference for Public Sector Construction and Property
+    Services) has represented the public building owners of the Confederation, the cantons,
+    cities and municipalities since 1968; the Federal Office for Buildings and Logistics
+    FOBL chairs it and hosts its secretariat. Its tasks include digital methods in
+    construction (BIM) and the standardisation of property management.</p>
+  <p>The <b>KBOB Data Dictionary</b> captures existing data catalogues from the planning,
+    construction and operation of built assets in a structured way, improves their quality
+    and publishes them in machine-readable form. For every <b>object type</b> (building,
+    room, bridge, luminaire, document type …) it records which <b>attributes</b> the type
+    carries — with data type, unit, allowed values, property set and, where available, the
+    counterpart in the open exchange format IFC. The structure follows ISO 23386,
+    ISO 23387 and ISO 12006 and the DCAT metadata vocabulary.</p>
+  <p>The catalogues are captured in Excel workbooks, validated automatically and converted
+    to RDF (repositories under <a href="#guide-quellen">Sources and links</a>). This
+    application reads the result from LINDAS and presents it as a reference work — it does
+    not change the data.</p>
+</section>
+
+<section id="guide-dd">
+  <h2>What is a data dictionary?</h2>
+  <p>The national glossary of Bauen digital Schweiz / buildingSMART Switzerland defines a
+    data dictionary as a “centralised repository of information about data, such as
+    meaning, relationships to other data, origin, usage and format”. A data dictionary
+    therefore does not describe an individual building; it defines <em>how</em> buildings
+    are described: which terms exist, what they mean and in which form their values are
+    exchanged.</p>
+  <h3>Why is it needed?</h3>
+  <p>Data is abundant in the construction and real-estate industry, but differing terms,
+    structures and systems make its end-to-end use difficult. A shared data language is
+    the foundation for interoperable and reusable data. On 15 September 2026, Bauen digital
+    Schweiz and buildingSMART Switzerland, together with bauenschweiz, SBV, infrasuisse,
+    IFMA, KBOB, SIA and CRB, launch the recommendation “Data Dictionaries — no digital
+    construction industry without a shared data language”.</p>
+  <h3>Which standards apply?</h3>
+  <p><b>SN EN ISO 23386:2020</b> (“Methodology to describe, author and maintain properties
+    in interconnected data dictionaries”) defines how properties are defined, described by
+    attributes, reviewed by experts and linked between data dictionaries. <b>ISO 23387</b>
+    describes data templates for construction objects, <b>ISO 12006-3</b> the
+    object-oriented framework for such dictionaries.</p>
+  <h3>And the buildingSMART Data Dictionary?</h3>
+  <p>The <b>bSDD</b> is buildingSMART’s international service in which classifications,
+    properties and allowed values are published according to ISO 12006-3 and ISO 23386 and
+    can be referenced from IFC models or IDS specifications. The KBOB Data Dictionary is a
+    national dictionary of the same kind; its IFC mappings (IFC class and IFC property set)
+    bridge to the definitions published there.</p>
+</section>
+
+<section id="guide-begriffe">
+  <h2>Terms used in this application</h2>
+  <dl class="app-data-list">
+    <dt>Object type</dt>
+    <dd>A class of things being described — a building, a room, a building element, a
+      lighting installation or a document type. Every object type belongs to exactly one
+      catalogue.</dd>
+    <dt>Catalogue</dt>
+    <dd>The source an object type comes from (for example “KBOB Data Dictionary FM” or
+      “KBOB Dokumenttypenkatalog”). The catalogue is a filter, not a navigation level.</dd>
+    <dt>Attribute</dt>
+    <dd>A property an object type carries — room area, fire-resistance class,
+      manufacturer. The national glossary uses “Merkmal” as the technical term
+      (SIA 2051, SN EN ISO 23386); “Attribut” there denotes the data element that
+      describes such a property in machine-interpretable form.</dd>
+    <dt>Property set</dt>
+    <dd>A named group of attributes (for example “KBOB_Geometry”). Where a property set
+      corresponds to an IFC property set (“Pset_…”, “Qto_…”), the application shows
+      both.</dd>
+    <dt>Data type</dt>
+    <dd>Text, number, integer, yes/no or date/time. A text attribute with a value list
+      appears as <b>Selection</b>.</dd>
+    <dt>Unit and allowed values</dt>
+    <dd>The unit of measurement of a numeric attribute (m, m², kW …) or the list of values
+      a selection attribute may take.</dd>
+    <dt>Maturity</dt>
+    <dd>The status of an entry in the catalogue: <b>Candidate</b> (in preparation) or
+      <b>Preview</b> (released for preview). No entry is adopted yet.</dd>
+    <dt>LOIN milestone</dt>
+    <dd>The point in the life cycle at which an attribute should be available (level of
+      information need according to SN EN 17412-1). The catalogue uses the values LZP1 to
+      LZP9; their binding definition is still pending with the data publishers. Only a few
+      attributes carry a milestone so far.</dd>
+    <dt>IRI</dt>
+    <dd>The permanent address of an entry in LINDAS (permalink), which can be copied and
+      referenced in other systems.</dd>
+  </dl>
+</section>
+
+<section id="guide-lindas">
+  <h2>What are LINDAS and I14Y?</h2>
+  <p><b>LINDAS</b> (Linked Data Services) is the linked-data service of the Swiss Federal
+    Archives. Authorities publish data through it as knowledge graphs in RDF; the data can
+    be queried with the query language <b>SPARQL</b>. This application sends such queries
+    to LINDAS on every visit — it keeps no copy of the catalogue of its own. The wording of
+    the queries can be inspected in the “Connection and query” dialog.</p>
+  <p>The catalogue currently lives on the LINDAS <b>integration environment</b>
+    (<code>int.lindas.admin.ch</code>) in the named graph
+    <code>https://lindas.admin.ch/fobl/kbob/dd-fm</code>. This is a preliminary release:
+    content may change without notice.</p>
+  <p><b>I14Y</b> is the Swiss Confederation’s interoperability platform, operated by the
+    Federal Statistical Office. It lists the administration’s datasets and interfaces with
+    their metadata — including the SPARQL service of the KBOB Data Dictionary. The data
+    itself stays in LINDAS.</p>
+</section>
+
+<section id="guide-modell">
+  <h2>How is the data model built?</h2>
+  <p>The “NatDD core” vocabulary (National Data Dictionary, version 0.1.0, Public Review
+    Draft) describes a catalogue as a chain: a <b>data dictionary</b> contains
+    <b>classes</b> (object types) and <b>properties</b>; a <b>data template</b> assigns a
+    class its <b>property requirements</b>, and every requirement refers to a property, a
+    group of properties (property set) and, where applicable, an enumeration scheme. A
+    property is thus defined once and can be used in several object types with a different
+    context.</p>
+  <p>This application condenses the chain, per object type, into one row per attribute
+    and property set. The full description of the model, the namespaces and the queries is
+    in the documentation
+    <a href="https://github.com/bbl-dres/kbob-data/blob/main/docs/DATAMODEL.md">Data model and SPARQL guide</a>.</p>
+</section>
+
+<section id="guide-bedienung">
+  <h2>How do I use the application?</h2>
+  <dl class="app-data-list">
+    <dt>Search and filter</dt>
+    <dd>The search field searches names and descriptions of the current level. The
+      Catalogue, Maturity and LOIN milestone fields narrow the list; “or” applies within a
+      field, “and” between fields. Active filters appear as chips above the list and can
+      be removed there one by one.</dd>
+    <dt>Views</dt>
+    <dd><b>List</b> shows all details as a table with sortable columns. <b>Gallery</b>
+      shows the same entries as cards — useful for document types, where the description
+      is the main content. <b>Graph</b> shows on the overview which object types share
+      property sets and, for an object type, its attributes grouped by property set.</dd>
+    <dt>Opening an object type or attribute</dt>
+    <dd>Clicking a name opens the next level. The breadcrumb above the title leads back;
+      the browser’s back button works too, because every view has its own address and can
+      be shared as a link.</dd>
+    <dt>Operating the graph</dt>
+    <dd>Dragging pans, the mouse wheel with Ctrl/Cmd or the buttons zoom, clicking a node
+      opens its details in a side panel. With the keyboard: Tab from node to node, arrow
+      keys pan, + and − zoom, 0 resets the view. A complete text version is provided for
+      screen readers.</dd>
+    <dt>Language</dt>
+    <dd>The choice at the top right (DE/FR/IT/EN) switches the interface and the catalogue
+      labels. Where a translation is missing in the catalogue, the German or English
+      version appears.</dd>
+    <dt>Export</dt>
+    <dd>“Export to Excel” saves all object types and attributes as an XLSX workbook with
+      three sheets.</dd>
+    <dt>Connection and query</dt>
+    <dd>Shows the SPARQL queries used and allows the endpoint and graph to be changed —
+      for a local instance, say, or a future production instance.</dd>
+  </dl>
+</section>
+
+<section id="guide-grenzen">
+  <h2>What the data does not say</h2>
+  <ul>
+    <li>The catalogue has <b>no requirement level</b>: all requirements are “included”
+      (represented in the template). Whether an attribute is mandatory or optional cannot
+      be read from it.</li>
+    <li>LOIN milestones are recorded for only a few attributes (all from the AG ATB iDSK
+      pilot); their definition LZP1–LZP9 is not yet binding.</li>
+    <li>No entry is adopted — all object types are Candidate or Preview.</li>
+    <li>Labels exist predominantly in English and German; French and Italian are
+      translated only in small part.</li>
+    <li>The data comes from the integration environment; production publication through
+      I14Y is planned for 2026.</li>
+  </ul>
+</section>
+
+<section id="guide-quellen">
+  <h2>Sources and links</h2>
+  <ul class="app-guide-links">
+    <li><a href="https://www.kbob.admin.ch/en/about-us">KBOB — About us</a></li>
+    <li><a href="https://github.com/KBOB-admin/KBOB-data-dictionary">KBOB Data Dictionary — workbooks and validation (GitHub)</a></li>
+    <li><a href="https://github.com/KBOB-admin/KBOB-data-dictionary-schema">NatDD core — the vocabulary (GitHub)</a></li>
+    <li><a href="https://github.com/KBOB-admin/KBOB-data-dictionary-schemaforge">SchemaForge — conversion to RDF (GitHub)</a></li>
+    <li><a href="https://www.i14y.admin.ch/en/catalog/dataservices/kbob-fm-data-dictionary-sparql/description">KBOB FM Data Dictionary SPARQL on I14Y</a></li>
+    <li><a href="https://lindas.admin.ch/ecosystem/about-LINDAS/">LINDAS — Linked Data Services of the Federal Archives</a></li>
+    <li><a href="https://bauen-digital.ch/publikationen/glossar/">National glossary — Bauen digital Schweiz / buildingSMART Switzerland</a></li>
+    <li><a href="https://bauen-digital.ch/event/kick-off-zur-neuen-handlungsempfehlung-data-dictionaries-ohne-gemeinsame-datensprache-keine-digitale-bauwirtschaft-online/">Recommendation “Data Dictionaries” — kick-off on 15 September 2026</a></li>
+    <li><a href="https://www.buildingsmart.org/users/services/buildingsmart-data-dictionary/">buildingSMART Data Dictionary (bSDD)</a></li>
+    <li><a href="https://www.iso.org/standard/75401.html">ISO 23386:2020 — Methodology to describe, author and maintain properties in interconnected data dictionaries</a></li>
+    <li><a href="https://github.com/bbl-dres/kbob-data">Source code and documentation of this application (GitHub)</a></li>
+  </ul>
+</section>
